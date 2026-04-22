@@ -126,7 +126,7 @@ const OrderSummary = ({ totalPrice, items }) => {
                 <div className='flex justify-between'>
                     <div className='flex flex-col gap-1 text-slate-400'>
                         <p>Subtotal:</p>
-                        <p>Shipping:</p>
+                        <p>Delivery:</p>
                         {coupon && <p>Coupon:</p>}
                     </div>
                     <div className='flex flex-col gap-1 font-medium text-right'>
