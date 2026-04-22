@@ -1,6 +1,5 @@
 import StoreLayout from "@/components/store/StoreLayout";
-import { SignIn } from "@clerk/nextjs"
-import { SignedIn, SignedOut } from "@clerk/nextjs/components"
+import {SignedIn, SignedOut, SignIn} from "@clerk/nextjs"
 
 export const metadata = {
     title: "GoCart. - Store Dashboard",
