@@ -1,12 +1,27 @@
-// This file handles user creation and update events for profile syncing
+import { createClerkClient } from "@clerk/backend"
+import { PrismaClient } from "@prisma/client"
 
-const handleUserCreated = (user) => {
-    // Logic to sync the user profile when created
-};
+const prisma = new PrismaClient()
 
-const handleUserUpdated = (user) => {
-    // Logic to sync the user profile when updated
-};
+const clerk = createClerkClient({ 
+  secretKey: process.env.CLERK_SECRET_KEY 
+})
 
-// Export the functions
-module.exports = { handleUserCreated, handleUserUpdated };
+const { data: users } = await clerk.users.getUserList({ limit: 100 })
+
+for (const user of users) {
+  await prisma.user.upsert({
+    where: { id: user.id },
+    update: {},
+    create: {
+      id: user.id,
+      name: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+      email: user.emailAddresses[0]?.emailAddress ?? "",
+      image: user.imageUrl ?? "",
+    },
+  })
+  console.log(`Synced: ${user.emailAddresses[0]?.emailAddress}`)
+}
+
+await prisma.$disconnect()
+console.log("Backfill complete")

@@ -1,60 +1,100 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// FILEPATH: app/api/admin/approve-store/route.js
+// ─────────────────────────────────────────────────────────────────────────────
 import prisma from "@/lib/prisma";
 import authAdmin from "@/middlewares/authAdmin";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
+const ALLOWED_STATUSES = ["approved", "rejected"];
 
-// Approve Seller
-export async function POST(request){
+// ── POST /api/admin/approve-store ─────────────────────────────────────────────
+// Approves or rejects a pending store application.
+// Body: { storeId: string, status: "approved" | "rejected" }
+
+export async function POST(request) {
     try {
-        const { userId } = getAuth(request)
-        const isAdmin = await authAdmin(userId)
+        const { userId } = getAuth(request);
+        const isAdmin    = await authAdmin(userId);
 
         if (!isAdmin) {
-            return NextResponse.json({ error: 'not authorized' }, { status: 401 })
+            return NextResponse.json({ error: "Not authorized." }, { status: 403 });
         }
 
-        const {storeId, status} = await request.json()
+        const body = await request.json();
+        const { storeId, status } = body;
 
-        if(status === 'approved'){
-            await prisma.store.update({
-                where: { id: storeId },
-                data: { status: "approved", isActive: true }
-            })
-        }else if(status === 'rejected'){
-             await prisma.store.update({
-                where: { id: storeId },
-                data: { status: "rejected"}
-            })
+        // Validate storeId
+        if (!storeId || typeof storeId !== "string" || !storeId.trim()) {
+            return NextResponse.json({ error: "A valid storeId is required." }, { status: 422 });
         }
 
-        return NextResponse.json({ message: status + ' successfully' })
+        // Validate status — only these two values can ever be written
+        if (!ALLOWED_STATUSES.includes(status)) {
+            return NextResponse.json(
+                { error: `Status must be one of: ${ALLOWED_STATUSES.join(", ")}.` },
+                { status: 422 }
+            );
+        }
+
+        // Confirm the store exists
+        const store = await prisma.store.findUnique({
+            where:  { id: storeId.trim() },
+            select: { id: true, status: true, name: true },
+        });
+
+        if (!store) {
+            return NextResponse.json({ error: "Store not found." }, { status: 404 });
+        }
+
+        if (store.status === "approved" && status === "approved") {
+            return NextResponse.json({ error: "This store is already approved." }, { status: 409 });
+        }
+
+        await prisma.store.update({
+            where: { id: storeId.trim() },
+            data:  status === "approved"
+                ? { status: "approved", isActive: true  }
+                : { status: "rejected", isActive: false },
+        });
+
+        return NextResponse.json({
+            message: `Store "${store.name}" has been ${status} successfully.`,
+        });
 
     } catch (error) {
-        console.error(error);
-        return NextResponse.json({ error: error.code || error.message }, { status: 400 })
+        console.error("[POST /api/admin/approve-store]", error);
+        return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
     }
 }
 
-// get all pending and rejected stores
-export async function GET(request){
+// ── GET /api/admin/approve-store ──────────────────────────────────────────────
+// Returns all pending and rejected store applications for the admin panel.
+// Only exposes the user fields the frontend actually needs (no data leaking).
+
+export async function GET(request) {
     try {
-        const { userId } = getAuth(request)
-        const isAdmin = await authAdmin(userId)
+        const { userId } = getAuth(request);
+        const isAdmin    = await authAdmin(userId);
 
         if (!isAdmin) {
-            return NextResponse.json({ error: 'not authorized' }, { status: 401 })
+            return NextResponse.json({ error: "Not authorized." }, { status: 403 });
         }
 
         const stores = await prisma.store.findMany({
-            where: { status: { in: ["pending", "rejected"] }},
-            include: { user: true }
-        })
+            where:   { status: { in: ["pending", "rejected"] } },
+            include: {
+                user: {
+                    select: { id: true, name: true, email: true, image: true },
+                },
+            },
+            orderBy: { createdAt: "desc" },
+        });
 
-        return NextResponse.json({ stores })
+        return NextResponse.json({ stores });
 
     } catch (error) {
-        console.error(error);
-        return NextResponse.json({ error: error.code || error.message }, { status: 400 })
+        console.error("[GET /api/admin/approve-store]", error);
+        return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
     }
 }
