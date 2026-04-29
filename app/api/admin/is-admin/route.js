@@ -1,21 +1,22 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// FILEPATH: app/api/admin/is-admin/route.js
+// ─────────────────────────────────────────────────────────────────────────────
 import authAdmin from "@/middlewares/authAdmin";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-
-// Auth Admin 
-export async function GET(request){
+export async function GET(request) {
     try {
-        const { userId } = getAuth(request)
-        const isAdmin = await authAdmin(userId)
+        const { userId, sessionClaims } = getAuth(request);
+        const isAdmin = await authAdmin(userId, sessionClaims);
 
-        if(!isAdmin){
-            return NextResponse.json({ error: 'not authorized' }, { status: 401 })
+        if (!isAdmin) {
+            return NextResponse.json({ isAdmin: false }, { status: 200 });
         }
 
-        return NextResponse.json({isAdmin})
+        return NextResponse.json({ isAdmin: true });
     } catch (error) {
-        console.error(error);
-        return NextResponse.json({ error: error.code || error.message }, { status: 400 })
+        console.error("[GET /api/admin/is-admin]", error);
+        return NextResponse.json({ isAdmin: false }, { status: 500 });
     }
 }

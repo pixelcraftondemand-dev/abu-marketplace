@@ -1,18 +1,36 @@
-import { clerkClient } from "@clerk/nextjs/server"
+// ─────────────────────────────────────────────────────────────────────────────
+// FILEPATH: middlewares/authAdmin.js
+// ─────────────────────────────────────────────────────────────────────────────
 
-
-const authAdmin = async (userId) => {
+/**
+ * Verifies the requesting user is an admin by checking their email
+ * directly from the Clerk session claims — no extra clerkClient API
+ * call required, no external failure point.
+ *
+ * Usage: const isAdmin = await authAdmin(userId, sessionClaims)
+ *
+ * In your route:
+ *   const { userId, sessionClaims } = getAuth(request)
+ *   const isAdmin = await authAdmin(userId, sessionClaims)
+ */
+const authAdmin = async (userId, sessionClaims) => {
     try {
-        if(!userId) return false
+        if (!userId || !sessionClaims) return false;
 
-        const client = await clerkClient()
-        const user = await client.users.getUser(userId)
+        const email = sessionClaims?.email ?? sessionClaims?.primaryEmail ?? null;
 
-        return process.env.ADMIN_EMAIL.split(',').includes(user.emailAddresses[0].emailAddress)
+        if (!email) return false;
+
+        const adminEmails = (process.env.ADMIN_EMAIL || "")
+            .split(",")
+            .map((e) => e.trim().toLowerCase())
+            .filter(Boolean);
+
+        return adminEmails.includes(email.toLowerCase());
     } catch (error) {
-        console.error(error)
-        return false
+        console.error("[authAdmin]", error);
+        return false;
     }
-}
+};
 
-export default authAdmin
+export default authAdmin;

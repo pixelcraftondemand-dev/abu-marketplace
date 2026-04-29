@@ -1,54 +1,38 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// FILEPATH: app/api/admin/dashboard/route.js
+// ─────────────────────────────────────────────────────────────────────────────
 import prisma from "@/lib/prisma";
 import authAdmin from "@/middlewares/authAdmin";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-// Get Dashboard Data for Admin ( total orders, total stores, total products, total revenue )
-
-export async function GET(request){
-
+export async function GET(request) {
     try {
-        const { userId } = getAuth(request)
-    const isAdmin = await authAdmin(userId)
+        const { userId, sessionClaims } = getAuth(request);
+        const isAdmin = await authAdmin(userId, sessionClaims);
 
-     if (!isAdmin) {
-            return NextResponse.json({ error: 'not authorized' }, { status: 401 });
+        if (!isAdmin) {
+            return NextResponse.json({ error: "Not authorized." }, { status: 403 });
         }
 
-    // Get total orders
-    const orders = await prisma.order.count()
-    // Get total stores on app
-    const stores = await prisma.store.count()
-    // get all orders include only createdAt and total & calculate total revenue
-    const allOrders = await prisma.order.findMany({
-        select: {
-            createdAt: true,
-            total: true,
-        }
-    })
+        const [orders, stores, products, allOrders] = await Promise.all([
+            prisma.order.count(),
+            prisma.store.count(),
+            prisma.product.count(),
+            prisma.order.findMany({
+                select: { createdAt: true, total: true },
+            }),
+        ]);
 
-    let totalRevenue = 0
-    allOrders.forEach(order => {
-        totalRevenue += order.total
-    })
+        const revenue = allOrders
+            .reduce((sum, o) => sum + o.total, 0)
+            .toFixed(2);
 
-    const revenue = totalRevenue.toFixed(2)
-    // total products on app
-     const products = await prisma.product.count()
-    const dashboardData = {
-        orders,
-        stores,
-        products,
-        revenue,
-        allOrders
-    }
-
-    return NextResponse.json({dashboardData})
-
+        return NextResponse.json({
+            dashboardData: { orders, stores, products, revenue, allOrders },
+        });
     } catch (error) {
-         console.error(error);
-         return NextResponse.json({ error: error.code || error.message }, { status: 400 })
+        console.error("[GET /api/admin/dashboard]", error);
+        return NextResponse.json({ error: "Something went wrong." }, { status: 500 });
     }
-    
-
 }
