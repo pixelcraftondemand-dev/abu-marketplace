@@ -1,41 +1,74 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// FILEPATH: app/api/admin/coupon/route.js
+// ─────────────────────────────────────────────────────────────────────────────
+import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
+import authAdmin from "@/middlewares/authAdmin";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-
-// Verify coupon
-export async function POST(request){
+export async function POST(request) {
     try {
-        const {userId, has} = getAuth(request)
-        const { code } = await request.json()
+        const { userId } = getAuth(request);
+        const isAdmin = await authAdmin(userId);
 
-        const coupon = await prisma.coupon.findUnique({
-            where: {code: code.toUpperCase(),
-                expiresAt: {gt: new Date()}
-            }
-        })
-
-        if (!coupon){
-            return NextResponse.json({ error: "Coupon not found" }, { status: 404 })
+        if (!isAdmin) {
+            return NextResponse.json({ error: "Not authorized." }, { status: 403 });
         }
 
-        if(coupon.forNewUser){
-            const userorders = await prisma.order.findMany({where: {userId}})
-            if(userorders.length > 0){
-                return NextResponse.json({ error: "Coupon valid for new users" }, { status: 400 })
-            }
-        }
+        const { coupon } = await request.json();
+        coupon.code = coupon.code.toUpperCase();
 
-        if (coupon.forMember){
-            const hasPlusPlan = has({plan: 'plus'})
-            if(!hasPlusPlan){
-                return NextResponse.json({ error: "Coupon valid for members only" }, { status: 400 })
-            }
-        }
+        await prisma.coupon.create({ data: coupon }).then(async (created) => {
+            await inngest.send({
+                name: "app/coupon.expired",
+                data: { code: created.code, expires_at: created.expiresAt },
+            });
+        });
 
-        return NextResponse.json({coupon})
+        return NextResponse.json({ message: "Coupon added successfully." });
     } catch (error) {
-        console.error(error);
-        return NextResponse.json({ error: error.code || error.message }, { status: 400 })
+        console.error("[POST /api/admin/coupon]", error);
+        return NextResponse.json({ error: error.code || error.message }, { status: 400 });
+    }
+}
+
+export async function DELETE(request) {
+    try {
+        const { userId } = getAuth(request);
+        const isAdmin = await authAdmin(userId);
+
+        if (!isAdmin) {
+            return NextResponse.json({ error: "Not authorized." }, { status: 403 });
+        }
+
+        const code = request.nextUrl.searchParams.get("code");
+
+        if (!code) {
+            return NextResponse.json({ error: "Coupon code is required." }, { status: 422 });
+        }
+
+        await prisma.coupon.delete({ where: { code } });
+        return NextResponse.json({ message: "Coupon deleted successfully." });
+    } catch (error) {
+        console.error("[DELETE /api/admin/coupon]", error);
+        return NextResponse.json({ error: error.code || error.message }, { status: 400 });
+    }
+}
+
+export async function GET(request) {
+    try {
+        const { userId } = getAuth(request);
+        const isAdmin = await authAdmin(userId);
+
+        if (!isAdmin) {
+            return NextResponse.json({ error: "Not authorized." }, { status: 403 });
+        }
+
+        const coupons = await prisma.coupon.findMany({});
+        return NextResponse.json({ coupons });
+    } catch (error) {
+        console.error("[GET /api/admin/coupon]", error);
+        return NextResponse.json({ error: error.code || error.message }, { status: 400 });
     }
 }

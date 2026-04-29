@@ -7,14 +7,9 @@ import { NextResponse } from "next/server";
 
 export async function GET(request) {
     try {
-        const { userId, sessionClaims } = getAuth(request);
-        const isAdmin = await authAdmin(userId, sessionClaims);
-
-        if (!isAdmin) {
-            return NextResponse.json({ isAdmin: false }, { status: 200 });
-        }
-
-        return NextResponse.json({ isAdmin: true });
+        const { userId } = getAuth(request);
+        const isAdmin = await authAdmin(userId);
+        return NextResponse.json({ isAdmin: !!isAdmin });
     } catch (error) {
         console.error("[GET /api/admin/is-admin]", error);
         return NextResponse.json({ isAdmin: false }, { status: 500 });

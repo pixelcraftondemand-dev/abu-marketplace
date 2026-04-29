@@ -8,8 +8,8 @@ import { NextResponse } from "next/server";
 
 export async function GET(request) {
     try {
-        const { userId, sessionClaims } = getAuth(request);
-        const isAdmin = await authAdmin(userId, sessionClaims);
+        const { userId } = getAuth(request);
+        const isAdmin = await authAdmin(userId);
 
         if (!isAdmin) {
             return NextResponse.json({ error: "Not authorized." }, { status: 403 });

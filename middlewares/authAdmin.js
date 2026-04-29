@@ -1,32 +1,44 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // FILEPATH: middlewares/authAdmin.js
 // ─────────────────────────────────────────────────────────────────────────────
+import prisma from "@/lib/prisma";
 
 /**
- * Verifies the requesting user is an admin by checking their email
- * directly from the Clerk session claims — no extra clerkClient API
- * call required, no external failure point.
+ * Verifies the requesting user is an admin.
  *
- * Usage: const isAdmin = await authAdmin(userId, sessionClaims)
+ * Strategy: looks up the user's email directly from the database using
+ * the userId from Clerk's session token, then compares against the
+ * ADMIN_EMAIL environment variable. No Clerk API calls. No session
+ * claim customization required in the Clerk Dashboard.
  *
- * In your route:
- *   const { userId, sessionClaims } = getAuth(request)
- *   const isAdmin = await authAdmin(userId, sessionClaims)
+ * Usage in any route:
+ *   const { userId } = getAuth(request)
+ *   const isAdmin = await authAdmin(userId)
+ *
+ * Returns: true if admin, false otherwise.
  */
-const authAdmin = async (userId, sessionClaims) => {
+const authAdmin = async (userId) => {
     try {
-        if (!userId || !sessionClaims) return false;
+        if (!userId) return false;
 
-        const email = sessionClaims?.email ?? sessionClaims?.primaryEmail ?? null;
+        const user = await prisma.user.findUnique({
+            where:  { id: userId },
+            select: { email: true },
+        });
 
-        if (!email) return false;
+        if (!user?.email) return false;
 
         const adminEmails = (process.env.ADMIN_EMAIL || "")
             .split(",")
             .map((e) => e.trim().toLowerCase())
             .filter(Boolean);
 
-        return adminEmails.includes(email.toLowerCase());
+        if (adminEmails.length === 0) {
+            console.warn("[authAdmin] ADMIN_EMAIL env variable is not set.");
+            return false;
+        }
+
+        return adminEmails.includes(user.email.toLowerCase());
     } catch (error) {
         console.error("[authAdmin]", error);
         return false;

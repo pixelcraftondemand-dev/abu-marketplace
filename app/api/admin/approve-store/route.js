@@ -9,12 +9,12 @@ import { NextResponse } from "next/server";
 const ALLOWED_STATUSES = ["approved", "rejected"];
 
 // ── GET /api/admin/approve-store ──────────────────────────────────────────────
-// Returns all pending and rejected store applications.
+// Returns all pending and rejected store applications for the admin panel.
 
 export async function GET(request) {
     try {
-        const { userId, sessionClaims } = getAuth(request);
-        const isAdmin = await authAdmin(userId, sessionClaims);
+        const { userId } = getAuth(request);
+        const isAdmin = await authAdmin(userId);
 
         if (!isAdmin) {
             return NextResponse.json({ error: "Not authorized." }, { status: 403 });
@@ -41,15 +41,14 @@ export async function GET(request) {
 
 export async function POST(request) {
     try {
-        const { userId, sessionClaims } = getAuth(request);
-        const isAdmin = await authAdmin(userId, sessionClaims);
+        const { userId } = getAuth(request);
+        const isAdmin = await authAdmin(userId);
 
         if (!isAdmin) {
             return NextResponse.json({ error: "Not authorized." }, { status: 403 });
         }
 
-        const body = await request.json();
-        const { storeId, status } = body;
+        const { storeId, status } = await request.json();
 
         if (!storeId || typeof storeId !== "string" || !storeId.trim()) {
             return NextResponse.json({ error: "A valid storeId is required." }, { status: 422 });
