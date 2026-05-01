@@ -32,9 +32,9 @@ const Footer = () => {
         {
             title: "CONTACT",
             links: [
-                { text: "076192182", path: '/', icon: MailIcon },
+                { text: "032 110 054", path: '/', icon: MailIcon },
                 { text: "abumarketplace.shop@gmail.com", path: '/', icon: PhoneIcon },
-                { text: "73 Regent road,Lumley", path: '/', icon: MapPinIcon }
+                { text: "50 Pratt Street", path: '/', icon: MapPinIcon }
             ]
         }
     ];
@@ -80,7 +80,7 @@ const Footer = () => {
                     </div>
                 </div>
                 <p className="py-4 text-sm text-slate-500">
-                    Copyright 2025 © ABU Marketplace All Right Reserved.
+                    Copyright 2026 © ABU Marketplace All Right Reserved.
                 </p>
             </div>
         </footer>
