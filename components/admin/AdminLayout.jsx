@@ -5,34 +5,34 @@ import Link from "next/link"
 import { ArrowRightIcon } from "lucide-react"
 import AdminNavbar from "./AdminNavbar"
 import AdminSidebar from "./AdminSidebar"
-import { useUser, useAuth } from "@clerk/nextjs"
+import { useAuth } from "@clerk/nextjs"
 import axios from "axios"
 
 const AdminLayout = ({ children }) => {
 
-    const {user} = useUser()
     const { getToken } = useAuth()
 
     const [isAdmin, setIsAdmin] = useState(false)
     const [loading, setLoading] = useState(true)
 
     const fetchIsAdmin = async () => {
+        console.log("fetchIsAdmin called")
         try {
             const token = await getToken()
+            console.log("token:", token)
             const {data} = await axios.get('/api/admin/is-admin', {headers: { Authorization: `Bearer ${token}`}})
+            console.log("data:", data)
             setIsAdmin(data.isAdmin)
         } catch (error) {
-            console.log(error)
-        }finally{
+            console.log("error:", error)
+        } finally {
             setLoading(false)
         }
     }
 
     useEffect(() => {
-        if(user){
-            fetchIsAdmin()
-        }
-    }, [user])
+        fetchIsAdmin()
+    }, [])
 
     return loading ? (
         <Loading />
