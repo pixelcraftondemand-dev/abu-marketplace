@@ -1,26 +1,22 @@
 import StoreLayout from "@/components/store/StoreLayout";
-import { SignIn, Show } from "@clerk/nextjs"
+import { auth } from "@clerk/nextjs/server"
+import { redirect } from "next/navigation"
 
 export const metadata = {
     title: "ABU Marketplace - Store Dashboard",
     description: "ABU Marketplace - Store Dashboard",
 };
 
-export default function RootAdminLayout({ children }) {
+export default async function RootStoreLayout({ children }) {
+    const { userId } = await auth()
+
+    if (!userId) {
+        redirect('/sign-in')
+    }
 
     return (
-        <>  
-        <Show when={(auth) => !!auth.userId}>
-            <StoreLayout>
-                {children}
-            </StoreLayout>
-        </Show>
-        <Show when={(auth) => !auth.userId}>
-            <div className="min-h-screen flex items-center justify-center">
-                <SignIn fallbackRedirectUrl="/store" routing="hash" />
-            </div>
-        </Show>
-            
-        </>
+        <StoreLayout>
+            {children}
+        </StoreLayout>
     );
 }
