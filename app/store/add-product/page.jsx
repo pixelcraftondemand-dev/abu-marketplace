@@ -1,205 +1,226 @@
 'use client'
+import { useState } from "react"
 import { useAuth } from "@clerk/nextjs"
 import axios from "axios"
+import toast from "react-hot-toast"
 import Image from "next/image"
-import { useState } from "react"
-import { toast } from "react-hot-toast"
-import { SparklesIcon, UploadCloudIcon, XIcon } from "lucide-react"
+import { UploadCloudIcon, XIcon, SparklesIcon, CheckCircleIcon } from "lucide-react"
 
-const categories = [
+const CATEGORIES = [
     'Electronics', 'Clothing', 'Home & Kitchen', 'Beauty & Health',
     'Toys & Games', 'Sports & Outdoors', 'Books & Media',
     'Food & Drink', 'Hobbies & Crafts', 'Others'
 ]
 
-export default function StoreAddProduct() {
-    const [images, setImages] = useState({ 1: null, 2: null, 3: null, 4: null })
-    const [productInfo, setProductInfo] = useState({
-        name: "", description: "", mrp: "", price: "", category: "",
-    })
-    const [loading, setLoading] = useState(false)
-    const [aiUsed, setAiUsed] = useState(false)
-    const [aiLoading, setAiLoading] = useState(false)
+const EMPTY_FORM = { name: '', description: '', mrp: '', price: '', category: '' }
 
+export default function AddProduct() {
     const { getToken } = useAuth()
+    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'SLe'
 
-    const onChangeHandler = (e) => {
-        setProductInfo({ ...productInfo, [e.target.name]: e.target.value })
-    }
+    const [form, setForm] = useState(EMPTY_FORM)
+    const [images, setImages] = useState([null, null, null, null])
+    const [submitting, setSubmitting] = useState(false)
+    const [aiLoading, setAiLoading] = useState(false)
+    const [aiDone, setAiDone] = useState(false)
 
-    const handleImageUpload = async (key, file) => {
+    const onChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
+
+    const handleImage = async (index, file) => {
         if (!file) return
-        setImages(prev => ({ ...prev, [key]: file }))
+        const updated = [...images]
+        updated[index] = file
+        setImages(updated)
 
-        if (key === "1" && !aiUsed) {
-            const reader = new FileReader()
-            reader.readAsDataURL(file)
-            reader.onloadend = async () => {
-                const base64String = reader.result.split(",")[1]
-                const mimeType = file.type
-                const token = await getToken()
-                setAiLoading(true)
-                try {
-                    const res = await axios.post(
-                        "/api/store/ai",
-                        { base64Image: base64String, mimeType },
+        if (index === 0 && !aiDone) {
+            setAiLoading(true)
+            try {
+                const reader = new FileReader()
+                reader.readAsDataURL(file)
+                reader.onloadend = async () => {
+                    const base64 = reader.result.split(',')[1]
+                    const token = await getToken()
+                    const { data } = await axios.post('/api/store/ai',
+                        { base64Image: base64, mimeType: file.type },
                         { headers: { Authorization: `Bearer ${token}` } }
                     )
-                    const data = res.data
-                    if (data.name && data.description) {
-                        setProductInfo(prev => ({ ...prev, name: data.name, description: data.description }))
-                        setAiUsed(true)
-                        toast.success("AI filled product info")
+                    if (data?.name) {
+                        setForm(f => ({ ...f, name: data.name || f.name, description: data.description || f.description }))
+                        setAiDone(true)
+                        toast.success('AI filled product details')
                     }
-                } catch (error) {
-                    console.error(error)
-                } finally {
-                    setAiLoading(false)
                 }
+            } catch (e) {
+                console.error('[AI]', e)
+            } finally {
+                setAiLoading(false)
             }
         }
     }
 
-    const removeImage = (key) => {
-        setImages(prev => ({ ...prev, [key]: null }))
+    const removeImage = index => {
+        const updated = [...images]
+        updated[index] = null
+        setImages(updated)
+        if (index === 0) setAiDone(false)
     }
 
-    const onSubmitHandler = async (e) => {
+    const onSubmit = async e => {
         e.preventDefault()
-        const hasImage = Object.values(images).some(Boolean)
-        if (!hasImage) return toast.error('Please upload at least one image')
+        const validImages = images.filter(Boolean)
+        if (validImages.length === 0) return toast.error('Upload at least one image')
+        if (Number(form.price) > Number(form.mrp)) return toast.error('Selling price cannot exceed MRP')
 
-        setLoading(true)
+        setSubmitting(true)
         try {
-            const formData = new FormData()
-            formData.append('name', productInfo.name)
-            formData.append('description', productInfo.description)
-            formData.append('mrp', productInfo.mrp)
-            formData.append('price', productInfo.price)
-            formData.append('category', productInfo.category)
-            Object.values(images).forEach(img => img && formData.append('images', img))
+            const fd = new FormData()
+            Object.entries(form).forEach(([k, v]) => fd.append(k, v))
+            validImages.forEach(img => fd.append('images', img))
 
             const token = await getToken()
-            const { data } = await axios.post('/api/store/product', formData, {
+            const { data } = await axios.post('/api/store/product', fd, {
                 headers: { Authorization: `Bearer ${token}` }
             })
             toast.success(data.message)
-            setProductInfo({ name: "", description: "", mrp: "", price: "", category: "" })
-            setImages({ 1: null, 2: null, 3: null, 4: null })
-            setAiUsed(false)
-        } catch (error) {
-            toast.error(error?.response?.data?.error || error.message)
+            setForm(EMPTY_FORM)
+            setImages([null, null, null, null])
+            setAiDone(false)
+        } catch (err) {
+            toast.error(err?.response?.data?.error || err.message)
         } finally {
-            setLoading(false)
+            setSubmitting(false)
         }
     }
 
+    const discount = form.mrp && form.price && Number(form.mrp) > Number(form.price)
+        ? Math.round(((form.mrp - form.price) / form.mrp) * 100)
+        : 0
+
     return (
-        <div className="mb-28 max-w-2xl">
-            <div className="mb-6">
-                <h1 className="text-2xl font-semibold text-slate-800">
-                    Add New <span className="text-green-600">Product</span>
-                </h1>
-                <p className="text-sm text-slate-400 mt-1">Fill in the details below to list a new product</p>
+        <div className="max-w-2xl pb-20">
+
+            <div className="mb-7">
+                <h1 className="text-2xl font-bold text-slate-800">Add New <span className="text-green-600">Product</span></h1>
+                <p className="text-sm text-slate-400 mt-1">Upload your first image to let AI fill in the details automatically</p>
             </div>
 
-            <form onSubmit={onSubmitHandler} className="space-y-6">
+            <form onSubmit={onSubmit} className="space-y-5">
 
-                <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm">
-                    <div className="flex items-center justify-between mb-3">
+                <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center justify-between mb-1">
                         <p className="text-sm font-semibold text-slate-700">Product Images</p>
                         {aiLoading && (
-                            <span className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                                <SparklesIcon size={12} className="animate-pulse" />
-                                AI analyzing...
+                            <span className="flex items-center gap-1.5 text-xs text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full animate-pulse">
+                                <SparklesIcon size={12} /> AI analyzing...
                             </span>
                         )}
-                        {aiUsed && !aiLoading && (
-                            <span className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
-                                <SparklesIcon size={12} />
-                                AI filled details
+                        {aiDone && !aiLoading && (
+                            <span className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 px-2.5 py-1 rounded-full">
+                                <CheckCircleIcon size={12} /> AI filled details
                             </span>
                         )}
                     </div>
-                    <p className="text-xs text-slate-400 mb-4">Upload up to 4 images. First image will be analyzed by AI to auto-fill product details.</p>
+                    <p className="text-xs text-slate-400 mb-4">Upload up to 4 images. Minimum 1 required.</p>
                     <div className="grid grid-cols-4 gap-3">
-                        {Object.keys(images).map((key) => (
-                            <div key={key} className="relative group aspect-square">
+                        {images.map((img, i) => (
+                            <div key={i} className="relative group aspect-square">
                                 <label
-                                    htmlFor={`image-${key}`}
-                                    className={`flex flex-col items-center justify-center w-full h-full border-2 border-dashed rounded-xl cursor-pointer transition
-                                        ${images[key] ? 'border-green-200 bg-green-50' : 'border-slate-200 bg-slate-50 hover:border-green-300 hover:bg-green-50'}`}
+                                    htmlFor={`img-${i}`}
+                                    className={`flex flex-col items-center justify-center w-full h-full rounded-xl border-2 border-dashed cursor-pointer transition
+                                        ${img ? 'border-green-200 bg-green-50' : 'border-slate-200 bg-slate-50 hover:border-green-300 hover:bg-green-50'}`}
                                 >
-                                    {images[key] ? (
-                                        <Image src={URL.createObjectURL(images[key])} alt="" fill className="object-cover rounded-xl" />
+                                    {img ? (
+                                        <Image src={URL.createObjectURL(img)} alt="" fill className="object-cover rounded-xl" />
                                     ) : (
                                         <div className="flex flex-col items-center gap-1 text-slate-400">
-                                            <UploadCloudIcon size={20} />
-                                            <span className="text-xs">{key === "1" ? "Main" : `Photo ${key}`}</span>
+                                            <UploadCloudIcon size={18} />
+                                            <span className="text-xs">{i === 0 ? 'Main' : `Photo ${i + 1}`}</span>
                                         </div>
                                     )}
                                 </label>
-                                <input type="file" accept="image/*" id={`image-${key}`} onChange={e => handleImageUpload(key, e.target.files[0])} hidden />
-                                {images[key] && (
-                                    <button type="button" onClick={() => removeImage(key)} className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow">
+                                <input type="file" id={`img-${i}`} accept="image/*" hidden onChange={e => handleImage(i, e.target.files[0])} />
+                                {img && (
+                                    <button
+                                        type="button"
+                                        onClick={() => removeImage(i)}
+                                        className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow"
+                                    >
                                         <XIcon size={10} />
                                     </button>
                                 )}
                             </div>
                         ))}
                     </div>
-                </div>
+                </section>
 
-                <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
+                <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
                     <p className="text-sm font-semibold text-slate-700">Product Details</p>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-slate-500">Product Name</label>
-                        <input type="text" name="name" onChange={onChangeHandler} value={productInfo.name} placeholder="e.g. Wireless Bluetooth Headphones" className="w-full p-2.5 px-4 text-sm outline-none border border-slate-200 rounded-lg focus:border-green-400 focus:ring-2 focus:ring-green-50 transition" required />
+                        <label className="text-xs font-medium text-slate-500">Product Name *</label>
+                        <input
+                            name="name" value={form.name} onChange={onChange} required
+                            placeholder="e.g. Wireless Bluetooth Headphones"
+                            className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-green-400 focus:ring-2 focus:ring-green-50 transition"
+                        />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-slate-500">Description</label>
-                        <textarea name="description" onChange={onChangeHandler} value={productInfo.description} placeholder="Describe your product in detail..." rows={4} className="w-full p-2.5 px-4 text-sm outline-none border border-slate-200 rounded-lg focus:border-green-400 focus:ring-2 focus:ring-green-50 transition resize-none" required />
+                        <label className="text-xs font-medium text-slate-500">Description *</label>
+                        <textarea
+                            name="description" value={form.description} onChange={onChange} required rows={4}
+                            placeholder="Describe your product clearly..."
+                            className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-green-400 focus:ring-2 focus:ring-green-50 transition resize-none"
+                        />
                     </div>
 
                     <div className="flex flex-col gap-1.5">
-                        <label className="text-xs font-medium text-slate-500">Category</label>
-                        <select onChange={e => setProductInfo({ ...productInfo, category: e.target.value })} value={productInfo.category} className="w-full p-2.5 px-4 text-sm outline-none border border-slate-200 rounded-lg focus:border-green-400 focus:ring-2 focus:ring-green-50 transition bg-white" required>
+                        <label className="text-xs font-medium text-slate-500">Category *</label>
+                        <select
+                            name="category" value={form.category} required
+                            onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                            className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-green-400 focus:ring-2 focus:ring-green-50 transition bg-white"
+                        >
                             <option value="">Select a category</option>
-                            {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                     </div>
-                </div>
+                </section>
 
-                <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-sm space-y-4">
+                <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
                     <p className="text-sm font-semibold text-slate-700">Pricing</p>
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-medium text-slate-500">Original Price (MRP)</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'SLe'}</span>
-                                <input type="number" name="mrp" onChange={onChangeHandler} value={productInfo.mrp} placeholder="0.00" className="w-full p-2.5 pl-10 text-sm outline-none border border-slate-200 rounded-lg focus:border-green-400 focus:ring-2 focus:ring-green-50 transition" required min="0" />
+                        {[
+                            { label: 'Original Price (MRP)', name: 'mrp' },
+                            { label: 'Selling Price', name: 'price' },
+                        ].map(({ label, name }) => (
+                            <div key={name} className="flex flex-col gap-1.5">
+                                <label className="text-xs font-medium text-slate-500">{label} *</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{currency}</span>
+                                    <input
+                                        type="number" name={name} value={form[name]} onChange={onChange}
+                                        required min="0" placeholder="0.00"
+                                        className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-green-400 focus:ring-2 focus:ring-green-50 transition"
+                                    />
+                                </div>
                             </div>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-xs font-medium text-slate-500">Selling Price</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'SLe'}</span>
-                                <input type="number" name="price" onChange={onChangeHandler} value={productInfo.price} placeholder="0.00" className="w-full p-2.5 pl-10 text-sm outline-none border border-slate-200 rounded-lg focus:border-green-400 focus:ring-2 focus:ring-green-50 transition" required min="0" />
-                            </div>
-                        </div>
+                        ))}
                     </div>
-                    {productInfo.mrp && productInfo.price && Number(productInfo.mrp) > Number(productInfo.price) && (
-                        <p className="text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-lg inline-block">
-                            {Math.round(((productInfo.mrp - productInfo.price) / productInfo.mrp) * 100)}% discount applied
+                    {discount > 0 && (
+                        <p className="text-xs font-medium text-green-700 bg-green-50 px-3 py-1.5 rounded-lg inline-block">
+                            {discount}% discount will be shown to customers
                         </p>
                     )}
-                </div>
+                </section>
 
-                <button type="submit" disabled={loading} className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-green-700 active:scale-95 transition disabled:opacity-60 disabled:cursor-not-allowed shadow-sm">
-                    {loading ? 'Adding Product...' : 'Add Product'}
+                <button
+                    type="submit" disabled={submitting}
+                    className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed text-white py-3 rounded-2xl font-semibold text-sm transition shadow-sm active:scale-95"
+                >
+                    {submitting ? 'Adding Product...' : 'Add Product'}
                 </button>
+
             </form>
         </div>
     )

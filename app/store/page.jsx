@@ -1,168 +1,142 @@
 'use client'
-import Loading from "@/components/Loading"
-import { useAuth } from "@clerk/nextjs"
-import axios from "axios"
-import {
-    CircleDollarSignIcon,
-    ShoppingBasketIcon,
-    StarIcon,
-    TagsIcon,
-    TrendingUpIcon,
-    PackageIcon
-} from "lucide-react"
-import Image from "next/image"
-import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import { useAuth } from "@clerk/nextjs"
+import { useRouter } from "next/navigation"
+import axios from "axios"
 import toast from "react-hot-toast"
+import Image from "next/image"
+import Loading from "@/components/Loading"
+import {
+    ShoppingBasketIcon,
+    CircleDollarSignIcon,
+    TagsIcon,
+    StarIcon,
+    PackagePlusIcon,
+    ClipboardListIcon
+} from "lucide-react"
 
-export default function Dashboard() {
+export default function StoreDashboard() {
     const { getToken } = useAuth()
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'SLe'
     const router = useRouter()
+    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'SLe'
 
     const [loading, setLoading] = useState(true)
-    const [dashboardData, setDashboardData] = useState({
+    const [data, setData] = useState({
         totalProducts: 0,
         totalEarnings: 0,
         totalOrders: 0,
-        ratings: [],
+        ratings: []
     })
 
-    const fetchDashboardData = async () => {
-        try {
-            const token = await getToken()
-            const { data } = await axios.get('/api/store/dashboard', {
-                headers: { Authorization: `Bearer ${token}` }
-            })
-            setDashboardData(data.dashboardData)
-        } catch (error) {
-            toast.error(error?.response?.data?.error || error.message)
-        } finally {
-            setLoading(false)
-        }
-    }
-
     useEffect(() => {
-        fetchDashboardData()
+        const fetch = async () => {
+            try {
+                const token = await getToken()
+                const res = await axios.get('/api/store/dashboard', {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+                setData(res.data.dashboardData)
+            } catch (err) {
+                toast.error(err?.response?.data?.error || err.message)
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetch()
     }, [])
 
     if (loading) return <Loading />
 
     const cards = [
-        {
-            title: 'Total Products',
-            value: dashboardData.totalProducts,
-            icon: ShoppingBasketIcon,
-            color: 'bg-blue-50 text-blue-600',
-            iconBg: 'bg-blue-100',
-        },
-        {
-            title: 'Total Earnings',
-            value: `${currency}${dashboardData.totalEarnings.toLocaleString()}`,
-            icon: CircleDollarSignIcon,
-            color: 'bg-green-50 text-green-700',
-            iconBg: 'bg-green-100',
-        },
-        {
-            title: 'Total Orders',
-            value: dashboardData.totalOrders,
-            icon: TagsIcon,
-            color: 'bg-orange-50 text-orange-600',
-            iconBg: 'bg-orange-100',
-        },
-        {
-            title: 'Total Reviews',
-            value: dashboardData.ratings.length,
-            icon: StarIcon,
-            color: 'bg-purple-50 text-purple-600',
-            iconBg: 'bg-purple-100',
-        },
+        { label: 'Total Products', value: data.totalProducts,                                  icon: ShoppingBasketIcon,   bg: 'bg-blue-50',   text: 'text-blue-600',   ring: 'bg-blue-100'   },
+        { label: 'Total Earnings', value: `${currency}${data.totalEarnings.toLocaleString()}`, icon: CircleDollarSignIcon, bg: 'bg-green-50',  text: 'text-green-700',  ring: 'bg-green-100'  },
+        { label: 'Total Orders',   value: data.totalOrders,                                    icon: TagsIcon,             bg: 'bg-orange-50', text: 'text-orange-600', ring: 'bg-orange-100' },
+        { label: 'Total Reviews',  value: data.ratings.length,                                 icon: StarIcon,             bg: 'bg-purple-50', text: 'text-purple-600', ring: 'bg-purple-100' },
     ]
 
     return (
-        <div className="text-slate-600 mb-28 space-y-8">
+        <div className="space-y-8 pb-20">
 
             <div>
-                <h1 className="text-2xl font-semibold text-slate-800">
-                    Seller <span className="text-green-600">Dashboard</span>
-                </h1>
-                <p className="text-sm text-slate-400 mt-1">Overview of your store performance</p>
+                <h1 className="text-2xl font-bold text-slate-800">Seller <span className="text-green-600">Dashboard</span></h1>
+                <p className="text-sm text-slate-400 mt-1">Your store at a glance</p>
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {cards.map((card, index) => (
-                    <div key={index} className={`rounded-xl p-4 border border-slate-100 shadow-sm ${card.color}`}>
+                {cards.map(({ label, value, icon: Icon, bg, text, ring }) => (
+                    <div key={label} className={`rounded-2xl p-4 border border-slate-100 shadow-sm ${bg} ${text}`}>
                         <div className="flex items-center justify-between mb-3">
-                            <p className="text-xs font-medium opacity-70">{card.title}</p>
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${card.iconBg}`}>
-                                <card.icon size={16} />
+                            <p className="text-xs font-medium opacity-70">{label}</p>
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${ring}`}>
+                                <Icon size={15} />
                             </div>
                         </div>
-                        <p className="text-2xl font-bold">{card.value}</p>
+                        <p className="text-2xl font-bold">{value}</p>
                     </div>
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg">
                 <button
                     onClick={() => router.push('/store/add-product')}
-                    className="flex items-center gap-3 p-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition shadow-sm"
+                    className="flex items-center gap-3 p-4 bg-green-600 hover:bg-green-700 text-white rounded-2xl transition shadow-sm font-medium text-sm"
                 >
-                    <PackageIcon size={20} />
-                    <span className="font-medium text-sm">Add New Product</span>
+                    <PackagePlusIcon size={20} />
+                    Add New Product
                 </button>
                 <button
                     onClick={() => router.push('/store/orders')}
-                    className="flex items-center gap-3 p-4 bg-slate-800 text-white rounded-xl hover:bg-slate-900 transition shadow-sm"
+                    className="flex items-center gap-3 p-4 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl transition shadow-sm font-medium text-sm"
                 >
-                    <TrendingUpIcon size={20} />
-                    <span className="font-medium text-sm">View Orders</span>
+                    <ClipboardListIcon size={20} />
+                    View Orders
                 </button>
             </div>
 
-            {dashboardData.ratings.length > 0 ? (
-                <div>
-                    <h2 className="text-lg font-semibold text-slate-800 mb-4">Recent Reviews</h2>
-                    <div className="space-y-4 max-w-3xl">
-                        {dashboardData.ratings.map((review, index) => (
-                            <div key={index} className="flex max-sm:flex-col gap-5 sm:items-center justify-between py-5 px-5 border border-slate-100 rounded-xl shadow-sm bg-white text-sm hover:shadow-md transition">
+            <div>
+                <h2 className="text-lg font-semibold text-slate-800 mb-4">Recent Reviews</h2>
+                {data.ratings.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-14 border border-dashed border-slate-200 rounded-2xl text-slate-400 text-center max-w-md">
+                        <StarIcon size={30} className="mb-3 text-slate-300" />
+                        <p className="font-medium">No reviews yet</p>
+                        <p className="text-sm mt-1">Reviews appear once customers rate your products</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3 max-w-3xl">
+                        {data.ratings.map((review, i) => (
+                            <div key={i} className="flex max-sm:flex-col gap-4 sm:items-center justify-between p-5 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition">
                                 <div>
-                                    <div className="flex gap-3 items-center">
+                                    <div className="flex items-center gap-3 mb-2">
                                         {review.user?.image && (
-                                            <Image src={review.user.image} alt="" className="w-10 h-10 rounded-full object-cover ring-2 ring-slate-100" width={40} height={40} />
+                                            <Image src={review.user.image} alt="" width={36} height={36} className="w-9 h-9 rounded-full object-cover ring-2 ring-slate-100" />
                                         )}
                                         <div>
-                                            <p className="font-semibold text-slate-800">{review.user?.name}</p>
-                                            <p className="text-slate-400 text-xs">{new Date(review.createdAt).toDateString()}</p>
+                                            <p className="font-semibold text-sm text-slate-800">{review.user?.name}</p>
+                                            <p className="text-xs text-slate-400">{new Date(review.createdAt).toDateString()}</p>
                                         </div>
                                     </div>
-                                    <p className="mt-3 text-slate-500 max-w-xs leading-6">{review.review}</p>
+                                    <p className="text-sm text-slate-500 leading-relaxed max-w-xs">{review.review}</p>
                                 </div>
-                                <div className="flex flex-col sm:items-end gap-3">
-                                    <div>
-                                        <p className="text-slate-400 text-xs">{review.product?.category}</p>
-                                        <p className="font-medium text-slate-700">{review.product?.name}</p>
-                                        <div className="flex items-center gap-0.5 mt-1">
-                                            {Array(5).fill('').map((_, i) => (
-                                                <StarIcon key={i} size={14} className="text-transparent" fill={review.rating >= i + 1 ? "#16a34a" : "#e2e8f0"} />
-                                            ))}
-                                        </div>
+                                <div className="sm:text-right space-y-2 shrink-0">
+                                    <p className="text-xs text-slate-400">{review.product?.category}</p>
+                                    <p className="text-sm font-medium text-slate-700">{review.product?.name}</p>
+                                    <div className="flex sm:justify-end gap-0.5">
+                                        {Array(5).fill('').map((_, idx) => (
+                                            <StarIcon key={idx} size={13} className="text-transparent" fill={review.rating >= idx + 1 ? '#16a34a' : '#e2e8f0'} />
+                                        ))}
                                     </div>
-                                    <button onClick={() => router.push(`/product/${review.product?.id}`)} className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-1.5 rounded-lg transition">
+                                    <button
+                                        onClick={() => router.push(`/product/${review.product?.id}`)}
+                                        className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg transition"
+                                    >
                                         View Product
                                     </button>
                                 </div>
                             </div>
                         ))}
                     </div>
-                </div>
-            ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400 border border-dashed border-slate-200 rounded-xl max-w-md">
-                    <StarIcon size={32} className="mb-3 text-slate-300" />
-                    <p className="font-medium">No reviews yet</p>
-                    <p className="text-sm mt-1">Reviews will appear here once customers rate your products</p>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     )
 }
