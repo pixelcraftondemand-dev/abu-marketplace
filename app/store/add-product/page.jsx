@@ -67,9 +67,19 @@ export default function AddProduct() {
 
     const onSubmit = async e => {
         e.preventDefault()
+
+        // Prevent double-submission
+        if (submitting) return
+
         const validImages = images.filter(Boolean)
-        if (validImages.length === 0) return toast.error('Upload at least one image')
-        if (Number(form.price) > Number(form.mrp)) return toast.error('Selling price cannot exceed MRP')
+        if (validImages.length === 0) {
+            toast.error('Upload at least one image', { id: 'product-validation' })
+            return
+        }
+        if (Number(form.price) > Number(form.mrp)) {
+            toast.error('Selling price cannot exceed MRP', { id: 'product-validation' })
+            return
+        }
 
         setSubmitting(true)
         try {
@@ -93,7 +103,7 @@ export default function AddProduct() {
     }
 
     const discount = form.mrp && form.price && Number(form.mrp) > Number(form.price)
-        ? Math.round(((form.mrp - form.price) / form.mrp) * 100)
+        ? Math.round(((Number(form.mrp) - Number(form.price)) / Number(form.mrp)) * 100)
         : 0
 
     return (
@@ -215,7 +225,8 @@ export default function AddProduct() {
                 </section>
 
                 <button
-                    type="submit" disabled={submitting}
+                    type="submit"
+                    disabled={submitting}
                     className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed text-white py-3 rounded-2xl font-semibold text-sm transition shadow-sm active:scale-95"
                 >
                     {submitting ? 'Adding Product...' : 'Add Product'}
