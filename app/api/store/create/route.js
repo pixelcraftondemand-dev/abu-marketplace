@@ -1,26 +1,24 @@
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────────
 // FILEPATH: app/api/store/create/route.js
-// ─────────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────────
 import prisma from "@/lib/prisma";
-import imagekit from "@/configs/imageKit";
+import getImageKit from "@/configs/imageKit";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────────────────────
 const USERNAME_REGEX  = /^[a-z0-9_]{3,30}$/;
 const PHONE_REGEX     = /^\+?[0-9\s\-(). ]{7,20}$/;
 const MAX_LOGO_BYTES  = 2 * 1024 * 1024; // 2 MB
 const ALLOWED_MIME    = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
-/** Trims and hard-caps a string — prevents oversized payloads reaching the DB */
 function sanitize(value, maxLen) {
     if (typeof value !== "string") return "";
     return value.trim().slice(0, maxLen);
 }
 
-/** Returns an array of error strings, empty if all fields are valid */
 function validateFields({ name, username, description, email, contact, address }) {
     const errors = [];
 
@@ -45,8 +43,7 @@ function validateFields({ name, username, description, email, contact, address }
     return errors;
 }
 
-// ── GET /api/store/create ─────────────────────────────────────────────────────
-// Returns the current user's store application status, or null if none exists.
+// ── GET /api/store/create ──────────────────────────────────────────────────────
 
 export async function GET(request) {
     try {
@@ -69,9 +66,7 @@ export async function GET(request) {
     }
 }
 
-// ── POST /api/store/create ────────────────────────────────────────────────────
-// Validates all fields, uploads logo to ImageKit, creates store with status
-// "pending" and isActive false — ready for admin review.
+// ── POST /api/store/create ─────────────────────────────────────────────────────
 
 export async function POST(request) {
     try {
@@ -81,7 +76,6 @@ export async function POST(request) {
             return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
         }
 
-        // Confirm this user exists in our DB (synced via Clerk webhook)
         const dbUser = await prisma.user.findUnique({
             where:  { id: userId },
             select: { id: true, store: { select: { id: true, status: true } } },
@@ -94,7 +88,6 @@ export async function POST(request) {
             );
         }
 
-        // One application per account, any status
         if (dbUser.store) {
             return NextResponse.json(
                 { error: `You already have a store application (status: "${dbUser.store.status}"). Only one application is allowed per account.` },
@@ -102,7 +95,6 @@ export async function POST(request) {
             );
         }
 
-        // Parse multipart form data
         const formData = await request.formData();
 
         const name        = sanitize(formData.get("name")        ?? "", 100);
@@ -113,13 +105,11 @@ export async function POST(request) {
         const address     = sanitize(formData.get("address")     ?? "", 300);
         const imageFile   = formData.get("image");
 
-        // Server-side field validation
         const errors = validateFields({ name, username, description, email, contact, address });
         if (errors.length) {
             return NextResponse.json({ error: errors.join(" ") }, { status: 422 });
         }
 
-        // Validate image presence and type
         if (!imageFile || typeof imageFile === "string") {
             return NextResponse.json({ error: "A store logo image is required." }, { status: 422 });
         }
@@ -136,8 +126,6 @@ export async function POST(request) {
             return NextResponse.json({ error: "Logo must not exceed 2 MB." }, { status: 422 });
         }
 
-        // Check username uniqueness BEFORE uploading to ImageKit
-        // (avoids orphaned uploads if this check would have blocked anyway)
         const takenUsername = await prisma.store.findUnique({
             where:  { username },
             select: { id: true },
@@ -150,7 +138,7 @@ export async function POST(request) {
             );
         }
 
-        // Upload logo to ImageKit
+        const imagekit = getImageKit();
         const upload = await imagekit.upload({
             file:              imageBuffer,
             fileName:          `store-logo-${userId}-${Date.now()}`,
@@ -165,8 +153,6 @@ export async function POST(request) {
             );
         }
 
-        // Create the store — Prisma uses parameterized queries internally,
-        // so there is zero SQL injection risk here regardless of input content.
         await prisma.store.create({
             data: {
                 userId,
@@ -190,7 +176,6 @@ export async function POST(request) {
     } catch (error) {
         console.error("[POST /api/store/create]", error);
 
-        // P2002 = Prisma unique constraint violation (race condition on username)
         if (error.code === "P2002") {
             const field = error.meta?.target?.includes("username") ? "username" : "account";
             return NextResponse.json(
