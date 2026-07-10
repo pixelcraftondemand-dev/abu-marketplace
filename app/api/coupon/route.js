@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
+import { normalizeCoupon, sanitizeText } from "@/lib/security";
 import authAdmin from "@/middlewares/authAdmin";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
@@ -17,9 +18,12 @@ export async function POST(request) {
         }
 
         const { coupon } = await request.json();
-        coupon.code = coupon.code.toUpperCase();
+        const normalized = normalizeCoupon(coupon);
+        if(normalized.error){
+            return NextResponse.json({ error: normalized.error }, { status: 422 });
+        }
 
-        await prisma.coupon.create({ data: coupon }).then(async (created) => {
+        await prisma.coupon.create({ data: normalized.coupon }).then(async (created) => {
             await inngest.send({
                 name: "app/coupon.expired",
                 data: { code: created.code, expires_at: created.expiresAt },
@@ -29,7 +33,7 @@ export async function POST(request) {
         return NextResponse.json({ message: "Coupon added successfully." });
     } catch (error) {
         console.error("[POST /api/admin/coupon]", error);
-        return NextResponse.json({ error: error.code || error.message }, { status: 400 });
+        return NextResponse.json({ error: "Unable to add coupon." }, { status: 400 });
     }
 }
 
@@ -42,7 +46,7 @@ export async function DELETE(request) {
             return NextResponse.json({ error: "Not authorized." }, { status: 403 });
         }
 
-        const code = request.nextUrl.searchParams.get("code");
+        const code = sanitizeText(request.nextUrl.searchParams.get("code"), 32).toUpperCase();
 
         if (!code) {
             return NextResponse.json({ error: "Coupon code is required." }, { status: 422 });
@@ -52,7 +56,7 @@ export async function DELETE(request) {
         return NextResponse.json({ message: "Coupon deleted successfully." });
     } catch (error) {
         console.error("[DELETE /api/admin/coupon]", error);
-        return NextResponse.json({ error: error.code || error.message }, { status: 400 });
+        return NextResponse.json({ error: "Unable to delete coupon." }, { status: 400 });
     }
 }
 
@@ -69,6 +73,6 @@ export async function GET(request) {
         return NextResponse.json({ coupons });
     } catch (error) {
         console.error("[GET /api/admin/coupon]", error);
-        return NextResponse.json({ error: error.code || error.message }, { status: 400 });
+        return NextResponse.json({ error: "Unable to fetch coupons." }, { status: 400 });
     }
 }

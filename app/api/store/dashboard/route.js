@@ -9,6 +9,9 @@ export async function GET(request){
     try {
         const { userId } = getAuth(request)
         const storeId = await authSeller(userId)
+        if(!storeId){
+            return NextResponse.json({ error: 'not authorized' }, { status: 401 })
+        }
 
         // Get all orders for seller
         const orders = await prisma.order.findMany({where: {storeId}})
@@ -31,6 +34,6 @@ export async function GET(request){
          return NextResponse.json({ dashboardData });
     } catch (error) {
         console.error(error);
-        return NextResponse.json({ error: error.code || error.message }, { status: 400 })
+        return NextResponse.json({ error: "Unable to fetch dashboard data." }, { status: 400 })
     }
 }

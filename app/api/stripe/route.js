@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma"
+import { isValidId } from "@/lib/security"
 import { NextResponse } from "next/server"
 import Stripe from "stripe"
 
@@ -9,34 +10,45 @@ export async function POST(request){
         const stripe = getStripe()
         const body = await request.text()
         const sig = request.headers.get('stripe-signature')
+        if(!sig){
+            return NextResponse.json({ error: "Missing Stripe signature" }, { status: 400 })
+        }
         const event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET)
         const handlePaymentIntent = async (paymentIntentId, isPaid) => {
             const session = await stripe.checkout.sessions.list({
                 payment_intent: paymentIntentId
             })
-            const {orderIds, userId, appId} = session.data[0].metadata
+            const metadata = session.data[0]?.metadata || {}
+            const {orderIds, userId, appId} = metadata
             
-            if(appId !== 'abu-marketplace'){
-                return NextResponse.json({received: true, message: 'Invalid app id'})
+            if(appId !== 'abu-marketplace' || !isValidId(userId) || !orderIds){
+                return
             }
-            const orderIdsArray = orderIds.split(',')
+            const orderIdsArray = orderIds.split(',').filter(isValidId)
+            if(orderIdsArray.length === 0){
+                return
+            }
+            const existingOrders = await prisma.order.findMany({
+                where: { id: { in: orderIdsArray }, userId },
+                select: { id: true },
+            })
+            if(existingOrders.length !== orderIdsArray.length){
+                console.error("[Stripe webhook] Order metadata mismatch.")
+                return
+            }
             if(isPaid){
-                await Promise.all(orderIdsArray.map(async (orderId) => {
-                    await prisma.order.update({
-                        where: {id: orderId},
-                        data: {isPaid: true}
-                    })
-                }))
+                await prisma.order.updateMany({
+                    where: { id: { in: orderIdsArray }, userId },
+                    data: {isPaid: true}
+                })
                 await prisma.user.update({
                     where: {id: userId},
                     data: {cart : {}}
                 })
             }else{
-                await Promise.all(orderIdsArray.map(async (orderId) => {
-                    await prisma.order.delete({
-                        where: {id: orderId}
-                    })
-                }))
+                await prisma.order.deleteMany({
+                    where: { id: { in: orderIdsArray }, userId, isPaid: false }
+                })
             }
         }
         switch (event.type) {
@@ -49,12 +61,11 @@ export async function POST(request){
                 break;
             }
             default:
-                console.log('Unhandled event type:', event.type)
                 break;
         }
         return NextResponse.json({received: true})
     } catch (error) {
         console.error(error)
-        return NextResponse.json({ error: error.message }, { status: 400 })
+        return NextResponse.json({ error: "Invalid webhook payload" }, { status: 400 })
     }
 }

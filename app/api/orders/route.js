@@ -1,9 +1,12 @@
 import prisma from "@/lib/prisma";
+import { getSafeOrigin, isValidId } from "@/lib/security";
 import { getAuth } from "@clerk/nextjs/server";
 import { PaymentMethod } from "@prisma/client";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
+const MAX_ORDER_ITEMS = 50;
+const MAX_ITEM_QUANTITY = 99;
 
 export async function POST(request){
     try {
@@ -15,7 +18,35 @@ export async function POST(request){
 
         // Check if all required fields are present
         if(!addressId || !paymentMethod || !items || !Array.isArray(items) || items.length === 0){
-           return NextResponse.json({ error: "missing order details." }, { status: 401 }); 
+           return NextResponse.json({ error: "missing order details." }, { status: 400 }); 
+        }
+
+        if(!isValidId(addressId)){
+            return NextResponse.json({ error: "Invalid address." }, { status: 422 });
+        }
+
+        if(!Object.values(PaymentMethod).includes(paymentMethod)){
+            return NextResponse.json({ error: "Invalid payment method." }, { status: 422 });
+        }
+
+        if(items.length > MAX_ORDER_ITEMS){
+            return NextResponse.json({ error: `Orders cannot contain more than ${MAX_ORDER_ITEMS} products.` }, { status: 422 });
+        }
+
+        const address = await prisma.address.findFirst({
+            where: { id: addressId, userId },
+            select: { id: true },
+        });
+        if(!address){
+            return NextResponse.json({ error: "Address not found." }, { status: 404 });
+        }
+
+        const requestedItems = new Map();
+        for(const item of items){
+            if(!item || !isValidId(item.id) || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > MAX_ITEM_QUANTITY){
+                return NextResponse.json({ error: `Each item must have a valid product id and quantity from 1 to ${MAX_ITEM_QUANTITY}.` }, { status: 422 });
+            }
+            requestedItems.set(item.id, (requestedItems.get(item.id) || 0) + item.quantity);
         }
 
         let coupon = null;
@@ -26,6 +57,12 @@ export async function POST(request){
                 })
                 if (!coupon){
             return NextResponse.json({ error: "Coupon not found" }, { status: 400 })
+        }
+        if(coupon.expiresAt < new Date()){
+            return NextResponse.json({ error: "Coupon has expired" }, { status: 400 })
+        }
+        if(coupon.discount < 0 || coupon.discount > 100){
+            return NextResponse.json({ error: "Coupon is invalid" }, { status: 400 })
         }
         }
          
@@ -49,13 +86,24 @@ export async function POST(request){
          // Group orders by storeId using a Map
          const ordersByStore = new Map()
 
-         for(const item of items){
-            const product = await prisma.product.findUnique({where: {id: item.id}})
+         const products = await prisma.product.findMany({
+            where: { id: { in: [...requestedItems.keys()] } },
+            select: { id: true, price: true, storeId: true, inStock: true },
+         });
+
+         if(products.length !== requestedItems.size){
+            return NextResponse.json({ error: "One or more products were not found." }, { status: 404 })
+         }
+
+         for(const product of products){
+            if(!product.inStock){
+                return NextResponse.json({ error: "One or more products are out of stock." }, { status: 400 })
+            }
             const storeId = product.storeId
             if(!ordersByStore.has(storeId)){
                 ordersByStore.set(storeId, [])
             }
-            ordersByStore.get(storeId).push({...item, price: product.price})
+            ordersByStore.get(storeId).push({ id: product.id, quantity: requestedItems.get(product.id), price: product.price })
          }
 
          let orderIds = [];
@@ -100,7 +148,7 @@ export async function POST(request){
 
          if(paymentMethod === 'STRIPE'){
             const stripe = Stripe(process.env.STRIPE_SECRET_KEY)
-            const origin = await request.headers.get('origin')
+            const origin = getSafeOrigin(request)
 
             const session = await stripe.checkout.sessions.create({
                 payment_method_types: ['card'],
@@ -137,7 +185,7 @@ export async function POST(request){
 
     } catch (error) {
         console.error(error);
-        return NextResponse.json({ error: error.code || error.message }, { status: 400 })
+        return NextResponse.json({ error: "Unable to place order." }, { status: 400 })
     }
 }
 
@@ -145,6 +193,9 @@ export async function POST(request){
 export async function GET(request){
     try {
         const { userId } = getAuth(request)
+        if(!userId){
+            return NextResponse.json({ error: "not authorized" }, { status: 401 });
+        }
         const orders = await prisma.order.findMany({
             where: {userId, OR: [
                 {paymentMethod: PaymentMethod.COD},
@@ -160,6 +211,6 @@ export async function GET(request){
         return NextResponse.json({orders})
     } catch (error) {
         console.error(error);
-        return NextResponse.json({ error: error.message }, { status: 400 })
+        return NextResponse.json({ error: "Unable to fetch orders." }, { status: 400 })
     }
 }

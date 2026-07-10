@@ -1,4 +1,5 @@
 import { getOpenAI } from "@/configs/openai";
+import { ALLOWED_IMAGE_TYPES, sanitizeText } from "@/lib/security";
 import authSeller from "@/middlewares/authSeller";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
@@ -37,7 +38,6 @@ async function main(base64Image, mimeType) {
     });
 
     const raw = response.choices[0].message.content;
-    console.log(raw);
 
     const cleaned = raw.replace(/```json|```/g, "").trim();
 
@@ -48,22 +48,28 @@ async function main(base64Image, mimeType) {
         throw new Error("AI did not return valid JSON");
     }
 
-    return parsed;
+    return {
+        name: sanitizeText(parsed.name, 120),
+        description: sanitizeText(parsed.description, 2000),
+    };
 }
 
 
 export async function POST(request) {
     try {
         const { userId } = getAuth(request)
-        const isAdmin = await authSeller(userId);
-        if (!isAdmin) {
+        const storeId = await authSeller(userId);
+        if (!storeId) {
             return NextResponse.json({ error: 'not authorized' }, { status: 401 })
         }
         const { base64Image, mimeType } = await request.json();
+        if(!ALLOWED_IMAGE_TYPES.includes(mimeType) || typeof base64Image !== "string" || base64Image.length > 7_000_000){
+            return NextResponse.json({ error: "Invalid image payload." }, { status: 422 })
+        }
         const result = await main(base64Image, mimeType);
         return NextResponse.json({ ...result });
     } catch (error) {
         console.error(error);
-        return NextResponse.json({ error: error.code || error.message }, { status: 400 });
+        return NextResponse.json({ error: "Unable to analyze product image." }, { status: 400 });
     }
 }

@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { isValidId } from "@/lib/security";
 import authAdmin from "@/middlewares/authAdmin";
 import { getAuth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
@@ -16,7 +17,7 @@ export async function POST(request) {
 
         const { storeId, action } = await request.json();
 
-        if (!storeId || !["approve", "reject"].includes(action)) {
+        if (!isValidId(storeId) || !["approve", "reject"].includes(action)) {
             return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
         }
 
@@ -44,6 +45,6 @@ export async function POST(request) {
 
     } catch (error) {
         console.error("[approve-store]", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: "Unable to update store approval." }, { status: 500 });
     }
 }

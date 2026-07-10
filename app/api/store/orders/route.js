@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import authSeller from "@/middlewares/authSeller";
 import { getAuth } from "@clerk/nextjs/server";
+import { OrderStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 
@@ -15,16 +16,22 @@ export async function POST(request){
         }
 
         const {orderId, status } = await request.json()
+        if(!orderId || !Object.values(OrderStatus).includes(status)){
+            return NextResponse.json({ error: "Invalid order status." }, { status: 422 })
+        }
 
-        await prisma.order.update({
+        const response = await prisma.order.updateMany({
             where: { id: orderId, storeId },
             data: {status}
         })
+        if(response.count === 0){
+            return NextResponse.json({ error: "Order not found." }, { status: 404 })
+        }
 
         return NextResponse.json({message: "Order Status updated"})
     } catch (error) {
         console.error(error);
-        return NextResponse.json({ error: error.code || error.message }, { status: 400 })
+        return NextResponse.json({ error: "Unable to update order status." }, { status: 400 })
     }
 }
 
@@ -47,6 +54,6 @@ export async function GET(request){
         return NextResponse.json({orders})
     } catch (error) {
         console.error(error);
-        return NextResponse.json({ error: error.code || error.message }, { status: 400 })
+        return NextResponse.json({ error: "Unable to fetch store orders." }, { status: 400 })
     }
 }
