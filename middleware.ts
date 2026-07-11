@@ -1,5 +1,13 @@
-import { clerkMiddleware } from '@clerk/nextjs/server';
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
+
+const isPublicRoute = createRouteMatcher([
+  '/sign-in(.*)',
+  '/sign-up(.*)',
+  '/api/health(.*)',
+  '/api/inngest(.*)',
+  '/api/webhook/clerk(.*)',
+]);
 
 const missingClerkEnv = [
   'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
@@ -15,12 +23,10 @@ const middleware = missingClerkEnv.length
         },
         { status: 500 }
       )
-  : clerkMiddleware({
-      authorizedParties: [
-        'https://abumarketplace.shop',
-        'https://www.abumarketplace.shop',
-        'http://localhost:3000',
-      ],
+  : clerkMiddleware(async (auth, request) => {
+      if (!isPublicRoute(request)) {
+        await auth.protect();
+      }
     });
 
 export default middleware;
