@@ -4,8 +4,14 @@ import { NextResponse } from "next/server";
 
 export async function GET(request){
     try {
-        let products = await prisma.product.findMany({
-            where: {inStock: true },
+        const { searchParams } = new URL(request.url)
+        const storeId = searchParams.get('storeId')
+        const products = await prisma.product.findMany({
+            where: {
+                inStock: true,
+                ...(storeId ? { storeId } : {}),
+                store: { is: { isActive: true, status: 'approved' } },
+            },
             include: {
                 rating: {
                     select: {
@@ -18,11 +24,9 @@ export async function GET(request){
             orderBy: {createdAt: 'desc'}
         })
 
-        // remove products with store isActive false
-        products = products.filter(product => product.store.isActive)
         return NextResponse.json({products})
     } catch (error) {
-        console.error(error);
+        console.error('[GET /api/products]', error);
         return NextResponse.json({ error: "An internal server error occurred." }, { status: 500 });
     }
 }

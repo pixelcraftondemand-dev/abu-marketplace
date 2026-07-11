@@ -2,6 +2,7 @@
 import Banner from "@/components/Banner";
 import CookieConsent from "@/components/CookieConsent";
 import Navbar from "@/components/Navbar";
+import BottomNav from "@/components/BottomNav";
 import Footer from "@/components/Footer";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -10,6 +11,7 @@ import { useUser, useAuth } from "@clerk/nextjs";
 import { fetchCart, uploadCart } from "@/lib/features/cart/cartSlice";
 import { fetchAddress } from "@/lib/features/address/addressSlice";
 import { fetchUserRatings } from "@/lib/features/rating/ratingSlice";
+import { hydrateWishlist, loadWishlistFromStorage } from "@/lib/features/wishlist/wishlistSlice";
 
 export default function PublicLayout({ children }) {
 
@@ -21,6 +23,7 @@ export default function PublicLayout({ children }) {
 
     useEffect(()=>{
         dispatch(fetchProducts({}))
+        dispatch(hydrateWishlist(loadWishlistFromStorage()))
     },[])
 
     useEffect(()=>{
@@ -44,9 +47,10 @@ export default function PublicLayout({ children }) {
         <>
             <Banner />
             <Navbar />
-            {children}
+            <main className="pb-20 sm:pb-0">{children}</main>
             <CookieConsent />
             <Footer />
+            <BottomNav />
         </>
     );
 }

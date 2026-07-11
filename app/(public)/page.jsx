@@ -5,11 +5,13 @@ import Newsletter from "@/components/Newsletter";
 import OurSpecs from "@/components/OurSpec";
 import LatestProducts from "@/components/LatestProducts";
 import MarketplaceHighlights from "@/components/MarketplaceHighlights";
+import FlashDealsSection from "@/components/FlashDealsSection";
 
 export default function Home() {
     return (
         <div>
             <Hero />
+            <FlashDealsSection />
             <LatestProducts />
             <MarketplaceHighlights />
             <BestSelling />

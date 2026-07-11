@@ -1,5 +1,5 @@
 'use client'
-import { PackageIcon, Search, ShoppingCart } from "lucide-react";
+import { PackageIcon, Search, ShoppingCart, Heart } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -14,6 +14,7 @@ const Navbar = () => {
 
     const [search, setSearch] = useState('')
     const cartCount = useSelector(state => state.cart.total)
+    const wishlistCount = useSelector(state => state.wishlist.items.length)
 
     const handleSearch = (e) => {
         e.preventDefault()
@@ -46,6 +47,14 @@ const Navbar = () => {
                             <Search size={18} className="text-slate-600" />
                             <input className="w-full bg-transparent outline-none placeholder-slate-600" type="text" placeholder="Search products" value={search} onChange={(e) => setSearch(e.target.value)} required />
                         </form>
+
+                        <Link href="/wishlist" className="relative flex items-center gap-2 text-slate-600">
+                            <Heart size={18} />
+                            Wishlist
+                            {wishlistCount > 0 && (
+                                <button className="absolute -top-1 left-16 text-[8px] text-white bg-red-500 size-3.5 rounded-full">{wishlistCount}</button>
+                            )}
+                        </Link>
 
                         <Link href="/cart" className="relative flex items-center gap-2 text-slate-600">
                             <ShoppingCart size={18} />

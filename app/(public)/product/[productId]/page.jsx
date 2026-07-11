@@ -1,6 +1,8 @@
 'use client'
 import ProductDescription from "@/components/ProductDescription";
 import ProductDetails from "@/components/ProductDetails";
+import RecentlyViewed from "@/components/RecentlyViewed";
+import { addRecentlyViewed } from "@/lib/recentlyViewed";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
@@ -23,6 +25,12 @@ export default function Product() {
         scrollTo(0, 0)
     }, [productId,products]);
 
+    useEffect(() => {
+        if (productId) {
+            addRecentlyViewed(productId)
+        }
+    }, [productId]);
+
     return (
         <div className="mx-6">
             <div className="max-w-7xl mx-auto">
@@ -37,6 +45,9 @@ export default function Product() {
 
                 {/* Description & Reviews */}
                 {product && (<ProductDescription product={product} />)}
+
+                {/* Recently Viewed */}
+                <RecentlyViewed currentProductId={productId} />
             </div>
         </div>
     );
