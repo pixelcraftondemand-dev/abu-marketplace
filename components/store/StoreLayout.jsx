@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from "react"
-import { useAuth } from "@clerk/nextjs"
+import { useSession } from "@/lib/authClient"
 import axios from "axios"
 import Link from "next/link"
 import { ArrowRightIcon } from "lucide-react"
@@ -9,7 +9,7 @@ import StoreSidebar from "./StoreSidebar"
 import Loading from "@/components/Loading"
 
 const StoreLayout = ({ children }) => {
-    const { getToken } = useAuth()
+    const { data: session } = useSession()
     const [isSeller, setIsSeller] = useState(false)
     const [storeInfo, setStoreInfo] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -17,10 +17,7 @@ const StoreLayout = ({ children }) => {
     useEffect(() => {
         const check = async () => {
             try {
-                const token = await getToken()
-                const { data } = await axios.get('/api/store/is-seller', {
-                    headers: { Authorization: `Bearer ${token}` }
-                })
+                const { data } = await axios.get('/api/store/is-seller')
                 if (data.isSeller) {
                     setIsSeller(true)
                     setStoreInfo(data.storeInfo)

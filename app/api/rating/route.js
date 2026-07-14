@@ -1,13 +1,14 @@
 import prisma from "@/lib/prisma";
 import { sanitizeText } from "@/lib/security";
-import { getAuth } from "@clerk/nextjs/server";
+import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
 
 
 // Add new rating
 export async function POST(request){
     try {
-        const { userId } = getAuth(request)
+        const session = await getSessionFromRequest(request)
+        const userId = session?.user?.id
         if(!userId){
             return NextResponse.json({error: "Unauthorized"}, { status: 401 })
         }
@@ -50,7 +51,8 @@ export async function POST(request){
 // Get all ratings for a user
 export async function GET(request){
     try {
-        const {userId} = getAuth(request)
+        const session = await getSessionFromRequest(request)
+        const userId = session?.user?.id
         if(!userId){
             return NextResponse.json({error: "Unauthorized"}, { status: 401 })
         }

@@ -1,6 +1,6 @@
 'use client'
 import { CircleUserRound, Heart, House, ShoppingBag, ShoppingCart } from 'lucide-react';
-import { useUser } from '@clerk/nextjs';
+import { useSession } from '@/lib/authClient';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSelector } from 'react-redux';
@@ -9,7 +9,8 @@ const BottomNav = () => {
     const pathname = usePathname();
     const cartCount = useSelector((state) => state.cart.total);
     const wishlistCount = useSelector((state) => state.wishlist.items.length);
-    const { user } = useUser();
+    const { data: session } = useSession();
+    const user = session?.user;
     const tabs = [
         { label: 'Home', href: '/', icon: House, isActive: pathname === '/' },
         { label: 'Shop', href: '/shop', icon: ShoppingBag, isActive: pathname.startsWith('/shop') },

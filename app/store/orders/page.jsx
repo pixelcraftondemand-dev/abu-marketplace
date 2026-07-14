@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from "react"
-import { useAuth } from "@clerk/nextjs"
+import { useSession } from "@/lib/authClient"
 import axios from "axios"
 import toast from "react-hot-toast"
 import Image from "next/image"
@@ -17,7 +17,7 @@ const STATUS_STYLES = {
 }
 
 export default function StoreOrders() {
-    const { getToken } = useAuth()
+    const { data: session } = useSession()
     const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'SLe'
 
     const [orders, setOrders] = useState([])
@@ -201,3 +201,4 @@ export default function StoreOrders() {
         </div>
     )
 }
+

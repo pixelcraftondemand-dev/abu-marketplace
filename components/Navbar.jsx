@@ -1,15 +1,15 @@
 'use client'
-import { PackageIcon, Search, ShoppingCart, Heart } from "lucide-react";
+import { PackageIcon, Search, ShoppingCart, Heart, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useSelector } from "react-redux";
-import { useUser, useClerk, UserButton, Show } from "@clerk/nextjs"
+import { useSession, signOut } from "@/lib/authClient"
 
 const Navbar = () => {
 
-    const {user} = useUser()
-    const {openSignIn} = useClerk()
+    const { data: session } = useSession()
+    const user = session?.user
     const router = useRouter();
 
     const [search, setSearch] = useState('')
@@ -21,6 +21,11 @@ const Navbar = () => {
         router.push(`/shop?search=${search}`)
     }
 
+    const handleSignOut = async () => {
+        await signOut()
+        router.push('/')
+    }
+
     return (
         <nav className="relative bg-white">
             <div className="mx-6">
@@ -28,11 +33,6 @@ const Navbar = () => {
 
                     <Link href="/" className="relative text-4xl font-semibold text-slate-700">
                         <span className="text-green-600">ABU</span> MARKETPLACE<span className="text-green-600 text-5xl leading-0">.</span>
-                        <Show when={(has) => has({ plan: 'plus' })}>
-                            <p className="absolute text-xs font-semibold -top-1 -right-8 px-3 p-0.5 rounded-full flex items-center gap-2 text-white bg-green-500">
-                                plus
-                            </p>
-                        </Show>
                        
                     </Link>
 
@@ -64,15 +64,18 @@ const Navbar = () => {
 
                     {
                         !user ? (
-                            <button onClick={openSignIn} className="px-8 py-2 bg-indigo-500 hover:bg-indigo-600 transition text-white rounded-full">
+                            <Link href="/sign-in" className="px-8 py-2 bg-indigo-500 hover:bg-indigo-600 transition text-white rounded-full">
                             Login
-                            </button>
+                            </Link>
                         ) : (
-                            <UserButton>
-                                <UserButton.MenuItems>
-                                    <UserButton.Action labelIcon={<PackageIcon size={16}/>} label="My Orders" onClick={()=> router.push('/orders')}/>
-                                </UserButton.MenuItems>
-                            </UserButton>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => router.push('/orders')} className="px-4 py-2 text-sm rounded-full hover:bg-slate-100">
+                                    {user.name || 'Account'}
+                                </button>
+                                <button onClick={handleSignOut} className="p-2 hover:bg-slate-100 rounded-full" title="Sign out">
+                                    <LogOut size={18} />
+                                </button>
+                            </div>
                         )
                     }
                         
@@ -82,22 +85,21 @@ const Navbar = () => {
                     {/* Mobile User Button  */}
                     <div className="sm:hidden">
                         { user ? (
-                            <div>
-                            <UserButton>
-                                <UserButton.MenuItems>
-                                    <UserButton.Action labelIcon={<ShoppingCart size={16}/>} label="Cart" onClick={()=> router.push('/cart')}/>
-                                </UserButton.MenuItems>
-                            </UserButton>
-                            <UserButton>
-                                <UserButton.MenuItems>
-                                    <UserButton.Action labelIcon={<PackageIcon size={16}/>} label="My Orders" onClick={()=> router.push('/orders')}/>
-                                </UserButton.MenuItems>
-                            </UserButton>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => router.push('/cart')} className="p-2">
+                                    <ShoppingCart size={20} />
+                                </button>
+                                <button onClick={() => router.push('/orders')} className="p-2">
+                                    <PackageIcon size={20} />
+                                </button>
+                                <button onClick={handleSignOut} className="p-2">
+                                    <LogOut size={20} />
+                                </button>
                             </div>
                         ) : (
-                            <button onClick={openSignIn} className="px-7 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-sm transition text-white rounded-full">
+                            <Link href="/sign-in" className="px-7 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-sm transition text-white rounded-full">
                             Login
-                        </button>
+                        </Link>
                         )
                         }
                         

@@ -1,9 +1,16 @@
 'use client'
-import { useUser, UserButton } from "@clerk/nextjs"
+import { useSession, signOut } from "@/lib/authClient"
 import Link from "next/link"
+import { LogOut } from "lucide-react"
 
 const AdminNavbar = () => {
-    const {user} = useUser()
+    const { data: session } = useSession()
+    const user = session?.user
+    
+    const handleSignOut = async () => {
+        await signOut()
+    }
+    
     return (
         <div className="flex items-center justify-between px-12 py-3 border-b border-slate-200 transition-all">
             <Link href="/admin" className="relative text-4xl font-semibold text-slate-700">
@@ -13,8 +20,14 @@ const AdminNavbar = () => {
                 </p>
             </Link>
             <div className="flex items-center gap-3">
-                <p>Hi, {user?.firstName}</p>
-                <UserButton />
+                <p>Hi, {user?.name?.split(' ')[0]}</p>
+                <button
+                    onClick={handleSignOut}
+                    className="p-2 hover:bg-slate-100 rounded-full transition"
+                    title="Sign out"
+                >
+                    <LogOut size={20} />
+                </button>
             </div>
         </div>
     )

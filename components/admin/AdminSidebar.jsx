@@ -5,11 +5,12 @@ import { HomeIcon, ShieldCheckIcon, StoreIcon, TicketPercentIcon } from "lucide-
 import Image from "next/image"
 import Link from "next/link"
 import { assets } from "@/assets/assets"
-import { useUser } from "@clerk/nextjs"
+import { useSession } from "@/lib/authClient"
 
 const AdminSidebar = () => {
 
-    const { user } = useUser()
+    const { data: session } = useSession()
+    const user = session?.user
 
     const pathname = usePathname()
 
@@ -23,8 +24,8 @@ const AdminSidebar = () => {
     return user && (
         <div className="inline-flex h-full flex-col gap-5 border-r border-slate-200 sm:min-w-60">
             <div className="flex flex-col gap-3 justify-center items-center pt-8 max-sm:hidden">
-                <Image className="w-14 h-14 rounded-full" src={user.imageUrl} alt="" width={80} height={80} />
-                <p className="text-slate-700">{user.fullName}</p>
+                <Image className="w-14 h-14 rounded-full" src={user.image || '/default-avatar.png'} alt="" width={80} height={80} />
+                <p className="text-slate-700">{user.name}</p>
             </div>
 
             <div className="max-sm:mt-6">

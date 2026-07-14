@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import prisma from "@/lib/prisma";
 import authAdmin from "@/middlewares/authAdmin";
-import { getAuth } from "@clerk/nextjs/server";
+import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
 
 const ALLOWED_STATUSES = ["approved", "rejected"];
@@ -13,7 +13,8 @@ const ALLOWED_STATUSES = ["approved", "rejected"];
 
 export async function GET(request) {
     try {
-        const { userId } = getAuth(request);
+        const session = await getSessionFromRequest(request);
+        const userId = session?.user?.id;
         const isAdmin = await authAdmin(userId);
 
         if (!isAdmin) {
@@ -41,7 +42,8 @@ export async function GET(request) {
 
 export async function POST(request) {
     try {
-        const { userId } = getAuth(request);
+        const session = await getSessionFromRequest(request);
+        const userId = session?.user?.id;
         const isAdmin = await authAdmin(userId);
 
         if (!isAdmin) {

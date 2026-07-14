@@ -1,6 +1,7 @@
 import AdminLayout from "@/components/admin/AdminLayout";
-import { auth } from "@clerk/nextjs/server"
+import { headers } from "next/headers";
 import { redirect } from "next/navigation"
+import { auth } from "@/lib/auth";
 
 export const metadata = {
     title: "ABU Marketplace - Admin",
@@ -8,9 +9,16 @@ export const metadata = {
 };
 
 export default async function RootAdminLayout({ children }) {
-    const { userId } = await auth()
+    const headersList = headers();
+    const cookieHeader = headersList.get("cookie");
+    
+    const session = await auth.api.getSession({
+        headers: {
+            cookie: cookieHeader,
+        },
+    });
 
-    if (!userId) {
+    if (!session?.user?.id) {
         redirect('/sign-in')
     }
 

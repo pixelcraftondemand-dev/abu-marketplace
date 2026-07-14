@@ -31,7 +31,7 @@ const EMPTY_FORM = {
 export default function CreateStore() {
     const { user }     = useUser()
     const router       = useRouter()
-    const { getToken } = useAuth()
+    const { data: session } = useSession()
 
     const [loading,          setLoading]          = useState(true)
     const [submitting,       setSubmitting]        = useState(false)
@@ -271,3 +271,4 @@ export default function CreateStore() {
         </div>
     )
 }
+

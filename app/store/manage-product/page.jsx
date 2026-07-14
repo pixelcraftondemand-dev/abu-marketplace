@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from "react"
-import { useAuth } from "@clerk/nextjs"
+import { useSession } from "@/lib/authClient"
 import axios from "axios"
 import toast from "react-hot-toast"
 import Image from "next/image"
@@ -9,7 +9,7 @@ import { SearchIcon, PackageXIcon } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 export default function ManageProducts() {
-    const { getToken } = useAuth()
+    const { data: session } = useSession()
     const router = useRouter()
     const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'SLe'
 

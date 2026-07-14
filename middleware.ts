@@ -1,40 +1,46 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-const isPublicRoute = createRouteMatcher([
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/api/health(.*)',
-  '/api/inngest(.*)',
-  '/api/webhook/clerk(.*)',
-]);
+const publicRoutes = [
+  '/sign-in',
+  '/sign-up',
+  '/api/health',
+  '/api/inngest',
+  '/auth',
+  '/',
+  '/shop',
+  '/product',
+  '/pricing',
+  '/terms-and-conditions',
+  '/privacy-policy',
+  '/cookie-policy',
+];
 
-const missingClerkEnv = [
-  'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
-  'CLERK_SECRET_KEY',
-].filter((key) => !process.env[key]);
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  
+  // Allow public routes
+  const isPublicRoute = publicRoutes.some(route => 
+    pathname === route || pathname.startsWith(route + '/')
+  );
 
-const middleware = missingClerkEnv.length
-  ? () =>
-      NextResponse.json(
-        {
-          error: 'Missing Clerk environment variables',
-          missing: missingClerkEnv,
-        },
-        { status: 500 }
-      )
-  : clerkMiddleware(async (auth, request) => {
-      if (!isPublicRoute(request)) {
-        await auth.protect();
-      }
-    });
+  if (isPublicRoute) {
+    return NextResponse.next();
+  }
 
-export default middleware;
+  // Protected routes: check for session
+  const sessionCookie = request.cookies.get('better-auth.session_token');
+  
+  if (!sessionCookie && !pathname.startsWith('/api')) {
+    return NextResponse.redirect(new URL('/sign-in', request.url));
+  }
+
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
     '/((?!_next|api/health|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
     '/(api(?!/health)|trpc)(.*)',
-    '/__clerk/(.*)',
   ],
 };

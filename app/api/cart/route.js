@@ -1,13 +1,14 @@
 import prisma from "@/lib/prisma";
 import { normalizeCart } from "@/lib/security";
-import { getAuth } from "@clerk/nextjs/server";
+import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
 
 
 // Update user cart 
 export async function POST(request){
     try {
-        const { userId } = getAuth(request)
+        const session = await getSessionFromRequest(request)
+        const userId = session?.user?.id
         if(!userId){
             return NextResponse.json({ error: "not authorized" }, { status: 401 });
         }
@@ -33,7 +34,8 @@ export async function POST(request){
 // Get user cart 
 export async function GET(request){
     try {
-        const { userId } = getAuth(request)
+        const session = await getSessionFromRequest(request)
+        const userId = session?.user?.id
         if(!userId){
             return NextResponse.json({ error: "not authorized" }, { status: 401 });
         }

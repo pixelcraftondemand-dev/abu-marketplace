@@ -1,13 +1,13 @@
 import prisma from "@/lib/prisma";
 import authSeller from "@/middlewares/authSeller";
-import { getAuth } from "@clerk/nextjs/server";
+import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
 
 
 // Get Dashboard Data for Seller ( total orders, total earnings, total products )
 export async function GET(request){
     try {
-        const { userId } = getAuth(request)
+        const session = await getSessionFromRequest(request)`nconst userId = session?.user?.id
         const storeId = await authSeller(userId)
         if(!storeId){
             return NextResponse.json({ error: 'not authorized' }, { status: 401 })

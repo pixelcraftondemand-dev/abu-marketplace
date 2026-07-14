@@ -4,12 +4,12 @@ import { format } from "date-fns"
 import toast from "react-hot-toast"
 import { DeleteIcon } from "lucide-react"
 import { couponDummyData } from "@/assets/assets"
-import { useAuth } from "@clerk/nextjs"
+import { useSession } from "@/lib/authClient"
 import axios from "axios"
 
 export default function AdminCoupons() {
 
-    const { getToken } = useAuth()
+    const { data: session } = useSession()
 
     const [coupons, setCoupons] = useState([])
 

@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from "react"
-import { useAuth } from "@clerk/nextjs"
+import { useSession } from "@/lib/authClient"
 import { useRouter } from "next/navigation"
 import axios from "axios"
 import toast from "react-hot-toast"
@@ -16,7 +16,7 @@ import {
 } from "lucide-react"
 
 export default function StoreDashboard() {
-    const { getToken } = useAuth()
+    const { data: session } = useSession()
     const router = useRouter()
     const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'SLe'
 
@@ -31,10 +31,7 @@ export default function StoreDashboard() {
     useEffect(() => {
         const fetch = async () => {
             try {
-                const token = await getToken()
-                const res = await axios.get('/api/store/dashboard', {
-                    headers: { Authorization: `Bearer ${token}` }
-                })
+                const res = await axios.get('/api/store/dashboard')
                 setData(res.data.dashboardData)
             } catch (err) {
                 toast.error(err?.response?.data?.error || err.message)

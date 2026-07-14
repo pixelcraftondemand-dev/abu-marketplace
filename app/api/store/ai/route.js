@@ -1,7 +1,7 @@
 import { getOpenAI } from "@/configs/openai";
 import { ALLOWED_IMAGE_TYPES, sanitizeText } from "@/lib/security";
 import authSeller from "@/middlewares/authSeller";
-import { getAuth } from "@clerk/nextjs/server";
+import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
 
 async function main(base64Image, mimeType) {
@@ -57,7 +57,7 @@ async function main(base64Image, mimeType) {
 
 export async function POST(request) {
     try {
-        const { userId } = getAuth(request)
+        const session = await getSessionFromRequest(request)`nconst userId = session?.user?.id
         const storeId = await authSeller(userId);
         if (!storeId) {
             return NextResponse.json({ error: 'not authorized' }, { status: 401 })

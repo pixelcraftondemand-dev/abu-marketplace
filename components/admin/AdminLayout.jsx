@@ -5,12 +5,12 @@ import Link from "next/link"
 import { ArrowRightIcon } from "lucide-react"
 import AdminNavbar from "./AdminNavbar"
 import AdminSidebar from "./AdminSidebar"
-import { useAuth } from "@clerk/nextjs"
+import { useSession } from "@/lib/authClient"
 import axios from "axios"
 
 const AdminLayout = ({ children }) => {
 
-    const { getToken } = useAuth()
+    const { data: session } = useSession()
 
     const [isAdmin, setIsAdmin] = useState(false)
     const [loading, setLoading] = useState(true)
@@ -18,9 +18,7 @@ const AdminLayout = ({ children }) => {
     const fetchIsAdmin = async () => {
         console.log("fetchIsAdmin called")
         try {
-            const token = await getToken()
-            console.log("token:", token)
-            const {data} = await axios.get('/api/admin/is-admin', {headers: { Authorization: `Bearer ${token}`}})
+            const {data} = await axios.get('/api/admin/is-admin')
             console.log("data:", data)
             setIsAdmin(data.isAdmin)
         } catch (error) {
@@ -31,8 +29,10 @@ const AdminLayout = ({ children }) => {
     }
 
     useEffect(() => {
-        fetchIsAdmin()
-    }, [])
+        if(session?.user){
+            fetchIsAdmin()
+        }
+    }, [session])
 
     return loading ? (
         <Loading />

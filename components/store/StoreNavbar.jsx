@@ -1,10 +1,18 @@
 'use client'
-import { useUser, UserButton } from "@clerk/nextjs"
+import { useSession, signOut } from "@/lib/authClient"
 import Link from "next/link"
-import { StoreIcon } from "lucide-react"
+import { StoreIcon, LogOut } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 const StoreNavbar = ({ storeInfo }) => {
-    const { user } = useUser()
+    const { data: session } = useSession()
+    const user = session?.user
+    const router = useRouter()
+
+    const handleSignOut = async () => {
+        await signOut()
+        router.push('/')
+    }
 
     return (
         <header className="flex items-center justify-between px-6 sm:px-10 py-3 bg-white border-b border-slate-200 shadow-sm z-10">
@@ -28,6 +36,17 @@ const StoreNavbar = ({ storeInfo }) => {
                 <div className="h-5 w-px bg-slate-200" />
                 <div className="flex items-center gap-2.5">
                     <div className="hidden sm:flex flex-col items-end leading-tight">
+                        <p className="text-sm font-medium text-slate-900">{user?.name || 'Seller'}</p>
+                        <p className="text-xs text-slate-500">{user?.email}</p>
+                    </div>
+                    <button onClick={handleSignOut} className="p-2 hover:bg-slate-100 rounded-full" title="Sign out">
+                        <LogOut size={20} className="text-slate-600" />
+                    </button>
+                </div>
+            </div>
+        </header>
+    )
+}
                         <p className="text-xs font-semibold text-slate-700">{user?.fullName}</p>
                         <p className="text-xs text-slate-400">{user?.primaryEmailAddress?.emailAddress}</p>
                     </div>

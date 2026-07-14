@@ -7,7 +7,7 @@ import Footer from "@/components/Footer";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchProducts } from "@/lib/features/product/productSlice";
-import { useUser, useAuth } from "@clerk/nextjs";
+import { useSession } from "@/lib/authClient";
 import { fetchCart, uploadCart } from "@/lib/features/cart/cartSlice";
 import { fetchAddress } from "@/lib/features/address/addressSlice";
 import { fetchUserRatings } from "@/lib/features/rating/ratingSlice";
@@ -16,8 +16,8 @@ import { hydrateWishlist, loadWishlistFromStorage } from "@/lib/features/wishlis
 export default function PublicLayout({ children }) {
 
     const dispatch = useDispatch()
-    const {user} = useUser()
-    const {getToken} = useAuth()
+    const { data: session } = useSession()
+    const user = session?.user
 
     const {cartItems} = useSelector((state)=>state.cart)
 
@@ -28,15 +28,15 @@ export default function PublicLayout({ children }) {
 
     useEffect(()=>{
         if(user){
-            dispatch(fetchCart({getToken}))
-            dispatch(fetchAddress({getToken}))
-            dispatch(fetchUserRatings({getToken}))
+            dispatch(fetchCart({}))
+            dispatch(fetchAddress({}))
+            dispatch(fetchUserRatings({}))
         }
     },[user])
 
     useEffect(()=>{
         if(user){
-            dispatch(uploadCart({getToken}))
+            dispatch(uploadCart({}))
         }
     },[cartItems])
 

@@ -5,14 +5,15 @@ import { inngest } from "@/inngest/client";
 import prisma from "@/lib/prisma";
 import { normalizeCoupon, sanitizeText } from "@/lib/security";
 import authAdmin from "@/middlewares/authAdmin";
-import { getAuth } from "@clerk/nextjs/server";
+import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
 
 // ── POST /api/admin/coupon ────────────────────────────────────────────────────
 export async function POST(request) {
     try {
-        const { userId, sessionClaims } = getAuth(request);
-        const isAdmin = await authAdmin(userId, sessionClaims);
+        const session = await getSessionFromRequest(request);
+        const userId = session?.user?.id;
+        const isAdmin = await authAdmin(userId);
 
         if (!isAdmin) {
             return NextResponse.json({ error: "Not authorized." }, { status: 403 });
@@ -41,8 +42,9 @@ export async function POST(request) {
 // ── DELETE /api/admin/coupon?code=CODE ────────────────────────────────────────
 export async function DELETE(request) {
     try {
-        const { userId, sessionClaims } = getAuth(request);
-        const isAdmin = await authAdmin(userId, sessionClaims);
+        const session = await getSessionFromRequest(request);
+        const userId = session?.user?.id;
+        const isAdmin = await authAdmin(userId);
 
         if (!isAdmin) {
             return NextResponse.json({ error: "Not authorized." }, { status: 403 });
@@ -65,8 +67,9 @@ export async function DELETE(request) {
 // ── GET /api/admin/coupon ─────────────────────────────────────────────────────
 export async function GET(request) {
     try {
-        const { userId, sessionClaims } = getAuth(request);
-        const isAdmin = await authAdmin(userId, sessionClaims);
+        const session = await getSessionFromRequest(request);
+        const userId = session?.user?.id;
+        const isAdmin = await authAdmin(userId);
 
         if (!isAdmin) {
             return NextResponse.json({ error: "Not authorized." }, { status: 403 });

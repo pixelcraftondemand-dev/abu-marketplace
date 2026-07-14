@@ -1,14 +1,14 @@
 import prisma from "@/lib/prisma";
 import { isValidId } from "@/lib/security";
 import authAdmin from "@/middlewares/authAdmin";
-import { getAuth } from "@clerk/nextjs/server";
+import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
 
 // POST /api/admin/store/approve
 // Body: { storeId: string, action: "approve" | "reject" }
 export async function POST(request) {
     try {
-        const { userId } = getAuth(request);
+        const session = await getSessionFromRequest(request)`nconst userId = session?.user?.id;
         const isAdmin = await authAdmin(userId);
 
         if (!isAdmin) {
