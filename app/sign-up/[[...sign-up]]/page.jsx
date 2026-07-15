@@ -1,7 +1,7 @@
 'use client'
 
 import Image from "next/image";
-import { SignIn } from "@clerk/nextjs";
+import { SignUp } from "@clerk/nextjs";
 import marketplaceLogo from "@/assets/abu-marketplace-logo.png";
 
 const clerkAppearance = {
@@ -24,7 +24,7 @@ const clerkAppearance = {
     },
 };
 
-export default function SignInPage() {
+export default function SignUpPage() {
     return (
         <main className="min-h-screen bg-slate-950 lg:grid lg:grid-cols-2">
             {/* Left Section */}
@@ -52,22 +52,24 @@ export default function SignInPage() {
                     </div>
                     <div className="mb-8">
                         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.25em] text-lime-700">ABU Marketplace</p>
-                        <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Welcome back</h1>
-                        <p className="mt-2 text-sm leading-6 text-slate-500">Sign in to browse, shop, and manage your marketplace account.</p>
+                        <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Create account</h1>
+                        <p className="mt-2 text-sm leading-6 text-slate-500">Join our community and start shopping or selling today.</p>
                     </div>
-                    <SignIn appearance={clerkAppearance} fallbackRedirectUrl="/" signUpUrl="/sign-up" />
+                    <SignUp appearance={clerkAppearance} fallbackRedirectUrl="/" signInUrl="/sign-in" />
                 </div>
             </section>
         </main>
     );
 }
 
-export default function SignInPage() {
+export default function SignUpPage() {
     const router = useRouter();
     const { data: session, isLoading } = useSession();
 
+    const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Redirect authenticated users to homepage
@@ -77,40 +79,53 @@ export default function SignInPage() {
         }
     }, [session, isLoading, router]);
 
-    const handleEmailSignIn = async (e) => {
+    const handleEmailSignUp = async (e) => {
         e.preventDefault();
+
+        // Validate passwords match
+        if (password !== confirmPassword) {
+            toast.error("Passwords do not match");
+            return;
+        }
+
+        if (password.length < 8) {
+            toast.error("Password must be at least 8 characters");
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
-            const response = await signIn.email({
+            const response = await signUp.email({
                 email,
                 password,
+                name,
                 callbackURL: "/",
             });
 
             if (response?.error) {
-                toast.error(response.error.message || "Sign in failed");
+                toast.error(response.error.message || "Sign up failed");
             } else {
-                toast.success("Signed in successfully!");
+                toast.success("Account created successfully!");
                 router.push("/");
             }
         } catch (error) {
-            toast.error("Sign in failed. Please try again.");
-            console.error("Sign in error:", error);
+            toast.error("Sign up failed. Please try again.");
+            console.error("Sign up error:", error);
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleGoogleSignIn = async () => {
+    const handleGoogleSignUp = async () => {
         try {
-            await signIn.social({
+            await signUp.social({
                 provider: "google",
                 callbackURL: "/",
             });
         } catch (error) {
-            toast.error("Google sign in failed. Please try again.");
-            console.error("Google sign in error:", error);
+            toast.error("Google sign up failed. Please try again.");
+            console.error("Google sign up error:", error);
         }
     };
 
@@ -149,12 +164,28 @@ export default function SignInPage() {
                     </div>
                     <div className="mb-8">
                         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.25em] text-lime-700">ABU Marketplace</p>
-                        <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Welcome back</h1>
-                        <p className="mt-2 text-sm leading-6 text-slate-500">Sign in to browse, shop, and manage your marketplace account.</p>
+                        <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Create account</h1>
+                        <p className="mt-2 text-sm leading-6 text-slate-500">Join our community and start shopping or selling today.</p>
                     </div>
 
-                    {/* Sign In Form */}
-                    <form onSubmit={handleEmailSignIn} className="space-y-6">
+                    {/* Sign Up Form */}
+                    <form onSubmit={handleEmailSignUp} className="space-y-4">
+                        {/* Name Input */}
+                        <div>
+                            <label htmlFor="name" className="block text-sm font-medium text-slate-900">
+                                Full Name
+                            </label>
+                            <input
+                                id="name"
+                                type="text"
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                required
+                                className="mt-2 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-900 focus:border-lime-500 focus:outline-none focus:ring-2 focus:ring-lime-500/20 transition-colors"
+                                placeholder="John Doe"
+                            />
+                        </div>
+
                         {/* Email Input */}
                         <div>
                             <label htmlFor="email" className="block text-sm font-medium text-slate-900">
@@ -185,15 +216,32 @@ export default function SignInPage() {
                                 className="mt-2 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-900 focus:border-lime-500 focus:outline-none focus:ring-2 focus:ring-lime-500/20 transition-colors"
                                 placeholder="••••••••"
                             />
+                            <p className="mt-1 text-xs text-slate-500">Min 8 characters</p>
                         </div>
 
-                        {/* Sign In Button */}
+                        {/* Confirm Password Input */}
+                        <div>
+                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-slate-900">
+                                Confirm Password
+                            </label>
+                            <input
+                                id="confirmPassword"
+                                type="password"
+                                value={confirmPassword}
+                                onChange={(e) => setConfirmPassword(e.target.value)}
+                                required
+                                className="mt-2 block w-full rounded-lg border border-slate-200 px-4 py-2.5 text-slate-900 focus:border-lime-500 focus:outline-none focus:ring-2 focus:ring-lime-500/20 transition-colors"
+                                placeholder="••••••••"
+                            />
+                        </div>
+
+                        {/* Sign Up Button */}
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full bg-lime-600 hover:bg-lime-700 disabled:bg-lime-400 text-white font-semibold py-2.5 rounded-lg transition-colors"
+                            className="w-full bg-lime-600 hover:bg-lime-700 disabled:bg-lime-400 text-white font-semibold py-2.5 rounded-lg transition-colors mt-6"
                         >
-                            {isSubmitting ? "Signing in..." : "Sign In"}
+                            {isSubmitting ? "Creating account..." : "Create Account"}
                         </button>
                     </form>
 
@@ -204,9 +252,9 @@ export default function SignInPage() {
                         <div className="flex-1 border-t border-slate-200" />
                     </div>
 
-                    {/* Google Sign In */}
+                    {/* Google Sign Up */}
                     <button
-                        onClick={handleGoogleSignIn}
+                        onClick={handleGoogleSignUp}
                         className="w-full flex items-center justify-center gap-3 border border-slate-200 hover:bg-slate-50 py-2.5 rounded-lg transition-colors"
                     >
                         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -230,11 +278,11 @@ export default function SignInPage() {
                         <span className="text-slate-900 font-medium">Continue with Google</span>
                     </button>
 
-                    {/* Sign Up Link */}
+                    {/* Sign In Link */}
                     <p className="mt-6 text-center text-sm text-slate-600">
-                        Don't have an account?{" "}
-                        <Link href="/sign-up" className="font-semibold text-lime-700 hover:text-lime-800">
-                            Sign up
+                        Already have an account?{" "}
+                        <Link href="/sign-in" className="font-semibold text-lime-700 hover:text-lime-800">
+                            Sign in
                         </Link>
                     </p>
                 </div>

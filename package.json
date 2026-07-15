@@ -10,12 +10,12 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.5.18",
     "@neondatabase/serverless": "^1.0.1",
     "@prisma/adapter-neon": "^6.14.0",
     "@prisma/client": "^6.14.0",
     "@reduxjs/toolkit": "^2.8.2",
     "axios": "^1.11.0",
-    "better-auth": "^1.6.23",
     "date-fns": "^4.1.0",
     "imagekit": "^6.0.0",
     "inngest": "^3.54.0",
