@@ -1,41 +1,67 @@
-'use client'
+"use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
-const CookieConsent = () => {
-    const [visible, setVisible] = useState(false);
+const CONSENT_KEY = "abu_cookie_consent";
 
-    useEffect(() => {
-        setVisible(localStorage.getItem("abu-cookie-choice") === null);
-    }, []);
+export default function CookieConsentBanner() {
+  const [visible, setVisible] = useState(false);
 
-    const saveChoice = (choice) => {
-        localStorage.setItem("abu-cookie-choice", choice);
-        setVisible(false);
-    };
+  useEffect(() => {
+    const stored = localStorage.getItem(CONSENT_KEY);
+    if (!stored) setVisible(true);
+  }, []);
 
-    if (!visible) return null;
-
-    return (
-        <div className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-4xl rounded-lg border border-slate-200 bg-white p-4 shadow-2xl sm:flex sm:items-center sm:justify-between sm:gap-5">
-            <div>
-                <p className="font-medium text-slate-800">Cookies help ABU Marketplace work better.</p>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                    We use essential cookies for login, cart, and checkout, plus optional cookies to improve offers and product discovery. Read our{" "}
-                    <Link href="/cookie-policy" className="font-medium text-green-600 hover:underline">Cookie Policy</Link>.
-                </p>
-            </div>
-            <div className="mt-4 flex shrink-0 gap-2 sm:mt-0">
-                <button onClick={() => saveChoice("essential")} className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
-                    Essential only
-                </button>
-                <button onClick={() => saveChoice("accepted")} className="rounded-md bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900">
-                    Accept
-                </button>
-            </div>
-        </div>
+  const handleChoice = (choice) => {
+    localStorage.setItem(
+      CONSENT_KEY,
+      JSON.stringify({ choice, timestamp: new Date().toISOString() })
     );
-};
+    // Only load analytics / marketing scripts after "accept".
+    // Example: if (choice === "accept") loadAnalytics();
+    setVisible(false);
+  };
 
-export default CookieConsent;
+  if (!visible) return null;
+
+  return (
+    <div
+      role="dialog"
+      aria-live="polite"
+      aria-label="Cookie consent"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-200 bg-white px-4 py-4 shadow-lg sm:px-6"
+    >
+      <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        <p className="text-sm text-gray-700">
+          We use cookies to run this site and, with your permission, to
+          understand how it's used and to personalize your experience. Read
+          our{" "}
+          <Link href="/terms" className="underline hover:text-gray-900">
+            Terms &amp; Conditions
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="underline hover:text-gray-900">
+            Privacy Policy
+          </Link>
+          .
+        </p>
+
+        <div className="flex shrink-0 gap-3">
+          <button
+            onClick={() => handleChoice("decline")}
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Decline
+          </button>
+          <button
+            onClick={() => handleChoice("accept")}
+            className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+          >
+            Accept
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
