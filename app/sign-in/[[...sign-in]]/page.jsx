@@ -38,7 +38,10 @@ export default function SignInPage() {
                         priority
                         className="w-full max-w-md rounded-3xl shadow-[0_0_80px_rgba(130,239,37,0.18)]"
                     />
-                    <p className="mt-9 text-sm font-medium uppercase tracking-[0.36em] text-lime-300/90">
+                    <div className="relative mt-9 h-[2px] w-44 overflow-hidden rounded-full bg-white/10">
+                        <span className="absolute inset-y-0 left-[-40%] w-2/5 animate-[scan_2.6s_ease-in-out_infinite] bg-gradient-to-r from-transparent via-lime-300 to-transparent" />
+                    </div>
+                    <p className="mt-5 text-sm font-medium uppercase tracking-[0.36em] text-lime-300/90">
                         Shop smart. Live better.
                     </p>
                 </div>

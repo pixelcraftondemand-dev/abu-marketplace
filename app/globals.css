@@ -9,6 +9,15 @@
             transform: translateX(-50%);
         }
     }
+
+    @keyframes scan {
+        0% {
+            left: -40%;
+        }
+        100% {
+            left: 100%;
+        }
+    }
 }
 
 @layer base {
