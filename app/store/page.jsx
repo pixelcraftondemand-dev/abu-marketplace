@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from "react"
-import { useSession } from "@/lib/authClient"
 import { useRouter } from "next/navigation"
 import axios from "axios"
 import toast from "react-hot-toast"
@@ -16,7 +15,6 @@ import {
 } from "lucide-react"
 
 export default function StoreDashboard() {
-    const { data: session } = useSession()
     const router = useRouter()
     const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'SLe'
 

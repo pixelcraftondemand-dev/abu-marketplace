@@ -7,7 +7,8 @@ import { NextResponse } from "next/server";
 // Get Dashboard Data for Seller ( total orders, total earnings, total products )
 export async function GET(request){
     try {
-        const session = await getSessionFromRequest(request)`nconst userId = session?.user?.id
+        const session = await getSessionFromRequest(request);
+        const userId = session?.user?.id;
         const storeId = await authSeller(userId)
         if(!storeId){
             return NextResponse.json({ error: 'not authorized' }, { status: 401 })

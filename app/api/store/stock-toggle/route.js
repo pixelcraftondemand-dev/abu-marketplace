@@ -7,7 +7,8 @@ import { NextResponse } from "next/server";
 // toggle stock of a product
 export async function POST(request){
     try {
-        const session = await getSessionFromRequest(request)`nconst userId = session?.user?.id
+        const session = await getSessionFromRequest(request);
+        const userId = session?.user?.id;
         const { productId } = await request.json()
 
         if(!isValidId(productId)){

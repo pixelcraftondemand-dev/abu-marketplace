@@ -1,6 +1,6 @@
 'use client'
 import { useState } from "react"
-import { useSession } from "@/lib/authClient"
+import { useAuth } from "@clerk/nextjs"
 import axios from "axios"
 import toast from "react-hot-toast"
 import Image from "next/image"
@@ -15,7 +15,7 @@ const CATEGORIES = [
 const EMPTY_FORM = { name: '', description: '', mrp: '', price: '', category: '' }
 
 export default function AddProduct() {
-    const { data: session } = useSession()
+    const { getToken } = useAuth()
     const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'SLe'
 
     const [form, setForm] = useState(EMPTY_FORM)

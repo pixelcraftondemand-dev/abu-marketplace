@@ -1,6 +1,6 @@
 'use client'
 import { addAddress } from "@/lib/features/address/addressSlice"
-import { useSession } from "@/lib/authClient"
+import { useAuth } from "@clerk/nextjs"
 import axios from "axios"
 import { XIcon } from "lucide-react"
 import { useState } from "react"
@@ -9,7 +9,7 @@ import { useDispatch } from "react-redux"
 
 const AddressModal = ({ setShowAddressModal }) => {
 
-     const { data: session } = useSession()
+     const { getToken } = useAuth()
      const dispatch = useDispatch()
 
     const [address, setAddress] = useState({

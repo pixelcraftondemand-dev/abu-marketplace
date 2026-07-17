@@ -47,7 +47,8 @@ function validateFields({ name, username, description, email, contact, address }
 
 export async function GET(request) {
     try {
-        const session = await getSessionFromRequest(request)`nconst userId = session?.user?.id;
+        const session = await getSessionFromRequest(request);
+        const userId = session?.user?.id;
 
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
@@ -70,7 +71,8 @@ export async function GET(request) {
 
 export async function POST(request) {
     try {
-        const session = await getSessionFromRequest(request)`nconst userId = session?.user?.id;
+        const session = await getSessionFromRequest(request);
+        const userId = session?.user?.id;
 
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized." }, { status: 401 });

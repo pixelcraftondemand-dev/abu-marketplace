@@ -29,9 +29,9 @@ const EMPTY_FORM = {
 }
 
 export default function CreateStore() {
-    const { user }     = useUser()
-    const router       = useRouter()
-    const { data: session } = useSession()
+    const { user } = useUser()
+    const { getToken } = useAuth()
+    const router = useRouter()
 
     const [loading,          setLoading]          = useState(true)
     const [submitting,       setSubmitting]        = useState(false)

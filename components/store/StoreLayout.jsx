@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from "react"
-import { useSession } from "@/lib/authClient"
 import axios from "axios"
 import Link from "next/link"
 import { ArrowRightIcon } from "lucide-react"
@@ -9,7 +8,6 @@ import StoreSidebar from "./StoreSidebar"
 import Loading from "@/components/Loading"
 
 const StoreLayout = ({ children }) => {
-    const { data: session } = useSession()
     const [isSeller, setIsSeller] = useState(false)
     const [storeInfo, setStoreInfo] = useState(null)
     const [loading, setLoading] = useState(true)

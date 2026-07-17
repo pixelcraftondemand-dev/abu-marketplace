@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useSelector } from "react-redux";
-import { useSession, signOut } from "@/lib/authClient"
+import { useUser, useClerk } from "@clerk/nextjs";
 
 const Navbar = () => {
 
-    const { data: session } = useSession()
-    const user = session?.user
+    const { user } = useUser()
+    const { signOut } = useClerk()
     const router = useRouter();
 
     const [search, setSearch] = useState('')
@@ -70,7 +70,7 @@ const Navbar = () => {
                         ) : (
                             <div className="flex items-center gap-2">
                                 <button onClick={() => router.push('/orders')} className="px-4 py-2 text-sm rounded-full hover:bg-slate-100">
-                                    {user.name || 'Account'}
+                                    {user.fullName || 'Account'}
                                 </button>
                                 <button onClick={handleSignOut} className="p-2 hover:bg-slate-100 rounded-full" title="Sign out">
                                     <LogOut size={18} />

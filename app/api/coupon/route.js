@@ -63,9 +63,9 @@ export async function DELETE(request) {
 }
 
 export async function GET(request) {
-    try {session = await getSessionFromRequest(request);
-        const userId = session?.user?.id
-        const { userId } = getAuth(request);
+    try {
+        const session = await getSessionFromRequest(request);
+        const userId = session?.user?.id;
         const isAdmin = await authAdmin(userId);
 
         if (!isAdmin) {

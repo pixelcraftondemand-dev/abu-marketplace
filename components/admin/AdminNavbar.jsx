@@ -1,11 +1,11 @@
 'use client'
-import { useSession, signOut } from "@/lib/authClient"
+import { useUser, useClerk } from "@clerk/nextjs"
 import Link from "next/link"
 import { LogOut } from "lucide-react"
 
 const AdminNavbar = () => {
-    const { data: session } = useSession()
-    const user = session?.user
+    const { user } = useUser()
+    const { signOut } = useClerk()
     
     const handleSignOut = async () => {
         await signOut()
@@ -20,7 +20,7 @@ const AdminNavbar = () => {
                 </p>
             </Link>
             <div className="flex items-center gap-3">
-                <p>Hi, {user?.name?.split(' ')[0]}</p>
+                <p>Hi, {user?.firstName || user?.fullName?.split(' ')[0]}</p>
                 <button
                     onClick={handleSignOut}
                     className="p-2 hover:bg-slate-100 rounded-full transition"

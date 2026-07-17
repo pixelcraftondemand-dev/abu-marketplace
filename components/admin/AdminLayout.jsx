@@ -5,12 +5,12 @@ import Link from "next/link"
 import { ArrowRightIcon } from "lucide-react"
 import AdminNavbar from "./AdminNavbar"
 import AdminSidebar from "./AdminSidebar"
-import { useSession } from "@/lib/authClient"
+import { useUser } from "@clerk/nextjs"
 import axios from "axios"
 
 const AdminLayout = ({ children }) => {
 
-    const { data: session } = useSession()
+    const { user, isLoaded } = useUser()
 
     const [isAdmin, setIsAdmin] = useState(false)
     const [loading, setLoading] = useState(true)
@@ -29,12 +29,10 @@ const AdminLayout = ({ children }) => {
     }
 
     useEffect(() => {
-        if(session?.user){
-            fetchIsAdmin()
-        }
-    }, [session])
+        if (user) fetchIsAdmin()
+    }, [user])
 
-    return loading ? (
+    return !isLoaded || loading ? (
         <Loading />
     ) : isAdmin ? (
         <div className="flex flex-col h-screen">

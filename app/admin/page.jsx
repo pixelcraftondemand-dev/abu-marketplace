@@ -2,7 +2,7 @@
 import { dummyAdminDashboardData } from "@/assets/assets"
 import Loading from "@/components/Loading"
 import OrdersAreaChart from "@/components/OrdersAreaChart"
-import { useSession } from "@/lib/authClient"
+import { useUser } from "@clerk/nextjs"
 import axios from "axios"
 import { CircleDollarSignIcon, ShoppingBasketIcon, StoreIcon, TagsIcon } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -10,7 +10,7 @@ import toast from "react-hot-toast"
 
 export default function AdminDashboard() {
 
-    const { data: session } = useSession()
+    const { user } = useUser()
 
     const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'SLe'
 
@@ -41,10 +41,8 @@ export default function AdminDashboard() {
     }
 
     useEffect(() => {
-        if(session?.user){
-            fetchDashboardData()
-        }
-    }, [session])
+        if (user) fetchDashboardData()
+    }, [user])
 
     if (loading) return <Loading />
 

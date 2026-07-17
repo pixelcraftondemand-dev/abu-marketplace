@@ -53,39 +53,3 @@ export default function PublicLayout({ children }) {
         </>
     );
 }
-
-    const {cartItems} = useSelector((state)=>state.cart)
-
-    useEffect(()=>{
-        dispatch(fetchProducts({}))
-        dispatch(hydrateWishlist(loadWishlistFromStorage()))
-    },[])
-
-    useEffect(()=>{
-        if(user){
-            dispatch(fetchCart({}))
-            dispatch(fetchAddress({}))
-            dispatch(fetchUserRatings({}))
-        }
-    },[user])
-
-    useEffect(()=>{
-        if(user){
-            dispatch(uploadCart({}))
-        }
-    },[cartItems])
-
-
-
-
-    return (
-        <>
-            <Banner />
-            <Navbar />
-            <main className="pb-20 sm:pb-0">{children}</main>
-            <CookieConsent />
-            <Footer />
-            <BottomNav />
-        </>
-    );
-}

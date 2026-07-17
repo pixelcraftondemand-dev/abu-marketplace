@@ -10,7 +10,8 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 export async function POST(request){
     try {
-        const session = await getSessionFromRequest(request)`nconst userId = session?.user?.id
+        const session = await getSessionFromRequest(request);
+        const userId = session?.user?.id;
         const storeId = await authSeller(userId)
         if(!storeId){
             return NextResponse.json({error: 'not authorized'}, { status: 401 } )
@@ -76,7 +77,8 @@ export async function POST(request){
 
 export async function GET(request){
     try {
-        const session = await getSessionFromRequest(request)`nconst userId = session?.user?.id
+        const session = await getSessionFromRequest(request);
+        const userId = session?.user?.id;
         const storeId = await authSeller(userId)
         if(!storeId){
             return NextResponse.json({error: 'not authorized'}, { status: 401 } )

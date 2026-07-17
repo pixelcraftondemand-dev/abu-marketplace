@@ -10,8 +10,8 @@ import { fetchCart } from '@/lib/features/cart/cartSlice';
 
 const OrderSummary = ({ totalPrice, items }) => {
 
-    const {user} = useUser()
-    const { data: session } = useSession()
+    const { user } = useUser()
+    const { getToken } = useAuth()
     const dispatch = useDispatch()
     const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'SLe';
 

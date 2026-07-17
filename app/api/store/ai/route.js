@@ -57,7 +57,8 @@ async function main(base64Image, mimeType) {
 
 export async function POST(request) {
     try {
-        const session = await getSessionFromRequest(request)`nconst userId = session?.user?.id
+        const session = await getSessionFromRequest(request);
+        const userId = session?.user?.id;
         const storeId = await authSeller(userId);
         if (!storeId) {
             return NextResponse.json({ error: 'not authorized' }, { status: 401 })

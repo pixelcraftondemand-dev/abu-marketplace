@@ -1,7 +1,6 @@
 import StoreLayout from "@/components/store/StoreLayout";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation"
-import { auth } from "@/lib/auth";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
 export const metadata = {
     title: "ABU Marketplace - Store Dashboard",
@@ -9,22 +8,11 @@ export const metadata = {
 };
 
 export default async function RootStoreLayout({ children }) {
-    const headersList = headers();
-    const cookieHeader = headersList.get("cookie");
-    
-    const session = await auth.api.getSession({
-        headers: {
-            cookie: cookieHeader,
-        },
-    });
+    const { userId } = await auth();
 
-    if (!session?.user?.id) {
-        redirect('/sign-in')
+    if (!userId) {
+        redirect("/sign-in");
     }
 
-    return (
-        <StoreLayout>
-            {children}
-        </StoreLayout>
-    );
+    return <StoreLayout>{children}</StoreLayout>;
 }

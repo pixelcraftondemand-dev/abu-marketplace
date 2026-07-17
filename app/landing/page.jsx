@@ -2,23 +2,23 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from '@/lib/authClient';
+import { useUser } from '@clerk/nextjs';
 import Image from 'next/image';
 import Link from 'next/link';
 import marketplaceLogo from '@/assets/abu-marketplace-logo.png';
 
 export default function LandingPage() {
   const router = useRouter();
-  const { data: session, isLoading } = useSession();
+  const { user, isLoaded } = useUser();
 
   // Redirect authenticated users to homepage
   useEffect(() => {
-    if (!isLoading && session?.user) {
+    if (isLoaded && user) {
       router.push('/');
     }
-  }, [session, isLoading, router]);
+  }, [user, isLoaded, router]);
 
-  if (isLoading) {
+  if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950">
         <div className="text-white">Loading...</div>

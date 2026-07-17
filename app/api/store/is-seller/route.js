@@ -7,7 +7,8 @@ import { NextResponse } from "next/server";
 // Returns { isSeller: true, storeInfo: {...} } or 401
 export async function GET(request) {
     try {
-        const session = await getSessionFromRequest(request)`nconst userId = session?.user?.id;
+        const session = await getSessionFromRequest(request);
+        const userId = session?.user?.id;
         const isSeller = await authSeller(userId);
 
         if (!isSeller) {
