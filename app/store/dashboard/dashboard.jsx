@@ -353,5 +353,3 @@ export default function StoreDashboard() {
     </div>
   );
 }
-
-print("store-dashboard.jsx created!")

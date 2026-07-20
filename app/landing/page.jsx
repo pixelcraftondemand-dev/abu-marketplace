@@ -7,44 +7,41 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
-  Shield,
-  Zap,
-  Users,
+  ArrowUpRight,
   Star,
-  TrendingUp,
-  Package,
-  Headphones,
-  Watch,
-  Smartphone,
-  ChevronRight,
-  Play,
-  Sparkles,
+  Truck,
+  Shield,
   Award,
-  Globe,
-  Lock,
+  Play,
 } from "lucide-react";
 import marketplaceLogo from "@/assets/abu-marketplace-logo.png";
 
-/* ─── Reusable Components ─── */
-
-function AnimatedCounter({ end, suffix = "", duration = 2000 }) {
-  const [count, setCount] = useState(0);
+/* ─── Scroll Reveal Hook ─── */
+function useScrollReveal(threshold = 0.1) {
   const ref = useRef(null);
-  const [visible, setVisible] = useState(false);
+  const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) setVisible(true);
+        if (entry.isIntersecting) setRevealed(true);
       },
-      { threshold: 0.5 }
+      { threshold }
     );
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
-  }, []);
+  }, [threshold]);
+
+  return [ref, revealed];
+}
+
+/* ─── Animated Counter ─── */
+function AnimatedCounter({ end, suffix = "", duration = 2000 }) {
+  const [count, setCount] = useState(0);
+  const [ref, revealed] = useScrollReveal(0.5);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!revealed) return;
     let start = 0;
     const increment = end / (duration / 16);
     const timer = setInterval(() => {
@@ -57,758 +54,493 @@ function AnimatedCounter({ end, suffix = "", duration = 2000 }) {
       }
     }, 16);
     return () => clearInterval(timer);
-  }, [visible, end, duration]);
+  }, [revealed, end, duration]);
 
-  return (
-    <span ref={ref}>
-      {count.toLocaleString()}
-      {suffix}
-    </span>
-  );
+  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>;
 }
 
-function ScrollReveal({ children, className = "", delay = 0 }) {
-  const ref = useRef(null);
-  const [revealed, setRevealed] = useState(false);
+/* ─── Product Data ─── */
+const featuredProducts = [
+  {
+    id: 1,
+    name: "Heritage Chronograph",
+    category: "Watches",
+    price: "SLe 2,499",
+    rating: 4.9,
+    reviews: 128,
+    image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=750&fit=crop",
+    badge: "Editor's Pick",
+  },
+  {
+    id: 2,
+    name: "Studio Pro Headphones",
+    category: "Audio",
+    price: "SLe 849",
+    rating: 4.8,
+    reviews: 342,
+    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&h=750&fit=crop",
+    badge: null,
+  },
+  {
+    id: 3,
+    name: "Artisan Leather Tote",
+    category: "Fashion",
+    price: "SLe 1,299",
+    rating: 4.7,
+    reviews: 89,
+    image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&h=750&fit=crop",
+    badge: "New",
+  },
+  {
+    id: 4,
+    name: "Lumina Mirrorless",
+    category: "Photography",
+    price: "SLe 5,999",
+    rating: 4.9,
+    reviews: 56,
+    image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600&h=750&fit=crop",
+    badge: null,
+  },
+];
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) setRevealed(true);
-      },
-      { threshold: 0.1 }
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
+const editorialPicks = [
+  {
+    title: "The Art of Sound",
+    subtitle: "Premium audio equipment curated for audiophiles",
+    image: "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800&h=1000&fit=crop",
+    href: "/shop?category=audio",
+  },
+  {
+    title: "Timeless Elegance",
+    subtitle: "Watches that transcend generations",
+    image: "https://images.unsplash.com/photo-1524592094714-0f0654e20314?w=600&h=600&fit=crop",
+    href: "/shop?category=watches",
+  },
+  {
+    title: "Modern Living",
+    subtitle: "Smart home essentials reimagined",
+    image: "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=600&h=600&fit=crop",
+    href: "/shop?category=home",
+  },
+];
 
-  return (
-    <div
-      ref={ref}
-      className={`transition-all duration-700 ${className} ${
-        revealed
-          ? "opacity-100 translate-y-0"
-          : "opacity-0 translate-y-8"
-      }`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
-  );
-}
+const testimonials = [
+  {
+    name: "Amara Johnson",
+    role: "Interior Designer",
+    text: "ABU Marketplace has completely transformed how I source products for my clients. The curation is impeccable.",
+    avatar: "A",
+  },
+  {
+    name: "David Chen",
+    role: "Tech Entrepreneur",
+    text: "I've never experienced such seamless luxury shopping. Every detail, from packaging to delivery, is world-class.",
+    avatar: "D",
+  },
+  {
+    name: "Fatima Sesay",
+    role: "Fashion Blogger",
+    text: "The selection here is unmatched. I discover something extraordinary every time I browse.",
+    avatar: "F",
+  },
+];
 
 /* ─── Main Page ─── */
-
 export default function LandingPage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
-  const heroRef = useRef(null);
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
-  // Redirect authenticated users
   useEffect(() => {
     if (isLoaded && user) {
       router.push("/");
     }
   }, [user, isLoaded, router]);
 
-  // Parallax mouse effect
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (heroRef.current) {
-        const rect = heroRef.current.getBoundingClientRect();
-        setMousePos({
-          x: (e.clientX - rect.left - rect.width / 2) / 50,
-          y: (e.clientY - rect.top - rect.height / 2) / 50,
-        });
-      }
-    };
-    window.addEventListener("mousemove", handleMouseMove);
-    return () => window.removeEventListener("mousemove", handleMouseMove);
-  }, []);
-
   if (!isLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0B0F19]">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-          <span className="text-slate-400">Loading...</span>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-[#FAF8F5]">
+        <div className="w-8 h-8 border border-[#E8E2DB] border-t-[#C9A96E] animate-spin" />
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#0B0F19] overflow-hidden">
-      {/* ═══════════════════════════════════════
-          HERO SECTION — Hero-centric + Parallax
-         ═══════════════════════════════════════ */}
-      <section
-        ref={heroRef}
-        className="relative min-h-screen flex items-center justify-center overflow-hidden"
-      >
-        {/* Animated background */}
-        <div className="absolute inset-0">
-          <div
-            className="absolute inset-0 opacity-40"
-            style={{
-              background: `radial-gradient(ellipse at ${50 + mousePos.x}% ${40 + mousePos.y}%, rgba(245, 158, 11, 0.12) 0%, transparent 60%)`,
-            }}
-          />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(99,102,241,0.06),transparent_50%)]" />
-          <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
-        </div>
-
-        {/* Grid pattern overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.02]"
-          style={{
-            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-            backgroundSize: "60px 60px",
-          }}
-        />
-
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-32">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            {/* Left: Content */}
-            <div className="space-y-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium">
-                <Sparkles size={14} />
-                Premium Marketplace Experience
-              </div>
-
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-[1.1] tracking-tight">
-                Shop
-                <span className="text-gradient"> Smart.</span>
-                <br />
-                Live{" "}
-                <span className="relative">
-                  Better.
-                  <svg
-                    className="absolute -bottom-2 left-0 w-full"
-                    viewBox="0 0 200 12"
-                    fill="none"
+    <main className="min-h-screen bg-[#FAF8F5]">
+      {/* ═══════════════════════════════════════════════
+          HERO — Asymmetric Magazine Cover Layout
+         ═══════════════════════════════════════════════ */}
+      <section className="relative min-h-[92vh] lg:min-h-screen">
+        <div className="asymmetric-hero h-full min-h-[92vh] lg:min-h-screen">
+          {/* Main Feature — Left (Magazine Cover) */}
+          <div className="asymmetric-hero-main relative overflow-hidden">
+            <Image
+              src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=1400&fit=crop"
+              alt="Luxury Collection"
+              fill
+              className="object-cover"
+              priority
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#1A1A1A]/60 via-[#1A1A1A]/20 to-transparent" />
+            <div className="absolute inset-0 flex flex-col justify-end p-8 lg:p-16">
+              <div className="max-w-xl">
+                <p className="text-editorial text-white/70 mb-4">
+                  Spring / Summer 2026
+                </p>
+                <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl xl:text-8xl text-white font-medium leading-[0.95] mb-6">
+                  The Art of
+                  <br />
+                  <span className="italic">Curated</span>
+                  <br />
+                  Living
+                </h1>
+                <p className="text-white/80 text-lg max-w-md mb-8 leading-relaxed">
+                  Discover extraordinary products from the world's most
+                  discerning artisans and creators.
+                </p>
+                <div className="flex flex-wrap gap-4">
+                  <Link
+                    href="/shop"
+                    className="btn-luxury bg-white text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-white"
                   >
-                    <path
-                      d="M2 10C50 2 150 2 198 10"
-                      stroke="#F59E0B"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </span>
-              </h1>
-
-              <p className="text-lg text-slate-400 max-w-lg leading-relaxed">
-                Discover the best deals from trusted sellers in one secure
-                marketplace. Buy and sell with confidence, backed by
-                industry-leading protection.
-              </p>
-
-              <div className="flex flex-wrap gap-4">
-                <Link
-                  href="/sign-up"
-                  className="group inline-flex items-center gap-2 px-8 py-4 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-2xl transition-all hover:shadow-xl hover:shadow-amber-500/20"
-                >
-                  Get Started
-                  <ArrowRight
-                    size={18}
-                    className="group-hover:translate-x-1 transition-transform"
-                  />
-                </Link>
-                <Link
-                  href="/shop"
-                  className="inline-flex items-center gap-2 px-8 py-4 border border-white/[0.08] text-white hover:bg-white/[0.04] font-semibold rounded-2xl transition-all"
-                >
-                  <Play size={18} className="text-amber-500" />
-                  Browse Shop
-                </Link>
-              </div>
-
-              {/* Stats row */}
-              <div className="flex items-center gap-8 pt-4">
-                {[
-                  { value: 12500, suffix: "+", label: "Products" },
-                  { value: 8500, suffix: "+", label: "Customers" },
-                  { value: 99, suffix: "%", label: "Satisfaction" },
-                ].map((stat, i) => (
-                  <div key={i}>
-                    <div className="text-2xl font-bold text-white">
-                      <AnimatedCounter end={stat.value} suffix={stat.suffix} />
-                    </div>
-                    <div className="text-sm text-slate-500">{stat.label}</div>
-                  </div>
-                ))}
+                    <span>Explore Collection</span>
+                  </Link>
+                  <Link
+                    href="/collections"
+                    className="inline-flex items-center gap-2 text-white text-sm font-medium tracking-wide uppercase hover:text-[#C9A96E] transition"
+                  >
+                    <Play size={14} fill="currentColor" />
+                    Watch the Film
+                  </Link>
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Right: Visual */}
-            <div className="relative hidden lg:block">
-              <div
-                className="relative"
-                style={{
-                  transform: `perspective(1000px) rotateY(${mousePos.x * 0.5}deg) rotateX(${-mousePos.y * 0.5}deg)`,
-                  transition: "transform 0.1s ease-out",
-                }}
+          {/* Right Column — Stacked Editorial Cards */}
+          <div className="hidden lg:flex flex-col">
+            {/* Top Right — Category Card */}
+            <Link
+              href="/shop?category=watches"
+              className="relative flex-1 overflow-hidden group magazine-card"
+            >
+              <Image
+                src="https://images.unsplash.com/photo-1524592094714-0f0654e20314?w=800&h=600&fit=crop"
+                alt="Watches"
+                fill
+                className="object-cover"
+              />
+              <div className="magazine-card-content">
+                <p className="text-editorial text-white/70 mb-2">Category</p>
+                <h3 className="font-display text-3xl text-white font-medium">
+                  Timepieces
+                </h3>
+                <p className="text-white/60 text-sm mt-2">128 Products</p>
+              </div>
+            </Link>
+
+            {/* Bottom Right — Offset Card */}
+            <Link
+              href="/shop?category=audio"
+              className="relative flex-1 overflow-hidden group magazine-card asymmetric-hero-offset"
+            >
+              <Image
+                src="https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=800&h=600&fit=crop"
+                alt="Audio"
+                fill
+                className="object-cover"
+              />
+              <div className="magazine-card-content">
+                <p className="text-editorial text-white/70 mb-2">Trending</p>
+                <h3 className="font-display text-3xl text-white font-medium">
+                  Pure Audio
+                </h3>
+                <p className="text-white/60 text-sm mt-2">64 Products</p>
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════
+          TRUST BAR — Amazon-style efficiency
+         ═══════════════════════════════════════════════ */}
+      <div className="trust-row">
+        <div className="trust-item">
+          <Truck size={18} strokeWidth={1.5} />
+          <span>Free Shipping Over SLe 500</span>
+        </div>
+        <div className="trust-item">
+          <Shield size={18} strokeWidth={1.5} />
+          <span>Authenticity Guaranteed</span>
+        </div>
+        <div className="trust-item">
+          <Award size={18} strokeWidth={1.5} />
+          <span>Curated by Experts</span>
+        </div>
+        <div className="trust-item">
+          <Star size={18} strokeWidth={1.5} />
+          <span>4.9 Average Rating</span>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════
+          FEATURED PRODUCTS — Etsy-style Discovery Grid
+         ═══════════════════════════════════════════════ */}
+      <section className="section-clean">
+        <div className="section-narrow">
+          <div className="flex items-end justify-between mb-12">
+            <div>
+              <p className="text-editorial text-[#C9A96E] mb-3">Curated Selection</p>
+              <h2 className="font-display text-4xl md:text-5xl text-[#1A1A1A] font-medium">
+                Featured Products
+              </h2>
+            </div>
+            <Link
+              href="/shop"
+              className="hidden md:inline-flex items-center gap-2 text-sm font-medium text-[#1A1A1A] hover:text-[#C9A96E] transition uppercase tracking-wide"
+            >
+              View All
+              <ArrowRight size={16} />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            {featuredProducts.map((product, i) => (
+              <Link
+                key={product.id}
+                href={`/product/${product.id}`}
+                className="group product-discovery"
+                style={{ animationDelay: `${i * 100}ms` }}
               >
-                {/* Glow */}
-                <div className="absolute -inset-4 bg-amber-500/10 rounded-3xl blur-2xl" />
-
-                {/* Main card */}
-                <div className="relative rounded-3xl overflow-hidden border border-white/[0.08] bg-[#111827]/80 backdrop-blur-sm">
+                <div className="relative aspect-[3/4] overflow-hidden bg-[#F5F0EB]">
                   <Image
-                    src={marketplaceLogo}
-                    alt="ABU Marketplace"
-                    width={600}
-                    height={500}
-                    className="w-full h-auto object-cover"
-                    priority
+                    src={product.image}
+                    alt={product.name}
+                    fill
+                    className="object-cover product-discovery-img"
                   />
-
-                  {/* Floating badge */}
-                  <div className="absolute top-6 right-6 flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/20 border border-green-500/30 text-green-400 text-sm font-medium backdrop-blur-sm">
-                    <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                    Live Now
-                  </div>
-
-                  {/* Bottom info bar */}
-                  <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#0B0F19] to-transparent">
-                    <div className="flex items-center gap-4">
-                      <div className="flex -space-x-2">
-                        {[1, 2, 3, 4].map((i) => (
-                          <div
-                            key={i}
-                            className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 border-2 border-[#0B0F19] flex items-center justify-center text-xs font-bold text-black"
-                          >
-                            {String.fromCharCode(64 + i)}
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-sm text-slate-300">
-                        <span className="text-white font-semibold">2,400+</span>{" "}
-                        shoppers joined this week
-                      </p>
+                  {product.badge && (
+                    <span className="product-discovery-badge">
+                      {product.badge}
+                    </span>
+                  )}
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 bg-[#1A1A1A]/0 group-hover:bg-[#1A1A1A]/10 transition-all duration-500" />
+                </div>
+                <div className="p-4">
+                  <p className="text-[10px] tracking-[0.15em] uppercase text-[#9B9590] mb-1">
+                    {product.category}
+                  </p>
+                  <h3 className="font-display text-lg text-[#1A1A1A] group-hover:text-[#C9A96E] transition-colors">
+                    {product.name}
+                  </h3>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-sm font-semibold text-[#1A1A1A]">
+                      {product.price}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Star size={12} className="text-[#C9A96E] fill-[#C9A96E]" />
+                      <span className="text-xs text-[#6B6560]">
+                        {product.rating}
+                      </span>
                     </div>
                   </div>
                 </div>
+              </Link>
+            ))}
+          </div>
 
-                {/* Floating cards */}
-                <div className="absolute -left-8 top-1/4 p-4 rounded-2xl bg-[#111827]/90 border border-white/[0.06] backdrop-blur-sm animate-float">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-                      <Package size={20} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-white">Fast Delivery</p>
-                      <p className="text-xs text-slate-500">2-3 days avg</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div
-                  className="absolute -right-4 bottom-1/4 p-4 rounded-2xl bg-[#111827]/90 border border-white/[0.06] backdrop-blur-sm animate-float"
-                  style={{ animationDelay: "1s" }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center text-green-400">
-                      <Shield size={20} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-white">Secure Pay</p>
-                      <p className="text-xs text-slate-500">256-bit SSL</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="mt-8 text-center md:hidden">
+            <Link
+              href="/shop"
+              className="btn-luxury-outline inline-flex"
+            >
+              View All Products
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════
-          BENTO GRID — Featured Categories
-         ═══════════════════════════════════════ */}
-      <section className="relative py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <ScrollReveal>
-            <div className="text-center mb-16">
-              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium mb-6">
-                <TrendingUp size={14} />
-                Trending Categories
-              </span>
-              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">
-                Explore by Category
-              </h2>
-              <p className="text-slate-400 max-w-2xl mx-auto">
-                Curated collections of premium products, handpicked for quality
-                and innovation.
+      {/* ═══════════════════════════════════════════════
+          EDITORIAL SECTION — Asymmetric Magazine Layout
+         ═══════════════════════════════════════════════ */}
+      <section className="bg-white">
+        <div className="asymmetric-editorial">
+          {/* Feature — Large Left */}
+          <Link
+            href={editorialPicks[0].href}
+            className="asymmetric-editorial-feature relative overflow-hidden group magazine-card"
+          >
+            <Image
+              src={editorialPicks[0].image}
+              alt={editorialPicks[0].title}
+              fill
+              className="object-cover"
+            />
+            <div className="magazine-card-content">
+              <p className="text-editorial text-white/70 mb-3">Editorial</p>
+              <h3 className="font-display text-4xl md:text-5xl text-white font-medium mb-3">
+                {editorialPicks[0].title}
+              </h3>
+              <p className="text-white/70 text-lg max-w-md mb-6">
+                {editorialPicks[0].subtitle}
               </p>
+              <span className="inline-flex items-center gap-2 text-white text-sm font-medium tracking-wide uppercase group-hover:text-[#C9A96E] transition">
+                Explore Collection
+                <ArrowUpRight size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+              </span>
             </div>
-          </ScrollReveal>
+          </Link>
 
-          <div className="bento-grid">
-            {/* Large featured — Smart Watches */}
-            <ScrollReveal delay={0} className="bento-large">
-              <Link
-                href="/shop?search=watch"
-                className="group relative block h-full rounded-3xl overflow-hidden border border-white/[0.06] bg-gradient-to-br from-[#111827] to-[#0a0f1a]"
-              >
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800&h=800&fit=crop')] bg-cover bg-center opacity-40 group-hover:opacity-50 group-hover:scale-105 transition-all duration-700" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F19] via-[#0B0F19]/50 to-transparent" />
-                <div className="relative h-full flex flex-col justify-end p-8">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 mb-4">
-                    <Watch size={24} />
-                  </div>
-                  <h3 className="text-2xl font-bold text-white mb-2">
-                    Smart Watches
-                  </h3>
-                  <p className="text-slate-400 text-sm mb-4">
-                    Premium timepieces with cutting-edge technology
-                  </p>
-                  <div className="flex items-center gap-2 text-amber-400 text-sm font-medium">
-                    Explore
-                    <ChevronRight
-                      size={16}
-                      className="group-hover:translate-x-1 transition-transform"
-                    />
-                  </div>
-                </div>
-              </Link>
-            </ScrollReveal>
+          {/* Top Right */}
+          <Link
+            href={editorialPicks[1].href}
+            className="relative overflow-hidden group magazine-card"
+          >
+            <Image
+              src={editorialPicks[1].image}
+              alt={editorialPicks[1].title}
+              fill
+              className="object-cover"
+            />
+            <div className="magazine-card-content">
+              <p className="text-editorial text-white/70 mb-2">Collection</p>
+              <h3 className="font-display text-2xl text-white font-medium">
+                {editorialPicks[1].title}
+              </h3>
+            </div>
+          </Link>
 
-            {/* Medium — Headphones */}
-            <ScrollReveal delay={100} className="bento-medium">
-              <Link
-                href="/shop?search=headphones"
-                className="group relative block h-full rounded-3xl overflow-hidden border border-white/[0.06] bg-gradient-to-br from-[#111827] to-[#0a0f1a]"
-              >
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&h=400&fit=crop')] bg-cover bg-center opacity-30 group-hover:opacity-40 group-hover:scale-105 transition-all duration-700" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F19] via-transparent to-transparent" />
-                <div className="relative h-full flex flex-col justify-end p-6">
-                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 mb-3">
-                    <Headphones size={20} />
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-1">
-                    Headphones
-                  </h3>
-                  <p className="text-slate-400 text-sm">
-                    Immersive audio experience
-                  </p>
-                </div>
-              </Link>
-            </ScrollReveal>
-
-            {/* Small stat card */}
-            <ScrollReveal delay={200} className="bento-small">
-              <div className="h-full rounded-3xl glass flex flex-col items-center justify-center text-center p-6">
-                <div className="text-4xl font-bold text-amber-500 mb-1">
-                  <AnimatedCounter end={500} suffix="+" />
-                </div>
-                <div className="text-sm text-slate-400">Brands</div>
-              </div>
-            </ScrollReveal>
-
-            {/* Small — Smartphones */}
-            <ScrollReveal delay={150} className="bento-small">
-              <Link
-                href="/shop?search=phone"
-                className="group relative block h-full rounded-3xl overflow-hidden border border-white/[0.06] bg-gradient-to-br from-[#111827] to-[#0a0f1a]"
-              >
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=400&fit=crop')] bg-cover bg-center opacity-30 group-hover:opacity-40 group-hover:scale-105 transition-all duration-700" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F19] to-transparent" />
-                <div className="relative h-full flex flex-col justify-end p-5">
-                  <Smartphone size={18} className="text-blue-400 mb-2" />
-                  <h3 className="text-lg font-bold text-white">Phones</h3>
-                </div>
-              </Link>
-            </ScrollReveal>
-
-            {/* Medium — Accessories */}
-            <ScrollReveal delay={200} className="bento-medium">
-              <Link
-                href="/shop?search=accessories"
-                className="group relative block h-full rounded-3xl overflow-hidden border border-white/[0.06] bg-gradient-to-br from-[#111827] to-[#0a0f1a]"
-              >
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1572635196237-14b3f281503f?w=800&h=400&fit=crop')] bg-cover bg-center opacity-30 group-hover:opacity-40 group-hover:scale-105 transition-all duration-700" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F19] via-transparent to-transparent" />
-                <div className="relative h-full flex flex-col justify-end p-6">
-                  <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-medium mb-3 w-fit">
-                    <Zap size={12} />
-                    New Arrivals
-                  </span>
-                  <h3 className="text-xl font-bold text-white mb-1">
-                    Accessories
-                  </h3>
-                  <p className="text-slate-400 text-sm">
-                    Essential gadgets & gear
-                  </p>
-                </div>
-              </Link>
-            </ScrollReveal>
-
-            {/* Small — Earbuds */}
-            <ScrollReveal delay={250} className="bento-small">
-              <Link
-                href="/shop?search=earbuds"
-                className="group relative block h-full rounded-3xl overflow-hidden border border-white/[0.06] bg-gradient-to-br from-[#111827] to-[#0a0f1a]"
-              >
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=400&h=400&fit=crop')] bg-cover bg-center opacity-30 group-hover:opacity-40 group-hover:scale-105 transition-all duration-700" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F19] to-transparent" />
-                <div className="relative h-full flex flex-col justify-end p-5">
-                  <Headphones size={18} className="text-pink-400 mb-2" />
-                  <h3 className="text-lg font-bold text-white">Earbuds</h3>
-                </div>
-              </Link>
-            </ScrollReveal>
-
-            {/* Small stat card */}
-            <ScrollReveal delay={300} className="bento-small">
-              <div className="h-full rounded-3xl glass flex flex-col items-center justify-center text-center p-6">
-                <div className="text-4xl font-bold text-amber-500 mb-1">
-                  <AnimatedCounter end={4.9} suffix="" />
-                </div>
-                <div className="text-sm text-slate-400">Avg Rating</div>
-              </div>
-            </ScrollReveal>
-          </div>
+          {/* Bottom Right */}
+          <Link
+            href={editorialPicks[2].href}
+            className="relative overflow-hidden group magazine-card"
+          >
+            <Image
+              src={editorialPicks[2].image}
+              alt={editorialPicks[2].title}
+              fill
+              className="object-cover"
+            />
+            <div className="magazine-card-content">
+              <p className="text-editorial text-white/70 mb-2">Collection</p>
+              <h3 className="font-display text-2xl text-white font-medium">
+                {editorialPicks[2].title}
+              </h3>
+            </div>
+          </Link>
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════
-          FEATURES — Z-Pattern + Glassmorphism
-         ═══════════════════════════════════════ */}
-      <section className="relative py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <ScrollReveal>
-            <div className="text-center mb-20">
-              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium mb-6">
-                <Award size={14} />
-                Why Choose Us
-              </span>
-              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">
-                Built for Trust
-              </h2>
-              <p className="text-slate-400 max-w-2xl mx-auto">
-                Every feature designed with your security and satisfaction in mind.
-              </p>
-            </div>
-          </ScrollReveal>
-
-          <div className="space-y-24">
-            {/* Feature 1 — Z-Pattern Left */}
-            <div className="z-pattern">
-              <ScrollReveal className="z-content">
-                <div className="relative rounded-3xl overflow-hidden border border-white/[0.06]">
-                  <div className="aspect-[4/3] bg-gradient-to-br from-amber-500/5 to-purple-500/5 flex items-center justify-center">
-                    <div className="w-32 h-32 rounded-3xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                      <Shield size={64} className="text-amber-500" />
-                    </div>
-                  </div>
-                </div>
-              </ScrollReveal>
-              <ScrollReveal delay={150} className="z-content">
-                <div className="space-y-6">
-                  <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
-                    <Lock size={28} />
-                  </div>
-                  <h3 className="text-3xl font-bold text-white">
-                    Secure Shopping
-                  </h3>
-                  <p className="text-slate-400 text-lg leading-relaxed">
-                    Your transactions are protected with 256-bit SSL encryption,
-                    PCI-DSS compliant payment processing, and multi-factor
-                    authentication. Every purchase is backed by our buyer
-                    protection guarantee.
-                  </p>
-                  <ul className="space-y-3">
-                    {[
-                      "End-to-end encryption",
-                      "Fraud detection AI",
-                      "Secure payment tokens",
-                    ].map((item, i) => (
-                      <li
-                        key={i}
-                        className="flex items-center gap-3 text-slate-300"
-                      >
-                        <div className="w-5 h-5 rounded-full bg-green-500/10 flex items-center justify-center">
-                          <div className="w-2 h-2 rounded-full bg-green-400" />
-                        </div>
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </ScrollReveal>
-            </div>
-
-            {/* Feature 2 — Z-Pattern Right (reversed) */}
-            <div className="z-pattern">
-              <ScrollReveal delay={150} className="z-content">
-                <div className="space-y-6">
-                  <div className="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-                    <Zap size={28} />
-                  </div>
-                  <h3 className="text-3xl font-bold text-white">
-                    Lightning Fast Deals
-                  </h3>
-                  <p className="text-slate-400 text-lg leading-relaxed">
-                    Access flash deals and exclusive offers from verified sellers
-                    in real-time. Our smart notification system ensures you never
-                    miss a deal on products you love.
-                  </p>
-                  <div className="flex gap-4">
-                    <div className="px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                      <div className="text-2xl font-bold text-white">&lt;2s</div>
-                      <div className="text-xs text-slate-500">Load Time</div>
-                    </div>
-                    <div className="px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                      <div className="text-2xl font-bold text-white">99.9%</div>
-                      <div className="text-xs text-slate-500">Uptime</div>
-                    </div>
-                  </div>
-                </div>
-              </ScrollReveal>
-              <ScrollReveal className="z-content">
-                <div className="relative rounded-3xl overflow-hidden border border-white/[0.06]">
-                  <div className="aspect-[4/3] bg-gradient-to-br from-purple-500/5 to-blue-500/5 flex items-center justify-center">
-                    <div className="w-32 h-32 rounded-3xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
-                      <Zap size={64} className="text-purple-400" />
-                    </div>
-                  </div>
-                </div>
-              </ScrollReveal>
-            </div>
-
-            {/* Feature 3 — Z-Pattern Left */}
-            <div className="z-pattern">
-              <ScrollReveal className="z-content">
-                <div className="relative rounded-3xl overflow-hidden border border-white/[0.06]">
-                  <div className="aspect-[4/3] bg-gradient-to-br from-green-500/5 to-teal-500/5 flex items-center justify-center">
-                    <div className="w-32 h-32 rounded-3xl bg-green-500/10 border border-green-500/20 flex items-center justify-center">
-                      <Users size={64} className="text-green-400" />
-                    </div>
-                  </div>
-                </div>
-              </ScrollReveal>
-              <ScrollReveal delay={150} className="z-content">
-                <div className="space-y-6">
-                  <div className="w-14 h-14 rounded-2xl bg-green-500/10 border border-green-500/20 flex items-center justify-center text-green-400">
-                    <Globe size={28} />
-                  </div>
-                  <h3 className="text-3xl font-bold text-white">
-                    Trusted Community
-                  </h3>
-                  <p className="text-slate-400 text-lg leading-relaxed">
-                    Join thousands of satisfied buyers and sellers in our
-                    verified marketplace community. Every seller is vetted,
-                    every review is authentic, every transaction is protected.
-                  </p>
-                  <div className="flex items-center gap-4">
-                    <div className="flex -space-x-3">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <div
-                          key={i}
-                          className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 border-2 border-[#0B0F19] flex items-center justify-center text-xs font-bold text-black"
-                        >
-                          {String.fromCharCode(64 + i)}
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-sm text-slate-400">
-                      <span className="text-white font-semibold">8,500+</span>{" "}
-                      active members
-                    </p>
-                  </div>
-                </div>
-              </ScrollReveal>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══════════════════════════════════════
-          TESTIMONIALS — Carousel/Slider Layout
-         ═══════════════════════════════════════ */}
-      <section className="relative py-24 border-y border-white/[0.06]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <ScrollReveal>
-            <div className="text-center mb-16">
-              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium mb-6">
-                <Star size={14} />
-                Loved by Thousands
-              </span>
-              <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4">
-                What Our Users Say
-              </h2>
-            </div>
-          </ScrollReveal>
-
-          <div className="carousel-snap">
+      {/* ═══════════════════════════════════════════════
+          STATS — Minimal Editorial Numbers
+         ═══════════════════════════════════════════════ */}
+      <section className="section-clean bg-[#1A1A1A]">
+        <div className="section-narrow">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
             {[
-              {
-                name: "Sarah Johnson",
-                role: "Verified Buyer",
-                text: "The most secure marketplace I've ever used. Fast shipping and authentic products every time.",
-                rating: 5,
-              },
-              {
-                name: "Michael Chen",
-                role: "Store Owner",
-                text: "As a seller, ABU Marketplace has transformed my business. The dashboard is intuitive and sales are booming.",
-                rating: 5,
-              },
-              {
-                name: "Amina Diallo",
-                role: "Premium Member",
-                text: "The Plus membership pays for itself. Exclusive deals and priority support are game changers.",
-                rating: 5,
-              },
-              {
-                name: "James Wilson",
-                role: "Verified Buyer",
-                text: "Customer support is incredible. Had an issue with an order and it was resolved within hours.",
-                rating: 5,
-              },
-              {
-                name: "Fatima Sesay",
-                role: "Store Owner",
-                text: "Love the analytics dashboard. It helps me understand my customers and optimize my listings.",
-                rating: 5,
-              },
-            ].map((review, i) => (
-              <ScrollReveal
-                key={i}
-                delay={i * 100}
-                className="carousel-item w-[320px] sm:w-[380px]"
-              >
-                <div className="h-full p-6 rounded-3xl bg-[#111827]/60 border border-white/[0.06] backdrop-blur-sm hover:border-white/[0.1] transition-all">
-                  <div className="flex gap-1 mb-4">
-                    {Array(5)
-                      .fill(null)
-                      .map((_, idx) => (
-                        <Star
-                          key={idx}
-                          size={16}
-                          className={
-                            idx < review.rating
-                              ? "text-amber-500 fill-amber-500"
-                              : "text-slate-600"
-                          }
-                        />
-                      ))}
-                  </div>
-                  <p className="text-slate-300 mb-6 leading-relaxed">
-                    "{review.text}"
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-sm font-bold text-black">
-                      {review.name.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-white">
-                        {review.name}
-                      </p>
-                      <p className="text-xs text-slate-500">{review.role}</p>
-                    </div>
-                  </div>
+              { value: 12500, suffix: "+", label: "Products" },
+              { value: 8500, suffix: "+", label: "Happy Customers" },
+              { value: 500, suffix: "+", label: "Artisan Brands" },
+              { value: 99, suffix: "%", label: "Satisfaction" },
+            ].map((stat, i) => (
+              <div key={i} className="text-center">
+                <div className="font-display text-4xl md:text-5xl text-white font-medium mb-2">
+                  <AnimatedCounter end={stat.value} suffix={stat.suffix} />
                 </div>
-              </ScrollReveal>
+                <p className="text-editorial text-white/50">{stat.label}</p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════
-          CTA — Full-bleed + Split-screen hybrid
-         ═══════════════════════════════════════ */}
-      <section className="relative py-32 overflow-hidden">
-        {/* Background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-purple-500/5" />
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
+      {/* ═══════════════════════════════════════════════
+          TESTIMONIALS — Editorial Typography
+         ═══════════════════════════════════════════════ */}
+      <section className="section-clean">
+        <div className="section-narrow">
+          <div className="text-center mb-16">
+            <p className="text-editorial text-[#C9A96E] mb-3">Testimonials</p>
+            <h2 className="font-display text-4xl md:text-5xl text-[#1A1A1A] font-medium">
+              What Our Community Says
+            </h2>
+          </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <ScrollReveal>
-              <div className="space-y-8">
-                <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight">
-                  Ready to Start{" "}
-                  <span className="text-gradient">Shopping?</span>
-                </h2>
-                <p className="text-lg text-slate-400 max-w-lg leading-relaxed">
-                  Create your account now and join thousands of smart shoppers
-                  who trust ABU Marketplace for their premium gadget needs.
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {testimonials.map((t, i) => (
+              <div
+                key={i}
+                className="relative p-8 bg-white border border-[#E8E2DB] hover:border-[#C9A96E]/30 transition-all duration-500"
+              >
+                <div className="font-display text-6xl text-[#C9A96E]/20 leading-none mb-4">
+                  "
+                </div>
+                <p className="text-[#2D2D2D] leading-relaxed mb-6 text-[15px]">
+                  {t.text}
                 </p>
-                <div className="flex flex-wrap gap-4">
-                  <Link
-                    href="/sign-up"
-                    className="group inline-flex items-center gap-2 px-8 py-4 bg-amber-500 hover:bg-amber-400 text-black font-semibold rounded-2xl transition-all hover:shadow-xl hover:shadow-amber-500/20"
-                  >
-                    Sign Up Free
-                    <ArrowRight
-                      size={18}
-                      className="group-hover:translate-x-1 transition-transform"
-                    />
-                  </Link>
-                  <Link
-                    href="/shop"
-                    className="inline-flex items-center gap-2 px-8 py-4 border border-white/[0.08] text-white hover:bg-white/[0.04] font-semibold rounded-2xl transition-all"
-                  >
-                    Browse Shop
-                  </Link>
-                </div>
-
-                {/* Trust mini-bar */}
-                <div className="flex flex-wrap items-center gap-6 pt-4">
-                  {[
-                    { icon: Shield, text: "Secure" },
-                    { icon: Lock, text: "Encrypted" },
-                    { icon: Award, text: "Verified" },
-                  ].map((item, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-2 text-sm text-slate-500"
-                    >
-                      <item.icon size={14} className="text-amber-500" />
-                      {item.text}
-                    </div>
-                  ))}
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#1A1A1A] flex items-center justify-center text-white text-sm font-medium">
+                    {t.avatar}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-[#1A1A1A]">{t.name}</p>
+                    <p className="text-xs text-[#9B9590]">{t.role}</p>
+                  </div>
                 </div>
               </div>
-            </ScrollReveal>
+            ))}
+          </div>
+        </div>
+      </section>
 
-            <ScrollReveal delay={200}>
-              <div className="relative">
-                <div className="absolute -inset-4 bg-amber-500/5 rounded-3xl blur-2xl" />
-                <div className="relative grid grid-cols-2 gap-4">
-                  {[
-                    { label: "Products", value: "12,500+", icon: Package },
-                    { label: "Happy Customers", value: "8,500+", icon: Users },
-                    { label: "Avg Rating", value: "4.9/5", icon: Star },
-                    { label: "Countries", value: "15+", icon: Globe },
-                  ].map((stat, i) => (
-                    <div
-                      key={i}
-                      className="p-6 rounded-2xl bg-[#111827]/80 border border-white/[0.06] backdrop-blur-sm hover:border-amber-500/20 transition-all"
-                    >
-                      <stat.icon
-                        size={24}
-                        className="text-amber-500 mb-3"
-                      />
-                      <div className="text-2xl font-bold text-white mb-1">
-                        {stat.value}
-                      </div>
-                      <div className="text-sm text-slate-500">
-                        {stat.label}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+      {/* ═══════════════════════════════════════════════
+          CTA — Split Screen Magazine Layout
+         ═══════════════════════════════════════════════ */}
+      <section className="relative">
+        <div className="asymmetric-split">
+          {/* Left — Content */}
+          <div className="flex items-center bg-[#FAF8F5] p-8 lg:p-16 xl:p-24">
+            <div className="max-w-md">
+              <p className="text-editorial text-[#C9A96E] mb-4">Join Us</p>
+              <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-[#1A1A1A] font-medium leading-[1.05] mb-6">
+                Start Your
+                <br />
+                <span className="italic">Curated</span>
+                <br />
+                Journey
+              </h2>
+              <p className="text-[#6B6560] leading-relaxed mb-8">
+                Create an account today and discover a world of extraordinary
+                products, handpicked by our team of expert curators.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <Link href="/sign-up" className="btn-luxury">
+                  <span>Get Started</span>
+                </Link>
+                <Link
+                  href="/shop"
+                  className="btn-luxury-outline"
+                >
+                  Browse Shop
+                </Link>
               </div>
-            </ScrollReveal>
+            </div>
+          </div>
+
+          {/* Right — Image */}
+          <div className="relative hidden lg:block overflow-hidden">
+            <Image
+              src="https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=1000&h=1200&fit=crop"
+              alt="Luxury Shopping"
+              fill
+              className="object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-l from-transparent to-[#FAF8F5]/20" />
           </div>
         </div>
       </section>
     </main>
   );
 }
+

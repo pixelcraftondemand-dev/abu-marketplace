@@ -1,30 +1,32 @@
+
 "use client";
 
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { Mail, Phone, MapPin, Facebook, Instagram, Twitter, Linkedin, ArrowRight, Shield, Clock, BadgeCheck, Eye } from "lucide-react";
+import { ArrowRight, Mail, Phone, MapPin } from "lucide-react";
 import marketplaceLogo from "@/assets/abu-marketplace-logo.png";
 
 const footerLinks = {
-  products: {
-    title: "Products",
+  shop: {
+    title: "Shop",
     links: [
-      { text: "Earphones", href: "/shop?search=earbuds" },
-      { text: "Headphones", href: "/shop?search=headphones" },
-      { text: "Smart Watches", href: "/shop?search=watch" },
-      { text: "Smart Home", href: "/shop?search=smart" },
-      { text: "Accessories", href: "/shop?search=accessories" },
+      { text: "New Arrivals", href: "/shop?sort=newest" },
+      { text: "Best Sellers", href: "/shop?sort=popular" },
+      { text: "Electronics", href: "/shop?category=electronics" },
+      { text: "Fashion", href: "/shop?category=fashion" },
+      { text: "Watches", href: "/shop?category=watches" },
+      { text: "Home & Living", href: "/shop?category=home" },
     ],
   },
-  marketplace: {
-    title: "Marketplace",
+  company: {
+    title: "Company",
     links: [
-      { text: "Home", href: "/" },
-      { text: "Shop", href: "/shop" },
-      { text: "Become Plus Member", href: "/pricing" },
-      { text: "Create Your Store", href: "/create-store" },
-      { text: "Sell on ABU", href: "/store" },
+      { text: "About Us", href: "/about" },
+      { text: "Our Story", href: "/about#story" },
+      { text: "Careers", href: "/careers" },
+      { text: "Press", href: "/press" },
+      { text: "Sustainability", href: "/sustainability" },
     ],
   },
   support: {
@@ -33,7 +35,7 @@ const footerLinks = {
       { text: "Help Center", href: "/help" },
       { text: "Contact Us", href: "/contact" },
       { text: "Shipping Info", href: "/shipping" },
-      { text: "Returns & Refunds", href: "/returns" },
+      { text: "Returns", href: "/returns" },
       { text: "FAQ", href: "/faq" },
     ],
   },
@@ -49,17 +51,10 @@ const footerLinks = {
 };
 
 const socialLinks = [
-  { icon: Facebook, href: "https://www.facebook.com/abumarketplace", label: "Facebook" },
-  { icon: Instagram, href: "https://www.instagram.com/abumarketplace", label: "Instagram" },
-  { icon: Twitter, href: "https://twitter.com/abumarketplace", label: "Twitter" },
-  { icon: Linkedin, href: "https://www.linkedin.com/company/abumarketplace", label: "LinkedIn" },
-];
-
-const trustBadges = [
-  { icon: Shield, text: "Secure Payments" },
-  { icon: Clock, text: "24/7 Support" },
-  { icon: BadgeCheck, text: "Authentic Products" },
-  { icon: Eye, text: "Verified Sellers" },
+  { label: "Instagram", href: "https://instagram.com/abumarketplace" },
+  { label: "Twitter", href: "https://twitter.com/abumarketplace" },
+  { label: "Facebook", href: "https://facebook.com/abumarketplace" },
+  { label: "LinkedIn", href: "https://linkedin.com/company/abumarketplace" },
 ];
 
 export default function Footer() {
@@ -71,162 +66,141 @@ export default function Footer() {
     if (email.trim()) {
       setSubscribed(true);
       setEmail("");
-      setTimeout(() => setSubscribed(false), 3000);
+      setTimeout(() => setSubscribed(false), 4000);
     }
   };
 
   return (
-    <footer className="relative border-t border-white/[0.06] bg-[#0B0F19]">
-      {/* Trust Bar */}
-      <div className="border-b border-white/[0.06]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {trustBadges.map((badge, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-3 text-slate-400"
-              >
-                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500">
-                  <badge.icon size={18} />
-                </div>
-                <span className="text-sm font-medium">{badge.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Footer */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          {/* Brand Column */}
-          <div className="lg:col-span-4 space-y-6">
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="relative w-10 h-10 rounded-xl overflow-hidden ring-2 ring-amber-500/20 group-hover:ring-amber-500/40 transition-all">
-                <Image
-                  src={marketplaceLogo}
-                  alt="ABU Marketplace"
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <span className="text-2xl font-bold text-white tracking-tight">
-                ABU<span className="text-amber-500">.</span>
-              </span>
-            </Link>
-            <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
-              Your ultimate destination for premium gadgets and smart devices. 
-              We bring you the best in innovation, all in one secure marketplace.
-            </p>
-
-            {/* Newsletter */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-white">Stay Updated</h4>
-              <form onSubmit={handleSubscribe} className="flex gap-2">
-                <div className="relative flex-1">
-                  <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+    <footer className="bg-[#1A1A1A] text-white">
+      {/* Newsletter — Magazine style */}
+      <div className="border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <p className="text-editorial text-[#C9A96E] mb-3">Newsletter</p>
+              <h3 className="font-display text-3xl md:text-4xl font-medium leading-tight">
+                Stay in the know
+              </h3>
+              <p className="text-white/50 mt-3 max-w-md">
+                Be the first to discover new arrivals, exclusive offers, and
+                stories from our community of artisans.
+              </p>
+            </div>
+            <div>
+              <form onSubmit={handleSubscribe} className="flex gap-3">
+                <div className="flex-1 relative">
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    className="w-full pl-10 pr-4 py-2.5 bg-white/[0.03] border border-white/[0.06] rounded-xl text-sm text-white placeholder:text-slate-500 outline-none focus:border-amber-500/30 transition"
+                    placeholder="Your email address"
+                    className="w-full px-4 py-4 bg-white/5 border border-white/10 text-white placeholder:text-white/30 outline-none focus:border-[#C9A96E]/50 transition text-sm"
                     required
                   />
                 </div>
                 <button
                   type="submit"
-                  className="px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-black rounded-xl transition-all hover:shadow-lg hover:shadow-amber-500/20"
+                  className="px-6 py-4 bg-[#C9A96E] hover:bg-[#D4B87A] text-[#1A1A1A] font-medium text-sm tracking-wide uppercase transition flex items-center gap-2 shrink-0"
                 >
-                  <ArrowRight size={18} />
+                  Subscribe
+                  <ArrowRight size={16} />
                 </button>
               </form>
               {subscribed && (
-                <p className="text-xs text-green-400 animate-fade-in">
-                  Thanks for subscribing! Check your inbox.
+                <p className="text-[#C9A96E] text-sm mt-3 animate-fade-in">
+                  Thank you for subscribing. Check your inbox.
                 </p>
               )}
             </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Social Links */}
-            <div className="flex items-center gap-3">
-              {socialLinks.map((social, i) => (
-                <a
-                  key={i}
-                  href={social.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={social.label}
-                  className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/[0.03] border border-white/[0.06] text-slate-400 hover:text-amber-500 hover:border-amber-500/20 hover:bg-amber-500/5 transition-all"
-                >
-                  <social.icon size={18} />
-                </a>
-              ))}
+      {/* Main Footer */}
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-10">
+          {/* Brand Column */}
+          <div className="col-span-2">
+            <Link href="/" className="inline-flex items-center gap-3 group mb-6">
+              <div className="relative w-10 h-10 overflow-hidden">
+                <Image
+                  src={marketplaceLogo}
+                  alt="ABU"
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div>
+                <span className="font-display text-xl font-semibold text-white tracking-tight leading-none">
+                  ABU
+                </span>
+                <span className="block text-[8px] tracking-[0.3em] uppercase text-white/40 font-medium -mt-0.5">
+                  Marketplace
+                </span>
+              </div>
+            </Link>
+            <p className="text-white/40 text-sm leading-relaxed max-w-xs mb-6">
+              Curating the world's finest products for discerning individuals
+              who value quality, authenticity, and craftsmanship.
+            </p>
+            <div className="space-y-2 text-sm text-white/40">
+              <a href="tel:+23232110054" className="flex items-center gap-2 hover:text-[#C9A96E] transition">
+                <Phone size={14} />
+                +232 32 110 054
+              </a>
+              <a href="mailto:hello@abumarketplace.shop" className="flex items-center gap-2 hover:text-[#C9A96E] transition">
+                <Mail size={14} />
+                hello@abumarketplace.shop
+              </a>
+              <span className="flex items-center gap-2">
+                <MapPin size={14} />
+                50 Pratt Street, Freetown
+              </span>
             </div>
           </div>
 
           {/* Link Columns */}
-          <div className="lg:col-span-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-              {Object.values(footerLinks).map((section) => (
-                <div key={section.title}>
-                  <h3 className="text-sm font-semibold text-white mb-4 tracking-wide">
-                    {section.title}
-                  </h3>
-                  <ul className="space-y-3">
-                    {section.links.map((link) => (
-                      <li key={link.href}>
-                        <Link
-                          href={link.href}
-                          className="text-sm text-slate-400 hover:text-amber-400 transition-colors"
-                        >
-                          {link.text}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+          {Object.values(footerLinks).map((section) => (
+            <div key={section.title}>
+              <h4 className="text-editorial text-white/70 mb-5">
+                {section.title}
+              </h4>
+              <ul className="space-y-3">
+                {section.links.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="text-sm text-white/40 hover:text-[#C9A96E] transition"
+                    >
+                      {link.text}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Contact Bar */}
-      <div className="border-t border-white/[0.06]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-          <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-500">
-            <a href="tel:+23232110054" className="flex items-center gap-2 hover:text-amber-400 transition">
-              <Phone size={14} />
-              +232 32 110 054
-            </a>
-            <a href="mailto:abumarketplace.shop@gmail.com" className="flex items-center gap-2 hover:text-amber-400 transition">
-              <Mail size={14} />
-              abumarketplace.shop@gmail.com
-            </a>
-            <span className="flex items-center gap-2">
-              <MapPin size={14} />
-              50 Pratt Street, Freetown
-            </span>
-          </div>
+          ))}
         </div>
       </div>
 
       {/* Bottom Bar */}
-      <div className="border-t border-white/[0.06]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-500">
-            <p>© 2026 ABU Marketplace. All rights reserved.</p>
+      <div className="border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <p className="text-xs text-white/30">
+              © 2026 ABU Marketplace. All rights reserved.
+            </p>
             <div className="flex items-center gap-6">
-              <Link href="/terms-and-conditions" className="hover:text-amber-400 transition">
-                Terms
-              </Link>
-              <Link href="/privacy-policy" className="hover:text-amber-400 transition">
-                Privacy
-              </Link>
-              <Link href="/cookie-policy" className="hover:text-amber-400 transition">
-                Cookies
-              </Link>
+              {socialLinks.map((social) => (
+                <a
+                  key={social.label}
+                  href={social.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-white/30 hover:text-[#C9A96E] transition uppercase tracking-wide"
+                >
+                  {social.label}
+                </a>
+              ))}
             </div>
           </div>
         </div>
@@ -234,3 +208,4 @@ export default function Footer() {
     </footer>
   );
 }
+
