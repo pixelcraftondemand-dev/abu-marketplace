@@ -101,6 +101,46 @@ const featuredProducts = [
     image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600&h=750&fit=crop",
     badge: null,
   },
+  {
+    id: 5,
+    name: "Sleek Urban Backpack",
+    category: "Lifestyle",
+    price: "SLe 699",
+    rating: 4.8,
+    reviews: 210,
+    image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=600&h=750&fit=crop",
+    badge: "Best Seller",
+  },
+  {
+    id: 6,
+    name: "Asteria Smart Lamp",
+    category: "Home",
+    price: "SLe 399",
+    rating: 4.6,
+    reviews: 178,
+    image: "https://images.unsplash.com/photo-1493666438817-866a91353ca9?w=600&h=750&fit=crop",
+    badge: null,
+  },
+  {
+    id: 7,
+    name: "Silk Comfort Sheets",
+    category: "Home",
+    price: "SLe 1,099",
+    rating: 4.9,
+    reviews: 94,
+    image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=600&h=750&fit=crop",
+    badge: "New",
+  },
+  {
+    id: 8,
+    name: "Voyage Leather Wallet",
+    category: "Accessories",
+    price: "SLe 249",
+    rating: 4.7,
+    reviews: 134,
+    image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&h=750&fit=crop",
+    badge: null,
+  },
 ];
 
 const editorialPicks = [
@@ -121,6 +161,37 @@ const editorialPicks = [
     subtitle: "Smart home essentials reimagined",
     image: "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=600&h=600&fit=crop",
     href: "/shop?category=home",
+  },
+];
+
+const bentoCollections = [
+  {
+    title: "Performance Shoes",
+    subtitle: "Running, training, and street-ready styles for every pace.",
+    image: "https://images.unsplash.com/photo-1528701800489-5650f2fbf68f?w=3840&h=2160&fit=crop",
+    href: "/shop?category=shoes",
+    label: "Shop Shoes",
+  },
+  {
+    title: "DIY Tools",
+    subtitle: "High-impact gear for craftsmanship, repairs, and weekend projects.",
+    image: "https://images.unsplash.com/photo-1515169067865-5387ec356754?w=3840&h=2160&fit=crop",
+    href: "/shop?category=tools",
+    label: "Build Better",
+  },
+  {
+    title: "Safety Gear",
+    subtitle: "Trusted protection for work, adventure, and everyday safety.",
+    image: "https://images.unsplash.com/photo-1511974035430-5de47d3b95da?w=3840&h=2160&fit=crop",
+    href: "/shop?category=safety",
+    label: "Stay Protected",
+  },
+  {
+    title: "Outdoor Essentials",
+    subtitle: "Explorer-ready kits, footwear, and tools for every terrain.",
+    image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=3840&h=2160&fit=crop",
+    href: "/shop?category=outdoors",
+    label: "Discover More",
   },
 ];
 
@@ -429,6 +500,65 @@ export default function LandingPage() {
               </h3>
             </div>
           </Link>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════
+          BENTO GRID — Premium Category Collections
+         ═══════════════════════════════════════════════ */}
+      <section className="section-clean bg-[#F7F5F1]">
+        <div className="section-narrow">
+          <div className="flex items-end justify-between mb-12">
+            <div>
+              <p className="text-editorial text-[#C9A96E] mb-3">Collections</p>
+              <h2 className="font-display text-4xl md:text-5xl text-[#1A1A1A] font-medium">
+                Shop Premium Categories
+              </h2>
+            </div>
+            <Link
+              href="/shop"
+              className="hidden md:inline-flex items-center gap-2 text-sm font-medium text-[#1A1A1A] hover:text-[#C9A96E] transition uppercase tracking-wide"
+            >
+              Browse All
+              <ArrowRight size={16} />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:gap-8">
+            {bentoCollections.map((collection, index) => (
+              <Link
+                key={collection.title}
+                href={collection.href}
+                className="group relative overflow-hidden rounded-[30px] bg-white shadow-[0_30px_60px_rgba(15,23,42,0.08)] transition-transform duration-500 hover:-translate-y-1"
+                style={{ animationDelay: `${index * 80}ms` }}
+              >
+                <div className="relative aspect-[4/5] overflow-hidden">
+                  <Image
+                    src={collection.image}
+                    alt={collection.title}
+                    fill
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A]/70 via-[#1A1A1A]/20 to-transparent" />
+                </div>
+                <div className="p-6">
+                  <p className="text-xs uppercase tracking-[0.3em] text-[#C9A96E] mb-3">
+                    Featured
+                  </p>
+                  <h3 className="font-display text-2xl text-[#1A1A1A] mb-3">
+                    {collection.title}
+                  </h3>
+                  <p className="text-sm leading-6 text-[#6B6560] mb-5">
+                    {collection.subtitle}
+                  </p>
+                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-[#C9A96E] uppercase tracking-[0.2em]">
+                    {collection.label}
+                    <ArrowRight size={16} />
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
 
