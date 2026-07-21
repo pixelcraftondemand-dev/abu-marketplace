@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -47,7 +47,7 @@ const priceRanges = [
   { label: "Over SLe 5,000", min: 5000, max: null },
 ];
 
-export default function ShopPage() {
+function ShopPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -405,6 +405,14 @@ function ProductCard({ product, viewMode, index }) {
         </div>
       </Link>
     </div>
+  );
+}
+
+export default function ShopPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <ShopPageContent />
+    </Suspense>
   );
 }
 

@@ -1,4 +1,4 @@
-globals_css = r'''@import "tailwindcss";
+@import "tailwindcss";
 
 @layer base {
   :root {
@@ -39,7 +39,7 @@ globals_css = r'''@import "tailwindcss";
   }
 
   * {
-    @apply border-border;
+    border-color: rgb(var(--border));
   }
 
   html {
@@ -609,9 +609,3 @@ globals_css = r'''@import "tailwindcss";
     gap: 1rem;
   }
 }
-'''
-
-with open('/mnt/agents/output/globals.css', 'w') as f:
-    f.write(globals_css)
-
-print("globals.css created — Light luxury theme with gold accents")
