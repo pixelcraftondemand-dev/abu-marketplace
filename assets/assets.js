@@ -16,6 +16,10 @@ import product_img9 from "./product_img9.png"
 import product_img10 from "./product_img10.png"
 import product_img11 from "./product_img11.png"
 import product_img12 from "./product_img12.png"
+import product_img13 from "./product_img13.png"
+import product_img14 from "./product_img14.png"
+import product_img15 from "./product_img15.png"
+import product_img16 from "./product_img16.png"
 import { ClockFadingIcon, HeadsetIcon, SendIcon } from "lucide-react";
 import profile_pic1 from "./profile_pic1.jpg"
 import profile_pic2 from "./profile_pic2.jpg"
@@ -26,6 +30,7 @@ export const assets = {
     hero_product_img1, hero_product_img2, gs_logo,
     product_img1, product_img2, product_img3, product_img4, product_img5, product_img6,
     product_img7, product_img8, product_img9, product_img10, product_img11, product_img12,
+    product_img13, product_img14, product_img15, product_img16,
 }
 
 export const categories = ["Headphones", "Speakers", "Watch", "Earbuds", "Mouse", "Decoration"];

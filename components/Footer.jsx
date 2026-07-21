@@ -148,9 +148,9 @@ export default function Footer() {
                 <Phone size={14} />
                 +232 32 110 054
               </a>
-              <a href="mailto:hello@abumarketplace.shop" className="flex items-center gap-2 hover:text-[#C9A96E] transition">
-                <Mail size={14} />
-                hello@abumarketplace.shop
+              <a href="mailto:abumarketplace.shop@gmail.com" className="flex items-center gap-2 hover:text-[#C9A96E] transition">
+                <Mail size={16} />
+                abumarketplace.shop@gmail.com
               </a>
               <span className="flex items-center gap-2">
                 <MapPin size={14} />

@@ -184,7 +184,7 @@ We do not warrant that:
 
 Any dispute, controversy, or claim arising out of or relating to these Terms, including the formation, interpretation, breach, termination, or validity thereof, shall be resolved through the following process:
 
-1. Informal Resolution: Before filing any claim, you agree to attempt to resolve the dispute informally by contacting us at support@abumarketplace.shop with a detailed description of your complaint. We will attempt to resolve the dispute informally within 30 business days.
+1. Informal Resolution: Before filing any claim, you agree to attempt to resolve the dispute informally by contacting us at abumarketplace.shop@gmail.com with a detailed description of your complaint. We will attempt to resolve the dispute informally within 30 business days.
 
 2. Mediation: If informal resolution fails, either party may initiate mediation through a mutually agreed-upon mediator. Mediation shall be conducted in Freetown, Sierra Leone, unless otherwise agreed.
 
@@ -207,7 +207,7 @@ Upon termination:
 • Any pending transactions may be cancelled at our discretion
 • You remain liable for all amounts due up to and including the date of termination
 
-You may close your account at any time by contacting support@abumarketplace.shop. Account closure does not relieve you of any obligations incurred prior to closure, including payment obligations or pending disputes.
+You may close your account at any time by contacting abumarketplace.shop@gmail.com. Account closure does not relieve you of any obligations incurred prior to closure, including payment obligations or pending disputes.
 
 Sections 5 (Privacy), 8 (Intellectual Property), 9 (Limitation of Liability), 10 (Dispute Resolution), and any other provisions that by their nature should survive termination shall survive termination of these Terms.`,
   },
@@ -223,14 +223,14 @@ Waiver: No waiver of any provision of these Terms shall be effective unless in w
 
 Assignment: You may not assign or transfer these Terms without our prior written consent. We may assign these Terms at any time without restriction.
 
-Notices: All notices required or permitted under these Terms shall be in writing and delivered to the addresses specified by the parties, or via email to support@abumarketplace.shop.
+Notices: All notices required or permitted under these Terms shall be in writing and delivered to the addresses specified by the parties, or via email to abumarketplace.shop@gmail.com.
 
 Force Majeure: We shall not be liable for any failure or delay in performance due to circumstances beyond our reasonable control, including but not limited to acts of God, war, terrorism, riots, embargoes, acts of civil or military authorities, fire, floods, accidents, strikes, or shortages of transportation, facilities, fuel, energy, labor, or materials.
 
 Contact Information:
 ABU Marketplace
 50 Pratt Street, Freetown, Sierra Leone
-Email: support@abumarketplace.shop
+Email: abumarketplace.shop@gmail.com
 Phone: +232 32 110 054
 
 Last Updated: July 19, 2026`,

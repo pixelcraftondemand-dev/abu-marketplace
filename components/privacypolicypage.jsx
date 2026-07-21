@@ -133,7 +133,7 @@ You can manage your cookie preferences through our Cookie Consent Banner or your
 • Right to Object: Object to processing based on legitimate interests or direct marketing
 • Right to Withdraw Consent: Withdraw consent at any time where processing is based on consent
 
-To exercise these rights, please contact us at privacy@abumarketplace.shop. We will respond to your request within 30 days.`,
+To exercise these rights, please contact us at abumarketplace.shop@gmail.com. We will respond to your request within 30 days.`,
   },
   {
     id: "retention",
@@ -165,7 +165,7 @@ Your consent to this Privacy Policy followed by your submission of such informat
     title: "10. Children's Privacy",
     content: `Our services are not intended for individuals under the age of 18. We do not knowingly collect personal information from children under 18. If we learn that we have collected personal information from a child under 18, we will delete that information as quickly as possible.
 
-If you believe we might have any information from or about a child under 18, please contact us immediately at privacy@abumarketplace.shop.`,
+If you believe we might have any information from or about a child under 18, please contact us immediately at abumarketplace.shop@gmail.com.`,
   },
   {
     id: "contact",
@@ -175,7 +175,7 @@ If you believe we might have any information from or about a child under 18, ple
 
 ABU Marketplace
 50 Pratt Street, Freetown, Sierra Leone
-Email: privacy@abumarketplace.shop
+Email: abumarketplace.shop@gmail.com
 Phone: +232 32 110 054
 
 Data Protection Officer: dpo@abumarketplace.shop
@@ -183,7 +183,7 @@ Data Protection Officer: dpo@abumarketplace.shop
 If you are not satisfied with our response, you have the right to lodge a complaint with your local data protection authority.
 
 Last Updated: July 19, 2026`,
-  },
+  }
 ];
 
 export default function PrivacyPolicyPage() {

@@ -322,7 +322,7 @@ function ProductCard({ product, viewMode, index }) {
       >
         <div className="relative w-40 h-48 shrink-0 overflow-hidden bg-[#F5F0EB]">
           <Image
-            src={product.image || "/placeholder.jpg"}
+            src={product.images?.[0] || product.image || "/placeholder.jpg"}
             alt={product.name}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-700"
@@ -361,7 +361,7 @@ function ProductCard({ product, viewMode, index }) {
       <Link href={`/product/${product.id}`}>
         <div className="relative aspect-[3/4] overflow-hidden bg-[#F5F0EB]">
           <Image
-            src={product.image || "/placeholder.jpg"}
+            src={product.images?.[0] || product.image || "/placeholder.jpg"}
             alt={product.name}
             fill
             className="object-cover product-discovery-img"

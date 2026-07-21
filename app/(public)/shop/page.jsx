@@ -362,7 +362,7 @@ function ProductCard({ product, viewMode, index }) {
       <Link href={`/product/${product.id}`}>
         <div className="relative aspect-[3/4] overflow-hidden bg-[#F5F0EB]">
           <Image
-            src={product.image || "/placeholder.jpg"}
+            src={product.images?.[0] || product.image || "/placeholder.jpg"}
             alt={product.name}
             fill
             className="object-cover product-discovery-img"

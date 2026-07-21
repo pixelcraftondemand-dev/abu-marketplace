@@ -362,7 +362,17 @@ export default function SignUpPage() {
                 </label>
               </div>
 
-              {/* Security Notice */}
+              <p className="mt-4 text-xs text-slate-500">
+                By creating an account, you agree to our{' '}
+                <Link href="/terms-and-conditions" className="text-amber-500 hover:text-amber-400 underline" target="_blank">
+                  Terms and Conditions
+                </Link>{' '}
+                and{' '}
+                <Link href="/privacy-policy" className="text-amber-500 hover:text-amber-400 underline" target="_blank">
+                  Privacy Policy
+                </Link>.
+              </p>
+
               <div className="flex items-center gap-2 p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
                 <Lock size={14} className="text-amber-500 shrink-0" />
                 <span className="text-xs text-slate-500">

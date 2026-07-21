@@ -1,6 +1,7 @@
 'use client'
 
 import Image from "next/image";
+import Link from "next/link";
 import { SignIn } from "@clerk/nextjs";
 import marketplaceLogo from "@/assets/abu-marketplace-logo.png";
 
@@ -59,6 +60,9 @@ export default function SignInPage() {
                         <p className="mt-2 text-sm leading-6 text-slate-500">Sign in to browse, shop, and manage your marketplace account.</p>
                     </div>
                     <SignIn appearance={clerkAppearance} fallbackRedirectUrl="/" signUpUrl="/sign-up" />
+                    <p className="mt-6 text-xs text-center text-slate-500">
+                        By continuing, you agree to our <Link href="/terms" className="font-semibold text-lime-700 hover:text-lime-800">Terms & Conditions</Link> and <Link href="/privacy-policy" className="font-semibold text-lime-700 hover:text-lime-800">Privacy Policy</Link>.
+                    </p>
                 </div>
             </section>
         </main>
