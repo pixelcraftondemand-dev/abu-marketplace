@@ -91,7 +91,7 @@ export default function Navbar() {
             <div className="flex items-center gap-6">
               <span className="flex items-center gap-1.5">
                 <span className="w-1 h-1 rounded-full bg-[#C9A96E]" />
-                Free Shipping on Orders Over SLe 500
+                Free Delivery on Orders Over SLe 500
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-1 h-1 rounded-full bg-[#C9A96E]" />
