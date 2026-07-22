@@ -86,7 +86,7 @@ export default function Navbar() {
     <>
       {/* ─── Top Bar — Trust signals (Amazon-style efficiency) ─── */}
       <div className={`hidden lg:block transition-all duration-500 ${scrolled ? "opacity-0 h-0 overflow-hidden" : "opacity-100"}`}>
-        <div className="bg-[#1A1A1A] text-white/80 text-[11px] tracking-widest uppercase">
+        <div className="bg-[#111111] text-white/80 text-[11px] tracking-[0.3em] uppercase">
           <div className="max-w-7xl mx-auto px-8 py-2.5 flex items-center justify-between">
             <div className="flex items-center gap-6">
               <span className="flex items-center gap-1.5">
@@ -112,8 +112,8 @@ export default function Navbar() {
       <nav
         className={`sticky top-0 z-50 transition-all duration-500 ${
           scrolled
-            ? "bg-white/90 backdrop-blur-xl shadow-[0_1px_0_0_rgba(232,226,219,1)]"
-            : "bg-[#FAF8F5]"
+            ? "bg-[#fdfaf4]/95 backdrop-blur-xl shadow-[0_1px_0_0_rgba(232,226,219,1)]"
+            : "bg-[#f7efe5]"
         }`}
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -127,8 +127,8 @@ export default function Navbar() {
             </button>
 
             {/* Logo — Magazine style */}
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="relative w-10 h-10 overflow-hidden">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="relative w-11 h-11 overflow-hidden rounded-full ring-1 ring-[#d8c4a2] ring-offset-2 ring-offset-[#f7efe5] bg-white/70 shadow-sm">
                 <Image
                   src={marketplaceLogo}
                   alt="ABU"
@@ -137,11 +137,11 @@ export default function Navbar() {
                   priority
                 />
               </div>
-              <div className="hidden sm:block">
-                <span className="font-display text-2xl font-semibold text-[#1A1A1A] tracking-tight leading-none">
+              <div className="block">
+                <span className="font-display text-[1.35rem] md:text-[1.5rem] font-semibold text-[#1A1A1A] tracking-[0.2em] leading-none">
                   ABU
                 </span>
-                <span className="block text-[9px] tracking-[0.3em] uppercase text-[#9B9590] font-medium -mt-0.5">
+                <span className="mt-0.5 block text-[8.5px] md:text-[9.5px] tracking-[0.3em] uppercase text-[#8f7d61] font-semibold leading-none">
                   Marketplace
                 </span>
               </div>

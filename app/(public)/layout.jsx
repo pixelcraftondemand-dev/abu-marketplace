@@ -1,6 +1,5 @@
 'use client'
 import Banner from "@/components/Banner";
-import CookieConsent from "@/components/CookieConsent";
 import Navbar from "@/components/Navbar";
 import BottomNav from "@/components/BottomNav";
 import Footer from "@/components/Footer";
@@ -47,7 +46,6 @@ export default function PublicLayout({ children }) {
             <Banner />
             <Navbar />
             <main className="pb-20 sm:pb-0">{children}</main>
-            <CookieConsent />
             <Footer />
             <BottomNav />
         </>

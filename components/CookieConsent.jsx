@@ -37,11 +37,11 @@ export default function CookieConsentBanner() {
           We use cookies to run this site and, with your permission, to
           understand how it's used and to personalize your experience. Read
           our{" "}
-          <Link href="/terms" className="underline hover:text-gray-900">
+          <Link href="/terms-and-conditions" className="underline hover:text-gray-900">
             Terms &amp; Conditions
           </Link>{" "}
           and{" "}
-          <Link href="/privacy" className="underline hover:text-gray-900">
+          <Link href="/privacy-policy" className="underline hover:text-gray-900">
             Privacy Policy
           </Link>
           .
