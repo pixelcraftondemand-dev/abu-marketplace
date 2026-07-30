@@ -646,7 +646,7 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link href="/sign-up" className="btn-luxury">
-                  <span>Get Started</span>
+                  <span>Sign Up</span>
                 </Link>
                 <Link
                   href="/shop"

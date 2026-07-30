@@ -36,6 +36,69 @@ const shopCategories = [
   { label: "Accessories", href: "/shop?category=accessories" },
 ];
 
+const popularSearches = [
+  "Smart watch",
+  "Wireless headphones",
+  "Home theater",
+  "Modern table lamp",
+  "Apple wireless earbuds",
+  "African fashion",
+  "Halal certified",
+];
+
+const shopMenuGroups = [
+  {
+    title: "Featured",
+    items: [
+      { label: "New Arrivals", href: "/shop?sort=newest" },
+      { label: "Best Sellers", href: "/shop?sort=popular" },
+      { label: "Flash Deals", href: "/shop?deals=flash" },
+    ],
+  },
+  {
+    title: "Popular Categories",
+    items: [
+      { label: "Beauty & Health", href: "/shop?category=beauty" },
+      { label: "Electronics", href: "/shop?category=electronics" },
+      { label: "Fashion", href: "/shop?category=fashion" },
+      { label: "Accessories", href: "/shop?category=accessories" },
+      { label: "Home & Living", href: "/shop?category=home" },
+    ],
+  },
+];
+
+const westAfricanCountries = [
+  { country: "Sierra Leone", languages: ["English", "Krio"], currency: "SLL" },
+  { country: "Ghana", languages: ["English", "Twi", "Ga"], currency: "GHS" },
+  { country: "Nigeria", languages: ["English", "Hausa", "Yoruba", "Igbo"], currency: "NGN" },
+  { country: "Senegal", languages: ["French", "Wolof", "Pulaar"], currency: "XOF" },
+  { country: "The Gambia", languages: ["English", "Mandinka", "Wolof"], currency: "GMD" },
+  { country: "Liberia", languages: ["English", "Kpelle"], currency: "LRD" },
+  { country: "Guinea", languages: ["French", "Fula", "Susu"], currency: "GNF" },
+  { country: "Guinea-Bissau", languages: ["Portuguese", "Crioulo"], currency: "XOF" },
+  { country: "Côte d’Ivoire", languages: ["French", "Baoulé", "Dioula"], currency: "XOF" },
+  { country: "Mali", languages: ["French", "Bambara", "Fula"], currency: "XOF" },
+  { country: "Burkina Faso", languages: ["French", "Moore", "Dioula"], currency: "XOF" },
+  { country: "Togo", languages: ["French", "Ewe", "Mina"], currency: "XOF" },
+  { country: "Benin", languages: ["French", "Fon", "Yoruba"], currency: "XOF" },
+  { country: "Cape Verde", languages: ["Portuguese", "Crioulo"], currency: "CVE" },
+  { country: "Mauritania", languages: ["Arabic", "French", "Pulaar", "Soninke"], currency: "MRU" },
+  { country: "Niger", languages: ["French", "Hausa", "Zarma"], currency: "XOF" },
+];
+
+const westAfricanCurrencyOptions = [
+  { code: "XOF", label: "CFA Franc (XOF)" },
+  { code: "NGN", label: "Nigerian Naira (NGN)" },
+  { code: "GHS", label: "Ghanaian Cedi (GHS)" },
+  { code: "SLL", label: "Sierra Leonean Leone (SLL)" },
+  { code: "LRD", label: "Liberian Dollar (LRD)" },
+  { code: "GMD", label: "Gambian Dalasi (GMD)" },
+  { code: "GNF", label: "Guinean Franc (GNF)" },
+  { code: "CVE", label: "Cape Verde Escudo (CVE)" },
+  { code: "MRU", label: "Mauritanian Ouguiya (MRU)" },
+  { code: "USD", label: "US Dollar (USD)" },
+];
+
 export default function Navbar() {
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
@@ -47,6 +110,10 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [shopDropdownOpen, setShopDropdownOpen] = useState(false);
+  const [searchSuggestionsOpen, setSearchSuggestionsOpen] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState("Sierra Leone");
+  const [selectedLanguage, setSelectedLanguage] = useState("English");
+  const [selectedCurrency, setSelectedCurrency] = useState("SLL");
 
   const cartCount = useSelector((state) => state.cart?.total || 0);
   const wishlistCount = useSelector((state) => state.wishlist?.items?.length || 0);
@@ -62,13 +129,42 @@ export default function Navbar() {
     setShopDropdownOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    const countryData = westAfricanCountries.find((entry) => entry.country === selectedCountry);
+    if (!countryData) {
+      setSelectedCountry("Sierra Leone");
+      setSelectedLanguage("English");
+      setSelectedCurrency("SLL");
+      return;
+    }
+    if (!countryData.languages.includes(selectedLanguage)) {
+      setSelectedLanguage(countryData.languages[0]);
+    }
+    if (countryData.currency && selectedCurrency !== countryData.currency) {
+      setSelectedCurrency(countryData.currency);
+    }
+  }, [selectedCountry, selectedLanguage, selectedCurrency]);
+
+  const currentCountryData = westAfricanCountries.find((entry) => entry.country === selectedCountry) || westAfricanCountries[0];
+  const filteredSearchSuggestions = search
+    ? popularSearches.filter((item) => item.toLowerCase().includes(search.toLowerCase()))
+    : popularSearches;
+
   const handleSearch = (e) => {
     e.preventDefault();
     if (search.trim()) {
       router.push(`/shop?search=${encodeURIComponent(search.trim())}`);
       setSearch("");
       setSearchFocused(false);
+      setSearchSuggestionsOpen(false);
     }
+  };
+
+  const handleSuggestionClick = (value) => {
+    router.push(`/shop?search=${encodeURIComponent(value)}`);
+    setSearch("");
+    setSearchFocused(false);
+    setSearchSuggestionsOpen(false);
   };
 
   const handleSignOut = async () => {
@@ -78,8 +174,9 @@ export default function Navbar() {
   };
 
   const isActive = (href) => {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
+    const [path] = href.split("?");
+    if (path === "/") return pathname === "/";
+    return pathname === path || pathname.startsWith(`${path}/`);
   };
 
   return (
@@ -87,22 +184,60 @@ export default function Navbar() {
       {/* ─── Top Bar — Trust signals (Amazon-style efficiency) ─── */}
       <div className={`hidden lg:block transition-all duration-500 ${scrolled ? "opacity-0 h-0 overflow-hidden" : "opacity-100"}`}>
         <div className="bg-[#111111] text-white/80 text-[11px] tracking-[0.3em] uppercase">
-          <div className="max-w-7xl mx-auto px-8 py-2.5 flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <span className="flex items-center gap-1.5">
+          <div className="max-w-7xl mx-auto px-8 py-2.5 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-6 min-w-0">
+              <span className="flex min-w-0 items-center gap-1.5">
                 <span className="w-1 h-1 rounded-full bg-[#C9A96E]" />
-                Free Delivery on Orders Over SLe 500
+                <span className="truncate">Free Delivery on Orders Over SLe 500</span>
               </span>
-              <span className="flex items-center gap-1.5">
+              <span className="flex min-w-0 items-center gap-1.5">
                 <span className="w-1 h-1 rounded-full bg-[#C9A96E]" />
-                Authenticity Guaranteed
+                <span className="truncate">Authenticity Guaranteed</span>
               </span>
             </div>
-            <div className="flex items-center gap-6">
-              <Link href="/help" className="hover:text-[#C9A96E] transition">Help</Link>
-              <Link href="/orders" className="hover:text-[#C9A96E] transition">Track Order</Link>
-              <span className="text-white/30">|</span>
-              <span className="text-[#C9A96E]">SL</span>
+            <div className="flex flex-wrap items-center gap-2 justify-end">
+              <label className="flex min-w-[120px] max-w-[200px] items-center gap-2 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.2em] text-white/85">
+                <span className="text-white/60">Country</span>
+                <select
+                  value={selectedCountry}
+                  onChange={(event) => setSelectedCountry(event.target.value)}
+                  className="min-w-[90px] max-w-[140px] bg-transparent pr-4 text-white outline-none"
+                >
+                  {westAfricanCountries.map((item) => (
+                    <option key={item.country} value={item.country} className="text-slate-900">
+                      {item.country}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex min-w-[90px] max-w-[160px] items-center gap-2 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.2em] text-white/85">
+                <span className="text-white/60">Lang</span>
+                <select
+                  value={selectedLanguage}
+                  onChange={(event) => setSelectedLanguage(event.target.value)}
+                  className="min-w-[70px] max-w-[100px] bg-transparent pr-4 text-white outline-none"
+                >
+                  {currentCountryData.languages.map((language) => (
+                    <option key={language} value={language} className="text-slate-900">
+                      {language}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex min-w-[100px] max-w-[160px] items-center gap-2 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.2em] text-white/85">
+                <span className="text-white/60">Curr</span>
+                <select
+                  value={selectedCurrency}
+                  onChange={(event) => setSelectedCurrency(event.target.value)}
+                  className="min-w-[70px] max-w-[100px] bg-transparent pr-4 text-white outline-none"
+                >
+                  {westAfricanCurrencyOptions.map((currency) => (
+                    <option key={currency.code} value={currency.code} className="text-slate-900">
+                      {currency.code}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           </div>
         </div>
@@ -169,26 +304,31 @@ export default function Navbar() {
                       </button>
                       {/* Dropdown — Glassmorphism */}
                       <div
-                        className={`absolute top-full left-0 pt-4 transition-all duration-300 ${
+                        className={`absolute top-full left-0 pt-3 transition-all duration-300 ${
                           shopDropdownOpen
                             ? "opacity-100 translate-y-0 pointer-events-auto"
                             : "opacity-0 -translate-y-2 pointer-events-none"
                         }`}
                       >
-                        <div className="glass-strong rounded-lg shadow-2xl shadow-black/5 p-6 min-w-[280px]">
-                          <p className="text-[10px] tracking-[0.2em] uppercase text-[#9B9590] mb-4 font-medium">
-                            Browse Categories
-                          </p>
-                          <div className="space-y-1">
-                            {shopCategories.map((cat) => (
-                              <Link
-                                key={cat.href}
-                                href={cat.href}
-                                className="flex items-center justify-between py-2 text-sm text-[#2D2D2D] hover:text-[#C9A96E] transition-colors group"
-                              >
-                                {cat.label}
-                                <ArrowRight size={14} className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
-                              </Link>
+                        <div className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-lg shadow-slate-200/40 min-w-[360px]">
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            {shopMenuGroups.map((group) => (
+                              <div key={group.title}>
+                                <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500 mb-3 font-semibold">
+                                  {group.title}
+                                </p>
+                                <div className="space-y-1">
+                                  {group.items.map((item) => (
+                                    <Link
+                                      key={item.href}
+                                      href={item.href}
+                                      className="block rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 hover:text-[#1A1A1A]"
+                                    >
+                                      {item.label}
+                                    </Link>
+                                  ))}
+                                </div>
+                              </div>
                             ))}
                           </div>
                         </div>
@@ -221,30 +361,61 @@ export default function Navbar() {
               </button>
 
               {/* Desktop Search */}
-              <form
-                onSubmit={handleSearch}
-                className={`hidden lg:flex items-center transition-all duration-300 ${
-                  searchFocused
-                    ? "w-72 border-[#C9A96E]"
-                    : "w-56 border-[#E8E2DB]"
-                } border-b bg-transparent`}
-              >
-                <Search size={16} className="text-[#9B9590] shrink-0" />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  onFocus={() => setSearchFocused(true)}
-                  onBlur={() => setSearchFocused(false)}
-                  className="w-full py-3 px-3 bg-transparent outline-none text-sm text-[#1A1A1A] placeholder:text-[#9B9590]"
-                />
-                {search && (
-                  <button type="button" onClick={() => setSearch("")} className="text-[#9B9590] hover:text-[#1A1A1A]">
-                    <X size={14} />
-                  </button>
+              <div className="hidden lg:block relative">
+                <form
+                  onSubmit={handleSearch}
+                  className={`flex items-center transition-all duration-300 ${
+                    searchFocused
+                      ? "w-80 border-[#C9A96E]"
+                      : "w-64 border-[#E8E2DB]"
+                  } border-b bg-transparent`}
+                >
+                  <Search size={16} className="text-[#9B9590] shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search products, brands, categories..."
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setSearchSuggestionsOpen(true);
+                    }}
+                    onFocus={() => {
+                      setSearchFocused(true);
+                      setSearchSuggestionsOpen(true);
+                    }}
+                    onBlur={() => setTimeout(() => setSearchSuggestionsOpen(false), 150)}
+                    className="w-full py-3 px-3 bg-transparent outline-none text-sm text-[#1A1A1A] placeholder:text-[#9B9590]"
+                  />
+                  {search && (
+                    <button type="button" onClick={() => setSearch("")} className="text-[#9B9590] hover:text-[#1A1A1A]">
+                      <X size={14} />
+                    </button>
+                  )}
+                </form>
+
+                {searchSuggestionsOpen && (
+                  <div className="absolute left-0 right-0 top-full mt-1 rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-200/30 z-20">
+                    <div className="grid gap-1 p-3 sm:grid-cols-2">
+                      {filteredSearchSuggestions.length > 0 ? (
+                        filteredSearchSuggestions.map((item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            onMouseDown={() => handleSuggestionClick(item)}
+                            className="text-left rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                          >
+                            {item}
+                          </button>
+                        ))
+                      ) : (
+                        <div className="col-span-full rounded-xl px-3 py-3 text-sm text-slate-500">
+                          No matching suggestions.
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
-              </form>
+              </div>
 
               {/* Wishlist */}
               <Link
@@ -287,7 +458,7 @@ export default function Navbar() {
                         href="/sign-up"
                         className="btn-gold text-[11px] py-2.5 px-5"
                       >
-                        Get Started
+                        Sign Up
                       </Link>
                     </div>
                   ) : (
@@ -321,7 +492,7 @@ export default function Navbar() {
           {/* Mobile Search Bar */}
           <div
             className={`lg:hidden overflow-hidden transition-all duration-300 ${
-              searchFocused ? "max-h-20 pb-4" : "max-h-0"
+              searchFocused ? "max-h-[280px] pb-4" : "max-h-0"
             }`}
           >
             <form onSubmit={handleSearch} className="flex items-center border-b border-[#E8E2DB]">
@@ -330,11 +501,34 @@ export default function Navbar() {
                 type="text"
                 placeholder="Search products..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setSearchSuggestionsOpen(true);
+                }}
                 className="w-full py-3 px-3 bg-transparent outline-none text-sm text-[#1A1A1A] placeholder:text-[#9B9590]"
                 autoFocus={searchFocused}
               />
             </form>
+            {searchSuggestionsOpen && (
+              <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-lg shadow-slate-200/30">
+                {filteredSearchSuggestions.length > 0 ? (
+                  filteredSearchSuggestions.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onMouseDown={() => handleSuggestionClick(item)}
+                      className="w-full text-left rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    >
+                      {item}
+                    </button>
+                  ))
+                ) : (
+                  <div className="rounded-xl px-3 py-3 text-sm text-slate-500">
+                    No matching suggestions.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </nav>
@@ -395,7 +589,7 @@ export default function Navbar() {
                     href="/sign-up"
                     className="block w-full text-center py-4 bg-[#1A1A1A] text-white text-sm font-medium tracking-wide uppercase"
                   >
-                    Get Started
+                    Sign Up
                   </Link>
                   <Link
                     href="/sign-in"
