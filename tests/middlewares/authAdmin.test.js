@@ -54,6 +54,14 @@ describe("authAdmin", () => {
     expect(await authAdmin("usr_1")).toBe(true);
   });
 
+  it("only grants admin access to active accounts (deletedAt: null filter)", async () => {
+    vi.stubEnv("ADMIN_EMAIL", "admin@abumarketplace.shop");
+    prisma.user.findUnique.mockResolvedValue({ email: "admin@abumarketplace.shop" });
+    await authAdmin("usr_1");
+    const where = prisma.user.findUnique.mock.calls[0][0].where;
+    expect(where).toEqual({ id: "usr_1", deletedAt: null });
+  });
+
   it("matches emails case-insensitively and trims whitespace", async () => {
     vi.stubEnv("ADMIN_EMAIL", "  Admin@AbuMarketplace.Shop , owner@example.com ");
     prisma.user.findUnique.mockResolvedValue({ email: "ADMIN@abumarketplace.shop" });

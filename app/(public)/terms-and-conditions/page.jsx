@@ -37,6 +37,13 @@ const sections = [
         ],
     },
     {
+        heading: "Account Closure and Data Retention",
+        body: [
+            "When you close your account, you will no longer be able to sign in or use the platform, and your store (if any) will be deactivated.",
+            "For anti-money-laundering and financial record-keeping purposes, we retain account and transaction records (orders, payments, wallet history, addresses, and reviews) for at least 5 years from the date of closure. These records may be provided to law enforcement or regulators upon lawful request and cannot be deleted before the retention period ends.",
+        ],
+    },
+    {
         heading: "Contact",
         body: [
             "For support, questions, or account issues, contact ABU Marketplace at abumarketplace.shop@gmail.com.",
@@ -48,7 +55,7 @@ export default function TermsAndConditions() {
     return (
         <LegalPage
             title="Terms & Conditions"
-            updated="July 10, 2026"
+            updated="August 6, 2026"
             intro="These terms explain the rules for using ABU Marketplace as a shopper, seller, or visitor. They are written to keep the marketplace fair, clear, and safe for everyone."
             sections={sections}
         />

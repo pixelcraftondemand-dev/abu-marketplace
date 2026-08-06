@@ -28,7 +28,7 @@ export default function SignUpPage() {
 
         <div className="flex items-center justify-center">
           <div className="w-full max-w-md rounded-[24px] border border-white/10 bg-white/5 p-8 shadow-xl">
-            <SignUp path="/sign-up" routing="path" signInUrl="/sign-in" afterSignUpUrl="/" />
+            <SignUp path="/sign-up" routing="path" signInUrl="/sign-in" afterSignUpUrl="/verify-email" />
             <p className="mt-4 text-center text-sm text-slate-300">
               Already have an account?{' '}
               <Link href="/sign-in" className="font-semibold text-amber-400 hover:text-amber-300">

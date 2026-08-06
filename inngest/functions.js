@@ -1,6 +1,7 @@
 import {inngest} from './client'
 import prisma from '@/lib/prisma'
 import { issueVerificationEmail } from '@/lib/services/verificationService'
+import { getDataRetentionUntil } from '@/lib/retention'
 
 // Prefer the user's primary email address; fall back to the first verified one,
 // then any. Returns null when the account has no email addresses at all (e.g.
@@ -71,14 +72,34 @@ export const syncUserUpdation = inngest.createFunction(
     }
 )
 
-// Inngest Function to delete user from database
+// Inngest Function for account closure — soft-delete (AML retention).
+//
+// Account records are NEVER hard-deleted. Anti-money-laundering / financial
+// record-keeping rules require us to retain customer identification and
+// transaction records (orders, payments, wallet history) so we can produce
+// them to law enforcement upon lawful request. On account closure we mark the
+// row deleted with a 5-year retention deadline instead; the related orders,
+// payments, wallet transactions, addresses and ratings stay intact.
 export const syncUserDeletion = inngest.createFunction(
     {id: 'sync-user-delete'},
     { event: 'clerk/user.deleted' },
     async ({ event }) => {
         const { data } = event
-        await prisma.user.delete({
-            where: {id: data.id,}
+        const now = new Date()
+        const dataRetentionUntil = getDataRetentionUntil(now)
+
+        // updateMany keeps this idempotent and tolerant of a missing row
+        // (e.g. a phone-only signup that never created a user record).
+        await prisma.user.updateMany({
+            where: { id: data.id },
+            data: { deletedAt: now, dataRetentionUntil },
+        })
+
+        // A closed seller account's storefront must not stay publicly
+        // visible, but the store/product records are still retained.
+        await prisma.store.updateMany({
+            where: { userId: data.id },
+            data: { isActive: false },
         })
     }
 )

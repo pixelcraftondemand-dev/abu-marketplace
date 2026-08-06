@@ -4,7 +4,8 @@ import { NextResponse } from 'next/server'
 
 export async function GET(request, { params }) {
   try {
-    const { productId } = params
+    // Next.js 15 passes `params` as a Promise — must be awaited.
+    const { productId } = await params
 
     // Reject malformed/oversized ids before touching the database.
     if (!isValidId(productId)) {

@@ -19,6 +19,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import Loading from "@/components/Loading";
+import { getProductRating } from "@/lib/productUtils";
 
 const sortOptions = [
   { label: "Featured", value: "featured" },
@@ -305,6 +306,7 @@ function ShopPageContent() {
 
 function ProductCard({ product, viewMode, index }) {
   const [liked, setLiked] = useState(false);
+  const { rating: ratingValue, count: ratingCount } = getProductRating(product);
 
   if (viewMode === "list") {
     return (
@@ -386,10 +388,10 @@ function ProductCard({ product, viewMode, index }) {
             <span className="text-sm font-semibold text-[#1A1A1A]">
               <CurrencyAmount amount={product.price} />
             </span>
-            {product.rating && (
+            {ratingCount > 0 && (
               <div className="flex items-center gap-1">
                 <Star size={12} className="text-[#C9A96E] fill-[#C9A96E]" />
-                <span className="text-xs text-[#6B6560]">{product.rating}</span>
+                <span className="text-xs text-[#6B6560]">{ratingValue}</span>
               </div>
             )}
           </div>

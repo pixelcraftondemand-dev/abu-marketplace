@@ -5,19 +5,27 @@ import { hashIp } from "@/lib/paymentLog";
 import { verifyVerificationToken } from "@/lib/services/verificationService";
 
 /**
- * Validate a verification token (from the ?token= link in the email).
+ * Validate a 6-digit verification code (emailed to the account owner) or a
+ * legacy single-use token (from links in previously-sent emails).
  *
  * Security:
- *  - The raw token is hashed server-side before comparison; the DB only ever
- *    stores SHA-256 hashes, so a leaked DB dump cannot be used to forge links.
- *  - Tokens are single-use: the token row is deleted in the same transaction
+ *  - The raw code/token is hashed server-side before comparison; the DB only
+ *    ever stores SHA-256 hashes, so a leaked DB dump cannot be used to forge
+ *    codes.
+ *  - Codes are single-use: the code row is deleted in the same transaction
  *    that flips emailVerified, so replay (even racing requests) is impossible.
- *  - Expired and unknown tokens are rejected with distinct statuses.
- *  - Rate limited per IP (20 per 10 minutes).
+ *  - Expired and unknown codes are rejected with distinct statuses.
+ *  - Rate limited per IP (20 per 10 minutes) to blunt brute force against
+ *    the 10^6 code space.
  */
-const bodySchema = z.object({
-  token: z.string().min(8).max(200),
-});
+const bodySchema = z
+  .object({
+    code: z.string().regex(/^\d{6}$/).optional(),
+    token: z.string().min(8).max(200).optional(),
+  })
+  .refine((body) => Boolean(body.code || body.token), {
+    message: "A verification code or link is required.",
+  });
 
 export async function POST(request) {
   // Rate limit FIRST — before any parsing/DB work — so abuse of the endpoint
@@ -37,14 +45,15 @@ export async function POST(request) {
     const body = await request.json();
     const result = bodySchema.safeParse(body);
     if (!result.success) {
-      return NextResponse.json({ error: "Invalid verification token." }, { status: 422 });
+      return NextResponse.json({ error: "Invalid verification code." }, { status: 422 });
     }
     parsed = result.data;
   } catch {
-    return NextResponse.json({ error: "Invalid verification token." }, { status: 400 });
+    return NextResponse.json({ error: "Invalid verification code." }, { status: 400 });
   }
 
-  const outcome = await verifyVerificationToken(parsed.token);
+  // Prefer the code; fall back to the legacy link token.
+  const outcome = await verifyVerificationToken(parsed.code || parsed.token);
 
   switch (outcome.status) {
     case "verified":

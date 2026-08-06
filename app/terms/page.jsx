@@ -88,6 +88,7 @@ Key Data Practices:
 • We do not sell your personal information to third parties
 • We may share data with trusted service providers (payment processors, shipping carriers) solely for the purpose of fulfilling transactions
 • We retain your data only as long as necessary for business purposes or as required by law
+• When an account is closed, we keep the account and its transaction records (orders, payments, wallet history, addresses, reviews) for at least 5 years from closure for anti-money-laundering and financial record-keeping purposes, and may disclose them to law enforcement or regulators upon lawful request
 
 Your Rights:
 • You have the right to access, correct, or delete your personal information
@@ -203,7 +204,9 @@ Notwithstanding the foregoing, either party may bring an individual action in sm
 Upon termination:
 • All licenses and rights granted to you under these Terms will immediately cease
 • You must immediately cease all use of the Platform
-• We may delete your account data and User Content, subject to our data retention policies
+• Your account is closed for all future use of the Platform
+• Account and transaction records are retained for at least 5 years from closure for anti-money-laundering and financial record-keeping purposes and may be provided to law enforcement or regulators upon lawful request
+• Other account data and User Content are handled in accordance with our data retention policies
 • Any pending transactions may be cancelled at our discretion
 • You remain liable for all amounts due up to and including the date of termination
 
@@ -233,7 +236,7 @@ ABU Marketplace
 Email: abumarketplace.shop@gmail.com
 Phone: +232 32 110 054
 
-Last Updated: July 19, 2026`,
+Last Updated: August 6, 2026`,
   },
 ];
 
@@ -262,7 +265,7 @@ export default function TermsAndConditionsPage() {
                 Terms & Conditions
               </h1>
               <p className="text-sm text-slate-500">
-                Last Updated: July 19, 2026
+                Last Updated: August 6, 2026
               </p>
             </div>
           </div>

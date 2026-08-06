@@ -28,6 +28,12 @@ model User {
   membershipProviderId String?
   membershipStartedAt DateTime?
   membershipEndsAt DateTime?
+  // Account-closure / AML retention markers. When an account is closed the
+  // row is soft-deleted (never hard-deleted): deletedAt is set and
+  // dataRetentionUntil marks deletedAt + 5 years, so orders, payments and
+  // wallet history remain available for law-enforcement requests.
+  deletedAt         DateTime?
+  dataRetentionUntil DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
@@ -35,6 +41,7 @@ model User {
   payments      Payment[]
   wallet        Wallet?
 
+  @@index([deletedAt])
   @@map("user")
 }
 

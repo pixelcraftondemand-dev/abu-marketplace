@@ -55,6 +55,16 @@ describe("authSeller", () => {
     expect(await authSeller("usr_1")).toBe("st_1");
   });
 
+  it("returns false for a soft-deleted (closed) account even with an approved store", async () => {
+    // The guard is enforced in the query (deletedAt: null), so a deleted
+    // account never even reaches the store checks.
+    prisma.user.findUnique.mockResolvedValue(null);
+    expect(await authSeller("usr_deleted")).toBe(false);
+    expect(prisma.user.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "usr_deleted", deletedAt: null } })
+    );
+  });
+
   it("returns false when the prisma lookup throws", async () => {
     prisma.user.findUnique.mockRejectedValue(new Error("db down"));
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});

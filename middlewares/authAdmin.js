@@ -22,7 +22,8 @@ const authAdmin = async (userId) => {
         if (!userId) return false;
 
         const user = await prisma.user.findUnique({
-            where:  { id: userId },
+            // Closed (soft-deleted) accounts can never hold admin access.
+            where:  { id: userId, deletedAt: null },
             select: { email: true },
         });
 

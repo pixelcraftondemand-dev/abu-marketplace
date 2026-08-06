@@ -5,7 +5,8 @@ const authSeller = async (userId) => {
         if (!userId) return false;
 
         const user = await prisma.user.findUnique({
-            where:  { id: userId },
+            // Closed (soft-deleted) accounts can never operate a store.
+            where:  { id: userId, deletedAt: null },
             select: {
                 id:    true,
                 store: {
