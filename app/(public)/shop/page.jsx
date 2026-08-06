@@ -7,6 +7,9 @@ import Image from "next/image";
 import Link from "next/link";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { useSelector } from 'react-redux'
+import CurrencyAmount from '@/components/CurrencyAmount'
+import { useTranslation } from '@/lib/i18n'
 import {
   Search,
   SlidersHorizontal,
@@ -19,32 +22,26 @@ import {
   ChevronDown,
 } from "lucide-react";
 import Loading from "@/components/Loading";
+import { productDummyData } from "@/assets/assets";
 
 const sortOptions = [
-  { label: "Featured", value: "featured" },
-  { label: "Newest", value: "newest" },
-  { label: "Price: Low to High", value: "price_asc" },
-  { label: "Price: High to Low", value: "price_desc" },
-  { label: "Top Rated", value: "rating" },
-  { label: "Most Popular", value: "popular" },
+  { labelKey: "shop.sortFeatured", value: "featured" },
+  { labelKey: "shop.sortNewest", value: "newest" },
+  { labelKey: "shop.sortPriceAsc", value: "price_asc" },
+  { labelKey: "shop.sortPriceDesc", value: "price_desc" },
+  { labelKey: "shop.sortTopRated", value: "rating" },
+  { labelKey: "shop.sortMostPopular", value: "popular" },
 ];
 
 const categories = [
-  { label: "All", value: "" },
-  { label: "Electronics", value: "electronics" },
-  { label: "Fashion", value: "fashion" },
-  { label: "Watches", value: "watches" },
-  { label: "Audio", value: "audio" },
-  { label: "Home", value: "home" },
-  { label: "Accessories", value: "accessories" },
-];
-
-const priceRanges = [
-  { label: "Under SLe 500", min: 0, max: 500 },
-  { label: "SLe 500 - 1,000", min: 500, max: 1000 },
-  { label: "SLe 1,000 - 2,500", min: 1000, max: 2500 },
-  { label: "SLe 2,500 - 5,000", min: 2500, max: 5000 },
-  { label: "Over SLe 5,000", min: 5000, max: null },
+  { labelKey: "categories.all", value: "" },
+  { labelKey: "categories.electronics", value: "electronics" },
+  { labelKey: "categories.fashion", value: "fashion" },
+  { labelKey: "categories.watches", value: "watches" },
+  { labelKey: "categories.audio", value: "audio" },
+  { labelKey: "categories.home", value: "home" },
+  { labelKey: "categories.accessories", value: "accessories" },
+  { labelKey: "categories.halalCertified", value: "halal-certified" },
 ];
 
 function ShopPageContent() {
@@ -56,10 +53,14 @@ function ShopPageContent() {
   const [viewMode, setViewMode] = useState("grid"); // grid | list
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  const { t } = useTranslation();
 
   const searchQuery = searchParams.get("search") || "";
   const categoryFilter = searchParams.get("category") || "";
   const sortBy = searchParams.get("sort") || "featured";
+
+  const showFallbackProducts = !loading && products.length === 0 && !searchQuery && !categoryFilter;
+  const displayedProducts = showFallbackProducts ? productDummyData : products;
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -73,7 +74,7 @@ function ShopPageContent() {
         const res = await axios.get(`/api/products?${params.toString()}`);
         setProducts(res.data.products || []);
       } catch (err) {
-        toast.error("Failed to load products");
+        toast.error(t('shop.failedToLoad'));
       } finally {
         setLoading(false);
       }
@@ -110,13 +111,13 @@ function ShopPageContent() {
         <div className="absolute inset-0 bg-[#1A1A1A]/40" />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-editorial text-white/70 mb-3">The Collection</p>
+            <p className="text-editorial text-white/70 mb-3">{t('shop.theCollection')}</p>
             <h1 className="font-display text-5xl md:text-6xl text-white font-medium">
-              Shop
+              {t('shop.title')}
             </h1>
             {searchQuery && (
               <p className="text-white/60 mt-3 text-lg">
-                Results for "{searchQuery}"
+                {t('shop.resultsFor', { query: searchQuery })}
               </p>
             )}
           </div>
@@ -139,7 +140,7 @@ function ShopPageContent() {
                       : "text-[#9B9590] hover:text-[#1A1A1A]"
                   }`}
                 >
-                  {cat.label}
+                  {t(cat.labelKey)}
                 </button>
               ))}
             </div>
@@ -150,14 +151,14 @@ function ShopPageContent() {
               className="lg:hidden flex items-center gap-2 text-sm text-[#1A1A1A]"
             >
               <SlidersHorizontal size={16} />
-              Filters
+              {t('shop.filters')}
             </button>
 
             {/* Right — Sort + View Toggle */}
             <div className="flex items-center gap-4">
               {/* Results count */}
               <span className="hidden sm:block text-sm text-[#9B9590]">
-                {products.length} results
+                {t('shop.results', { count: displayedProducts.length })}
               </span>
 
               {/* Sort Dropdown */}
@@ -168,7 +169,7 @@ function ShopPageContent() {
                 >
                   <ArrowUpDown size={14} />
                   <span className="hidden sm:inline">
-                    {sortOptions.find((s) => s.value === sortBy)?.label || "Sort"}
+                    {t(sortOptions.find((s) => s.value === sortBy)?.labelKey || 'shop.sort')}
                   </span>
                   <ChevronDown size={12} className={`transition-transform ${sortOpen ? "rotate-180" : ""}`} />
                 </button>
@@ -187,7 +188,7 @@ function ShopPageContent() {
                             : "text-[#2D2D2D] hover:bg-[#FAF8F5]"
                         }`}
                       >
-                        {option.label}
+                        {t(option.labelKey)}
                       </button>
                     ))}
                   </div>
@@ -214,12 +215,20 @@ function ShopPageContent() {
         </div>
 
         {/* Active Filters */}
+        {showFallbackProducts && (
+          <div className="max-w-7xl mx-auto px-6 lg:px-8 pb-3">
+            <div className="rounded-3xl border border-[#E8E2DB] bg-[#FFF9EB] p-5 text-sm text-[#655a3f]">
+              <strong className="block font-semibold text-[#1A1A1A] mb-1">{t('shop.sampleProducts')}</strong>
+              {t('shop.sampleProductsText')}
+            </div>
+          </div>
+        )}
         {(searchQuery || categoryFilter) && (
           <div className="max-w-7xl mx-auto px-6 lg:px-8 pb-3">
             <div className="flex items-center gap-2 flex-wrap">
               {searchQuery && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#1A1A1A] text-white text-xs">
-                  Search: {searchQuery}
+                  {t('shop.search', { query: searchQuery })}
                   <button onClick={() => updateFilter("search", "")}>
                     <X size={12} />
                   </button>
@@ -227,7 +236,7 @@ function ShopPageContent() {
               )}
               {categoryFilter && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#1A1A1A] text-white text-xs">
-                  {categories.find((c) => c.value === categoryFilter)?.label}
+                  {t(categories.find((c) => c.value === categoryFilter)?.labelKey || "")}
                   <button onClick={() => updateFilter("category", "")}>
                     <X size={12} />
                   </button>
@@ -237,7 +246,7 @@ function ShopPageContent() {
                 onClick={clearFilters}
                 className="text-xs text-[#9B9590] hover:text-[#C9A96E] transition underline"
               >
-                Clear all
+                {t('shop.clearAll')}
               </button>
             </div>
           </div>
@@ -249,14 +258,14 @@ function ShopPageContent() {
         <div className="lg:hidden fixed inset-0 z-40 bg-white">
           <div className="p-6">
             <div className="flex items-center justify-between mb-8">
-              <h3 className="font-display text-2xl text-[#1A1A1A]">Filters</h3>
+              <h3 className="font-display text-2xl text-[#1A1A1A]">{t('shop.filters')}</h3>
               <button onClick={() => setFilterOpen(false)}>
                 <X size={24} />
               </button>
             </div>
             <div className="space-y-6">
               <div>
-                <p className="text-editorial text-[#9B9590] mb-3">Categories</p>
+                <p className="text-editorial text-[#9B9590] mb-3">{t('shop.categories')}</p>
                 <div className="space-y-2">
                   {categories.map((cat) => (
                     <button
@@ -271,7 +280,7 @@ function ShopPageContent() {
                           : "text-[#2D2D2D]"
                       }`}
                     >
-                      {cat.label}
+                      {t(cat.labelKey)}
                     </button>
                   ))}
                 </div>
@@ -283,10 +292,20 @@ function ShopPageContent() {
 
       {/* ─── Product Grid — Etsy Discovery + Shopify Clean ─── */}
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
-        {products.length === 0 ? (
+        {categoryFilter === "halal-certified" && (
+          <div className="mb-8 rounded-2xl border border-[#E8E2DB] bg-white/80 p-6 shadow-sm">
+            <p className="text-[10px] tracking-[0.24em] uppercase text-[#C9A96E] mb-2">{t('shop.featuredCollection')}</p>
+            <h2 className="font-display text-2xl text-[#1A1A1A] mb-2">{t('shop.halalCertifiedProducts')}</h2>
+            <p className="max-w-2xl text-sm text-[#6B6560]">
+              {t('shop.halalCertifiedText')}
+            </p>
+          </div>
+        )}
+
+        {displayedProducts.length === 0 ? (
           <div className="text-center py-24">
-            <p className="font-display text-2xl text-[#1A1A1A] mb-2">No products found</p>
-            <p className="text-[#9B9590]">Try adjusting your search or filters</p>
+            <p className="font-display text-2xl text-[#1A1A1A] mb-2">{t('shop.noProductsFound')}</p>
+            <p className="text-[#9B9590]">{t('shop.tryAdjusting')}</p>
           </div>
         ) : (
           <div
@@ -296,7 +315,7 @@ function ShopPageContent() {
                 : "space-y-6"
             }
           >
-            {products.map((product, i) => (
+            {displayedProducts.map((product, i) => (
               <ProductCard
                 key={product.id || i}
                 product={product}
@@ -313,7 +332,6 @@ function ShopPageContent() {
 
 function ProductCard({ product, viewMode, index }) {
   const [liked, setLiked] = useState(false);
-  const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || "SLe";
 
   if (viewMode === "list") {
     return (
@@ -341,11 +359,11 @@ function ProductCard({ product, viewMode, index }) {
           </p>
           <div className="flex items-center gap-4">
             <span className="text-lg font-semibold text-[#1A1A1A]">
-              {currency}{product.price?.toLocaleString()}
+              <CurrencyAmount amount={product.price} />
             </span>
             {product.originalPrice && (
               <span className="text-sm text-[#9B9590] line-through">
-                {currency}{product.originalPrice?.toLocaleString()}
+                <CurrencyAmount amount={product.originalPrice} />
               </span>
             )}
           </div>
@@ -368,7 +386,9 @@ function ProductCard({ product, viewMode, index }) {
             className="object-cover product-discovery-img"
           />
           {product.badge && (
-            <span className="product-discovery-badge">{product.badge}</span>
+            <span className="product-discovery-badge bg-[#C9A96E] text-white border-transparent">
+              {product.badge}
+            </span>
           )}
           {/* Wishlist button */}
           <button
@@ -393,7 +413,7 @@ function ProductCard({ product, viewMode, index }) {
           </h3>
           <div className="flex items-center justify-between mt-2">
             <span className="text-sm font-semibold text-[#1A1A1A]">
-              {currency}{product.price?.toLocaleString()}
+              <CurrencyAmount amount={product.price} />
             </span>
             {product.rating && (
               <div className="flex items-center gap-1">

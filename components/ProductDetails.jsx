@@ -10,11 +10,13 @@ import Image from "next/image";
 import Counter from "./Counter";
 import { useDispatch, useSelector } from "react-redux";
 import toast from "react-hot-toast";
+import CurrencyAmount from '@/components/CurrencyAmount'
+import { useTranslation } from '@/lib/i18n'
 
 const ProductDetails = ({ product }) => {
 
     const productId = product.id;
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '$';
+    const { t } = useTranslation();
 
     const cart = useSelector(state => state.cart.cartItems);
     const wishlistItems = useSelector(state => state.wishlist.items);
@@ -27,7 +29,7 @@ const ProductDetails = ({ product }) => {
 
     const addToCartHandler = () => {
         dispatch(addToCart({ productId }))
-        toast.success('Added to cart')
+        toast.success(t('product.addedToCart'))
     }
 
     const buyNowHandler = () => {
@@ -39,7 +41,7 @@ const ProductDetails = ({ product }) => {
 
     const wishlistHandler = () => {
         dispatch(toggleWishlist(productId))
-        toast.success(isWishlisted ? 'Removed from wishlist' : 'Added to wishlist')
+        toast.success(isWishlisted ? t('product.removedFromWishlist') : t('product.addedToWishlist'))
     }
 
     const ratingCount = product.rating?.length || 0;
@@ -62,12 +64,18 @@ const ProductDetails = ({ product }) => {
             </div>
             <div className="flex-1">
                 <div className="mb-3 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">Verified seller</span>
+                    <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">{t('productDetails.verifiedSeller')}</span>
+                    {product.halalCertified && (
+                        <span className="inline-flex items-center gap-2 rounded-full border border-[#C9A96E]/30 bg-[#FFF7E8] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#8A6510]">
+                            <span className="inline-flex h-2 w-2 rounded-full bg-[#C9A96E]" />
+                            {t('categories.halalCertified')}
+                        </span>
+                    )}
                     {discount >= 15 && (
-                        <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">⚡ Flash deal</span>
+                        <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-700">{t('productDetails.flashDeal')}</span>
                     )}
                     {discount > 0 && discount < 15 && (
-                        <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700">Limited deal</span>
+                        <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-700">{t('productDetails.limitedDeal')}</span>
                     )}
                 </div>
                 <h1 className="text-3xl font-semibold text-slate-800">{product.name}</h1>
@@ -75,60 +83,60 @@ const ProductDetails = ({ product }) => {
                     {Array(5).fill('').map((_, index) => (
                         <StarIcon key={index} size={14} className='text-transparent mt-0.5' fill={averageRating >= index + 1 ? "#00C950" : "#D1D5DB"} />
                     ))}
-                    <p className="text-sm ml-3 text-slate-500">{ratingCount} Reviews</p>
+                    <p className="text-sm ml-3 text-slate-500">{t('productDetails.reviews', { count: ratingCount })}</p>
                 </div>
                 <div className="flex items-start my-6 gap-3 text-2xl font-semibold text-slate-800">
-                    <p> {currency}{product.price} </p>
-                    <p className="text-xl text-slate-500 line-through">{currency}{product.mrp}</p>
+                    <p> <CurrencyAmount amount={product.price} /> </p>
+                    <p className="text-xl text-slate-500 line-through"><CurrencyAmount amount={product.mrp} /></p>
                 </div>
                 {discount > 0 && (
                     <div className="flex items-center gap-2 text-slate-500">
                         <TagIcon size={14} />
-                        <p>Save {discount}% right now</p>
+                        <p>{t('productDetails.saveNow', { percent: discount })}</p>
                     </div>
                 )}
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                         <TruckIcon size={18} className="text-green-600" />
-                        <p className="mt-2 text-sm font-medium text-slate-800">Free delivery</p>
-                        <p className="text-xs text-slate-500">On orders above SLe500</p>
+                        <p className="mt-2 text-sm font-medium text-slate-800">{t('productDetails.freeDelivery')}</p>
+                        <p className="text-xs text-slate-500">{t('productDetails.onOrdersAbove')} <CurrencyAmount amount={500} /></p>
                     </div>
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                         <RotateCcwIcon size={18} className="text-green-600" />
-                        <p className="mt-2 text-sm font-medium text-slate-800">7-day returns</p>
-                        <p className="text-xs text-slate-500">For eligible items</p>
+                        <p className="mt-2 text-sm font-medium text-slate-800">{t('productDetails.sevenDayReturns')}</p>
+                        <p className="text-xs text-slate-500">{t('productDetails.forEligibleItems')}</p>
                     </div>
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                         <ShieldCheckIcon size={18} className="text-green-600" />
-                        <p className="mt-2 text-sm font-medium text-slate-800">Buyer support</p>
-                        <p className="text-xs text-slate-500">Help with orders</p>
+                        <p className="mt-2 text-sm font-medium text-slate-800">{t('productDetails.buyerSupport')}</p>
+                        <p className="text-xs text-slate-500">{t('productDetails.helpWithOrders')}</p>
                     </div>
                 </div>
                 <div className="flex items-end gap-3 mt-10 flex-wrap">
                     {
                         cart[productId] && (
                             <div className="flex flex-col gap-3">
-                                <p className="text-lg text-slate-800 font-semibold">Quantity</p>
+                                <p className="text-lg text-slate-800 font-semibold">{t('productDetails.quantity')}</p>
                                 <Counter productId={productId} />
                             </div>
                         )
                     }
                     <button onClick={() => !cart[productId] ? addToCartHandler() : router.push('/cart')} className="bg-slate-800 text-white px-8 py-3 text-sm font-medium rounded hover:bg-slate-900 active:scale-95 transition">
-                        {!cart[productId] ? 'Add to Cart' : 'View Cart'}
+                        {!cart[productId] ? t('productDetails.addToCart') : t('productDetails.viewCart')}
                     </button>
                     <button onClick={buyNowHandler} className="bg-green-600 text-white px-8 py-3 text-sm font-medium rounded hover:bg-green-700 active:scale-95 transition">
-                        Buy Now
+                        {t('productDetails.buyNow')}
                     </button>
                     <button onClick={wishlistHandler} className="flex items-center gap-2 rounded border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 transition">
                         <Heart size={16} className={isWishlisted ? 'fill-red-500 text-red-500' : ''} />
-                        {isWishlisted ? 'Saved' : 'Save'}
+                        {isWishlisted ? t('productDetails.saved') : t('productDetails.save')}
                     </button>
                 </div>
                 <hr className="border-gray-300 my-5" />
                 <div className="flex flex-col gap-4 text-slate-500">
-                    <p className="flex gap-3"> <EarthIcon className="text-slate-400" /> Free delivery worldwide </p>
-                    <p className="flex gap-3"> <CreditCardIcon className="text-slate-400" /> 100% Secured Payment </p>
-                    <p className="flex gap-3"> <UserIcon className="text-slate-400" /> Trusted by top brands </p>
+                    <p className="flex gap-3"> <EarthIcon className="text-slate-400" /> {t('productDetails.freeDeliveryWorldwide')} </p>
+                    <p className="flex gap-3"> <CreditCardIcon className="text-slate-400" /> {t('productDetails.securedPayment')} </p>
+                    <p className="flex gap-3"> <UserIcon className="text-slate-400" /> {t('productDetails.trustedByBrands')} </p>
                 </div>
 
             </div>

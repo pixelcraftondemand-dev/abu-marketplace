@@ -5,6 +5,7 @@ import axios from "axios"
 import toast from "react-hot-toast"
 import Image from "next/image"
 import Loading from "@/components/Loading"
+import CurrencyAmount from '@/components/CurrencyAmount'
 import { XIcon, ClipboardListIcon } from "lucide-react"
 
 const STATUS_OPTIONS = ['ORDER_PLACED', 'PROCESSING', 'SHIPPED', 'DELIVERED']
@@ -18,7 +19,6 @@ const STATUS_STYLES = {
 
 export default function StoreOrders() {
     const { getToken } = useAuth()
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'SLe'
 
     const [orders, setOrders] = useState([])
     const [loading, setLoading] = useState(true)
@@ -95,7 +95,7 @@ export default function StoreOrders() {
                                     <tr key={order.id} className="hover:bg-slate-50 transition cursor-pointer" onClick={() => setSelected(order)}>
                                         <td className="px-5 py-3 text-green-600 font-medium">{i + 1}</td>
                                         <td className="px-5 py-3 text-slate-700 font-medium">{order.user?.name}</td>
-                                        <td className="px-5 py-3 font-semibold text-slate-800">{currency}{order.total?.toLocaleString()}</td>
+                                        <td className="px-5 py-3 font-semibold text-slate-800"><CurrencyAmount amount={order.total} /></td>
                                         <td className="px-5 py-3 hidden md:table-cell text-slate-500">{order.paymentMethod}</td>
                                         <td className="px-5 py-3 hidden md:table-cell">
                                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${order.isPaid ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
@@ -158,7 +158,7 @@ export default function StoreOrders() {
                                             )}
                                             <div className="flex-1">
                                                 <p className="font-medium text-slate-800">{item.product?.name}</p>
-                                                <p className="text-xs text-slate-400">Qty: {item.quantity} &bull; {currency}{item.price}</p>
+                                                <p className="text-xs text-slate-400">Qty: {item.quantity} &bull; <CurrencyAmount amount={item.price} /></p>
                                             </div>
                                         </div>
                                     ))}
@@ -167,7 +167,7 @@ export default function StoreOrders() {
 
                             <div className="bg-slate-50 rounded-xl p-4 space-y-1.5">
                                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Summary</p>
-                                <p><span className="text-slate-500">Total:</span> <span className="font-bold text-slate-800">{currency}{selected.total?.toLocaleString()}</span></p>
+                                <p><span className="text-slate-500">Total:</span> <span className="font-bold text-slate-800"><CurrencyAmount amount={selected.total} /></span></p>
                                 <p><span className="text-slate-500">Payment:</span> {selected.paymentMethod}</p>
                                 <p><span className="text-slate-500">Paid:</span> <span className={selected.isPaid ? 'text-green-600 font-medium' : 'text-red-500 font-medium'}>{selected.isPaid ? 'Yes' : 'No'}</span></p>
                                 {selected.isCouponUsed && selected.coupon && (

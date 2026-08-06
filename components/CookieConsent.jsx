@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const CONSENT_KEY = "abu_cookie_consent";
 
 export default function CookieConsentBanner() {
   const [visible, setVisible] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const stored = localStorage.getItem(CONSENT_KEY);
@@ -23,7 +25,9 @@ export default function CookieConsentBanner() {
     setVisible(false);
   };
 
-  if (!visible) return null;
+  const showBanner = pathname?.startsWith("/sign-in") || pathname?.startsWith("/sign-up");
+
+  if (!visible || !showBanner) return null;
 
   return (
     <div
@@ -34,9 +38,7 @@ export default function CookieConsentBanner() {
     >
       <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <p className="text-sm text-gray-700">
-          We use cookies to run this site and, with your permission, to
-          understand how it's used and to personalize your experience. Read
-          our{" "}
+          By continuing, you agree to our{" "}
           <Link href="/terms-and-conditions" className="underline hover:text-gray-900">
             Terms &amp; Conditions
           </Link>{" "}
@@ -44,21 +46,23 @@ export default function CookieConsentBanner() {
           <Link href="/privacy-policy" className="underline hover:text-gray-900">
             Privacy Policy
           </Link>
-          .
+          . We use cookies to keep your account secure and improve your experience.
         </p>
 
         <div className="flex shrink-0 gap-3">
           <button
+            type="button"
             onClick={() => handleChoice("decline")}
             className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             Decline
           </button>
           <button
+            type="button"
             onClick={() => handleChoice("accept")}
             className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
           >
-            Accept
+            Continue
           </button>
         </div>
       </div>

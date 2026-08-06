@@ -6,10 +6,21 @@ export async function GET(request){
     try {
         const { searchParams } = new URL(request.url)
         const storeId = searchParams.get('storeId')
+        const category = searchParams.get('category')?.trim()
+        const search = searchParams.get('search')?.trim()
+
         const products = await prisma.product.findMany({
             where: {
                 inStock: true,
                 ...(storeId ? { storeId } : {}),
+                ...(category ? category === 'halal-certified' ? { halalCertified: true } : { category: { equals: category, mode: 'insensitive' } } : {}),
+                ...(search ? {
+                    OR: [
+                        { name: { contains: search, mode: 'insensitive' } },
+                        { description: { contains: search, mode: 'insensitive' } },
+                        { category: { contains: search, mode: 'insensitive' } },
+                    ],
+                } : {}),
                 store: { is: { isActive: true, status: 'approved' } },
             },
             include: {
@@ -19,7 +30,13 @@ export async function GET(request){
                         user: {select: {name: true, image: true}}
                     }
                 },
-                store: true,
+                // Only public storefront fields — never internal ids/contacts.
+                store: {
+                    select: {
+                        id: true, name: true, username: true, logo: true,
+                        description: true, halalCertified: true,
+                    }
+                },
             },
             orderBy: {createdAt: 'desc'}
         })

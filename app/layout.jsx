@@ -3,7 +3,10 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "react-hot-toast";
 import StoreProvider from "@/app/StoreProvider";
 import CookieConsentBanner from "@/components/CookieConsent";
+import AbuChatBubble from "@/components/AbuChatBubble";
 import "./globals.css";
+import { cookies } from 'next/headers'
+import { languageToLangCode, defaultLanguage } from '@/lib/utils/currency'
 
 const inter = Inter({
   subsets: ["latin"],
@@ -20,28 +23,47 @@ const playfair = Playfair_Display({
 });
 
 export const metadata = {
+  metadataBase: new URL("https://abumarketplace.shop"),
   title: {
-    default: "ABU Marketplace — Curated Luxury",
+    default: "ABU Marketplace — Trusted online shopping in Sierra Leone",
     template: "%s | ABU Marketplace",
   },
-  description: "Discover curated luxury products from the world's finest artisans and brands. Authentic. Exclusive. Yours.",
-  keywords: ["luxury marketplace", "premium products", "curated shopping", "artisan goods", "exclusive deals"],
+  description:
+    "ABU Marketplace is a trusted online marketplace for electronics, fashion, home essentials, and everyday gadgets in Sierra Leone and beyond.",
+  keywords: [
+    "ABU Marketplace",
+    "online marketplace Sierra Leone",
+    "electronics Sierra Leone",
+    "fashion marketplace",
+    "gadget shopping",
+    "trusted online store",
+  ],
   authors: [{ name: "ABU Marketplace" }],
   creator: "ABU Marketplace",
+  applicationName: "ABU Marketplace",
+  alternates: {
+    canonical: "https://abumarketplace.shop",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
     url: "https://abumarketplace.shop",
     siteName: "ABU Marketplace",
-    title: "ABU Marketplace — Curated Luxury",
-    description: "Discover curated luxury products from the world's finest artisans.",
-    images: [{ url: "/og-image.jpg", width: 1200, height: 630, alt: "ABU Marketplace" }],
+    title: "ABU Marketplace — Trusted online shopping in Sierra Leone",
+    description:
+      "Discover electronics, fashion, home essentials, and everyday gadgets from a trusted marketplace built for modern shoppers.",
+    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "ABU Marketplace" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "ABU Marketplace — Curated Luxury",
-    description: "Discover curated luxury products from the world's finest artisans.",
-    images: ["/og-image.jpg"],
+    title: "ABU Marketplace — Trusted online shopping in Sierra Leone",
+    description:
+      "Discover electronics, fashion, home essentials, and everyday gadgets from a trusted marketplace built for modern shoppers.",
+    images: ["/og-image.svg"],
   },
   icons: {
     icon: "/favicon.ico",
@@ -56,16 +78,46 @@ export const viewport = {
   themeColor: "#FAF8F5",
 };
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  // Determine language from cookie for server-side HTML lang
+  let lang = 'en'
+  try {
+    const cookieStore = await cookies()
+    const cookieLang = cookieStore.get('marketplaceLanguage')?.value
+    lang = languageToLangCode[cookieLang] || languageToLangCode[defaultLanguage] || 'en'
+  } catch (e) {
+    // fallback to default
+    lang = languageToLangCode[defaultLanguage] || 'en'
+  }
+
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
+    <html lang={lang} className={`${inter.variable} ${playfair.variable}`}>
       <head>
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
         <meta httpEquiv="X-Frame-Options" content="DENY" />
         <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+        <meta name="format-detection" content="telephone=no" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "ABU Marketplace",
+              url: "https://abumarketplace.shop",
+              logo: "https://abumarketplace.shop/favicon.ico",
+              sameAs: [
+                "https://www.instagram.com/abumarketplace",
+                "https://www.facebook.com/abumarketplace",
+                "https://www.linkedin.com/company/abumarketplace",
+              ],
+            }),
+          }}
+        />
       </head>
       <body className={`${inter.className} antialiased`}>
         <ClerkProvider
+          publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
           appearance={{
             elements: {
               formButtonPrimary: "bg-[#1A1A1A] hover:bg-[#2D2D2D] text-white",
@@ -121,6 +173,7 @@ export default function RootLayout({ children }) {
             />
             {children}
             <CookieConsentBanner />
+            <AbuChatBubble />
           </StoreProvider>
         </ClerkProvider>
       </body>

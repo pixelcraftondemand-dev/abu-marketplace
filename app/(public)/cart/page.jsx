@@ -7,10 +7,12 @@ import { Trash2Icon } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import CurrencyAmount from '@/components/CurrencyAmount'
+import { useTranslation } from '@/lib/i18n'
 
 export default function Cart() {
 
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '$';
+    const { t } = useTranslation();
     
     const { cartItems } = useSelector(state => state.cart);
     const products = useSelector(state => state.product.list);
@@ -21,7 +23,7 @@ export default function Cart() {
     const [totalPrice, setTotalPrice] = useState(0);
 
     const createCartArray = () => {
-        setTotalPrice(0);
+        let total = 0;
         const cartArray = [];
         for (const [key, value] of Object.entries(cartItems)) {
             const product = products.find(product => product.id === key);
@@ -30,9 +32,10 @@ export default function Cart() {
                     ...product,
                     quantity: value,
                 });
-                setTotalPrice(prev => prev + product.price * value);
+                total += product.price * value;
             }
         }
+        setTotalPrice(total);
         setCartArray(cartArray);
     }
 
@@ -51,17 +54,17 @@ export default function Cart() {
 
             <div className="max-w-7xl mx-auto ">
                 {/* Title */}
-                <PageTitle heading="My Cart" text="items in your cart" linkText="Add more" />
+                <PageTitle heading={t('cart.title')} text={t('cart.subtitle')} linkText={t('cart.addMore')} />
 
                 <div className="flex items-start justify-between gap-5 max-lg:flex-col">
 
                     <table className="w-full max-w-4xl text-slate-600 table-auto">
                         <thead>
                             <tr className="max-sm:text-sm">
-                                <th className="text-left">Product</th>
-                                <th>Quantity</th>
-                                <th>Total Price</th>
-                                <th className="max-md:hidden">Remove</th>
+                                <th className="text-left">{t('cart.product')}</th>
+                                <th>{t('cart.quantity')}</th>
+                                <th>{t('cart.totalPrice')}</th>
+                                <th className="max-md:hidden">{t('cart.remove')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -75,13 +78,13 @@ export default function Cart() {
                                             <div>
                                                 <p className="max-sm:text-sm">{item.name}</p>
                                                 <p className="text-xs text-slate-500">{item.category}</p>
-                                                <p>{currency}{item.price}</p>
+                                                <p><CurrencyAmount amount={item.price} /></p>
                                             </div>
                                         </td>
                                         <td className="text-center">
                                             <Counter productId={item.id} />
                                         </td>
-                                        <td className="text-center">{currency}{(item.price * item.quantity).toLocaleString()}</td>
+                                        <td className="text-center"><CurrencyAmount amount={item.price * item.quantity} /></td>
                                         <td className="text-center max-md:hidden">
                                             <button onClick={() => handleDeleteItemFromCart(item.id)} className=" text-red-500 hover:bg-red-50 p-2.5 rounded-full active:scale-95 transition-all">
                                                 <Trash2Icon size={18} />
@@ -98,7 +101,7 @@ export default function Cart() {
         </div>
     ) : (
         <div className="min-h-[80vh] mx-6 flex items-center justify-center text-slate-400">
-            <h1 className="text-2xl sm:text-4xl font-semibold">Your cart is empty</h1>
+            <h1 className="text-2xl sm:text-4xl font-semibold">{t('cart.empty')}</h1>
         </div>
     )
 }

@@ -41,3 +41,12 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# local database files
+prisma/*.db*
+
+# Sentry Config File
+.env.sentry-build-plugin
+
+# build logs
+build-output.txt

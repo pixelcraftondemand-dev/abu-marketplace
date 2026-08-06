@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import axios from "axios";
 import toast from "react-hot-toast";
+import CurrencyAmount from '@/components/CurrencyAmount'
 import {
   Search,
   SlidersHorizontal,
@@ -36,14 +37,6 @@ const categories = [
   { label: "Audio", value: "audio" },
   { label: "Home", value: "home" },
   { label: "Accessories", value: "accessories" },
-];
-
-const priceRanges = [
-  { label: "Under SLe 500", min: 0, max: 500 },
-  { label: "SLe 500 - 1,000", min: 500, max: 1000 },
-  { label: "SLe 1,000 - 2,500", min: 1000, max: 2500 },
-  { label: "SLe 2,500 - 5,000", min: 2500, max: 5000 },
-  { label: "Over SLe 5,000", min: 5000, max: null },
 ];
 
 function ShopPageContent() {
@@ -312,7 +305,6 @@ function ShopPageContent() {
 
 function ProductCard({ product, viewMode, index }) {
   const [liked, setLiked] = useState(false);
-  const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || "SLe";
 
   if (viewMode === "list") {
     return (
@@ -340,11 +332,11 @@ function ProductCard({ product, viewMode, index }) {
           </p>
           <div className="flex items-center gap-4">
             <span className="text-lg font-semibold text-[#1A1A1A]">
-              {currency}{product.price?.toLocaleString()}
+              <CurrencyAmount amount={product.price} />
             </span>
             {product.originalPrice && (
               <span className="text-sm text-[#9B9590] line-through">
-                {currency}{product.originalPrice?.toLocaleString()}
+                <CurrencyAmount amount={product.originalPrice} />
               </span>
             )}
           </div>
@@ -392,7 +384,7 @@ function ProductCard({ product, viewMode, index }) {
           </h3>
           <div className="flex items-center justify-between mt-2">
             <span className="text-sm font-semibold text-[#1A1A1A]">
-              {currency}{product.price?.toLocaleString()}
+              <CurrencyAmount amount={product.price} />
             </span>
             {product.rating && (
               <div className="flex items-center gap-1">

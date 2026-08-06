@@ -3,6 +3,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 import prisma from "@/lib/prisma";
 import getImageKit from "@/configs/imageKit";
+import { sniffImageMagicBytes, sanitizeText } from "@/lib/security";
 import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
 
@@ -15,8 +16,7 @@ const ALLOWED_MIME    = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function sanitize(value, maxLen) {
-    if (typeof value !== "string") return "";
-    return value.trim().slice(0, maxLen);
+    return sanitizeText(value, maxLen);
 }
 
 function validateFields({ name, username, description, email, contact, address }) {
@@ -56,10 +56,10 @@ export async function GET(request) {
 
         const store = await prisma.store.findUnique({
             where:  { userId },
-            select: { status: true },
+            select: { status: true, username: true },
         });
 
-        return NextResponse.json({ status: store?.status ?? null });
+        return NextResponse.json({ status: store?.status ?? null, storeUsername: store?.username ?? null });
 
     } catch (error) {
         console.error("[GET /api/store/create]", error);
@@ -126,6 +126,14 @@ export async function POST(request) {
 
         if (imageBuffer.byteLength > MAX_LOGO_BYTES) {
             return NextResponse.json({ error: "Logo must not exceed 2 MB." }, { status: 422 });
+        }
+
+        // Never trust the browser MIME type — verify the actual file signature.
+        if (!sniffImageMagicBytes(imageBuffer)) {
+            return NextResponse.json(
+                { error: "Logo file is not a valid image." },
+                { status: 422 }
+            );
         }
 
         const takenUsername = await prisma.store.findUnique({

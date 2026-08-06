@@ -7,9 +7,12 @@ import toast from 'react-hot-toast'
 import { addToCart } from '@/lib/features/cart/cartSlice'
 import { toggleWishlist } from '@/lib/features/wishlist/wishlistSlice'
 import { getProductDiscount, getProductRating } from '@/lib/productUtils'
+import CurrencyAmount from '@/components/CurrencyAmount'
+import { useTranslation } from '@/lib/i18n'
 
 const ProductCard = ({ product, showQuickAdd = true }) => {
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '$'
+    const selectedCurrency = useSelector((state) => state.preferences.selectedCurrency)
+    const { t } = useTranslation()
     const dispatch = useDispatch()
     const wishlistItems = useSelector((state) => state.wishlist.items)
     const isWishlisted = wishlistItems.includes(product.id)
@@ -21,18 +24,18 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
         e.preventDefault()
         e.stopPropagation()
         dispatch(toggleWishlist(product.id))
-        toast.success(isWishlisted ? 'Removed from wishlist' : 'Added to wishlist')
+        toast.success(isWishlisted ? t('product.removedFromWishlist') : t('product.addedToWishlist'))
     }
 
     const handleQuickAdd = (e) => {
         e.preventDefault()
         e.stopPropagation()
         if (!product.inStock) {
-            toast.error('Out of stock')
+            toast.error(t('product.outOfStock'))
             return
         }
         dispatch(addToCart({ productId: product.id }))
-        toast.success('Added to cart')
+        toast.success(t('product.addedToCart'))
     }
 
     return (
@@ -46,12 +49,10 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
                     )}
                     {(product.halalCertified || product.badge) && (
                         <span className="absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm">
-                            {product.halalCertified ? 'Halal Certified' : product.badge}
+                            {product.halalCertified ? t('product.halalCertified') : product.badge}
                         </span>
                     )}
-                    <span className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-semibold text-slate-700 shadow-sm">
-                        Free delivery
-                    </span>
+                    <span className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-semibold text-slate-700 shadow-sm">{t('product.freeDelivery')}</span>
                     <Image
                         width={500}
                         height={500}
@@ -63,7 +64,7 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
                         <button
                             onClick={handleQuickAdd}
                             className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-white shadow-2xl shadow-slate-900/10 transition hover:bg-slate-800"
-                            aria-label="Quick add to cart"
+                            aria-label={t('product.quickAdd')}
                         >
                             <ShoppingBag size={18} />
                         </button>
@@ -85,21 +86,21 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
                             </div>
                             <span className="font-medium text-slate-600">{rating.toFixed(1)} / 5</span>
                         </div>
-                        <p className="mt-2 text-[12px] text-slate-500">Easy returns • Quality checked sellers</p>
+                        <p className="mt-2 text-[12px] text-slate-500">{t('product.easyReturns')}</p>
                     </div>
                     <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-3">
                         <div className="flex items-center justify-between gap-2">
                             <div>
-                                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">Your price</p>
-                                <p className="mt-1 text-lg font-semibold text-slate-900">{currency}{Number(product.price).toFixed(2)}</p>
+                                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{t('product.yourPrice')}</p>
+                                <p className="mt-1 text-lg font-semibold text-slate-900"><CurrencyAmount amount={product.price} /></p>
                             </div>
                             {discount > 0 ? (
                                 <div className="text-right">
-                                    <p className="text-[11px] text-slate-400 line-through">{currency}{Number(product.mrp).toFixed(2)}</p>
-                                    <p className="mt-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-700">Save {discount}%</p>
+                                    <p className="text-[11px] text-slate-400 line-through"><CurrencyAmount amount={product.mrp} /></p>
+                                    <p className="mt-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-700">{t('product.save', { percent: discount })}</p>
                                 </div>
                             ) : (
-                                <span className="rounded-full bg-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-600">Popular</span>
+                                <span className="rounded-full bg-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-600">{t('product.popular')}</span>
                             )}
                         </div>
                     </div>
@@ -108,7 +109,7 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
             <button
                 onClick={handleWishlist}
                 className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm transition hover:scale-105"
-                aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                aria-label={isWishlisted ? t('product.removedFromWishlist') : t('product.addedToWishlist')}
             >
                 <Heart
                     size={18}

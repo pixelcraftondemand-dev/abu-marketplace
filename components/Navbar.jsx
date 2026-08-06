@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useUser, useClerk } from "@clerk/nextjs";
 import Link from "next/link";
 import Image from "next/image";
+import axios from "axios";
 import {
   Search,
   ShoppingBag,
@@ -15,25 +16,31 @@ import {
   User,
   ChevronDown,
   ArrowRight,
+  Wallet,
 } from "lucide-react";
-import marketplaceLogo from "@/assets/abu-marketplace-logo.png";
+import { setCountry, setLanguage, setCurrency, setPreferences } from '@/lib/features/preferencesSlice'
+import BrandLogo from "@/components/BrandLogo";
+import CurrencyAmount from "@/components/CurrencyAmount";
+import useWalletBalance from "@/lib/hooks/useWalletBalance";
+import { useTranslation } from "@/lib/i18n";
+import { getStoreLinkTarget } from "@/lib/storeNavigation";
 
-const navLinks = [
-  { href: "/", label: "Home" },
-  { href: "/shop", label: "Shop" },
-  { href: "/collections", label: "Collections" },
-  { href: "/sellers", label: "Sellers" },
-  { href: "/about", label: "About" },
+const navLinkDefs = [
+  { href: "/", labelKey: "nav.home" },
+  { href: "/shop", labelKey: "nav.shop" },
+  { href: "/collections", labelKey: "nav.collections" },
+  { href: "/store", labelKey: "nav.store" },
+  { href: "/about", labelKey: "nav.about" },
 ];
 
-const shopCategories = [
-  { label: "New Arrivals", href: "/shop?sort=newest" },
-  { label: "Best Sellers", href: "/shop?sort=popular" },
-  { label: "Electronics", href: "/shop?category=electronics" },
-  { label: "Fashion", href: "/shop?category=fashion" },
-  { label: "Home & Living", href: "/shop?category=home" },
-  { label: "Watches", href: "/shop?category=watches" },
-  { label: "Accessories", href: "/shop?category=accessories" },
+const shopCategoryDefs = [
+  { labelKey: "categories.newArrivals", href: "/shop?sort=newest" },
+  { labelKey: "categories.bestSellers", href: "/shop?sort=popular" },
+  { labelKey: "categories.electronics", href: "/shop?category=electronics" },
+  { labelKey: "categories.fashion", href: "/shop?category=fashion" },
+  { labelKey: "categories.home", href: "/shop?category=home" },
+  { labelKey: "categories.watches", href: "/shop?category=watches" },
+  { labelKey: "categories.accessories", href: "/shop?category=accessories" },
 ];
 
 const popularSearches = [
@@ -46,58 +53,7 @@ const popularSearches = [
   "Halal certified",
 ];
 
-const shopMenuGroups = [
-  {
-    title: "Featured",
-    items: [
-      { label: "New Arrivals", href: "/shop?sort=newest" },
-      { label: "Best Sellers", href: "/shop?sort=popular" },
-      { label: "Flash Deals", href: "/shop?deals=flash" },
-    ],
-  },
-  {
-    title: "Popular Categories",
-    items: [
-      { label: "Beauty & Health", href: "/shop?category=beauty" },
-      { label: "Electronics", href: "/shop?category=electronics" },
-      { label: "Fashion", href: "/shop?category=fashion" },
-      { label: "Accessories", href: "/shop?category=accessories" },
-      { label: "Home & Living", href: "/shop?category=home" },
-    ],
-  },
-];
-
-const westAfricanCountries = [
-  { country: "Sierra Leone", languages: ["English", "Krio"], currency: "SLL" },
-  { country: "Ghana", languages: ["English", "Twi", "Ga"], currency: "GHS" },
-  { country: "Nigeria", languages: ["English", "Hausa", "Yoruba", "Igbo"], currency: "NGN" },
-  { country: "Senegal", languages: ["French", "Wolof", "Pulaar"], currency: "XOF" },
-  { country: "The Gambia", languages: ["English", "Mandinka", "Wolof"], currency: "GMD" },
-  { country: "Liberia", languages: ["English", "Kpelle"], currency: "LRD" },
-  { country: "Guinea", languages: ["French", "Fula", "Susu"], currency: "GNF" },
-  { country: "Guinea-Bissau", languages: ["Portuguese", "Crioulo"], currency: "XOF" },
-  { country: "Côte d’Ivoire", languages: ["French", "Baoulé", "Dioula"], currency: "XOF" },
-  { country: "Mali", languages: ["French", "Bambara", "Fula"], currency: "XOF" },
-  { country: "Burkina Faso", languages: ["French", "Moore", "Dioula"], currency: "XOF" },
-  { country: "Togo", languages: ["French", "Ewe", "Mina"], currency: "XOF" },
-  { country: "Benin", languages: ["French", "Fon", "Yoruba"], currency: "XOF" },
-  { country: "Cape Verde", languages: ["Portuguese", "Crioulo"], currency: "CVE" },
-  { country: "Mauritania", languages: ["Arabic", "French", "Pulaar", "Soninke"], currency: "MRU" },
-  { country: "Niger", languages: ["French", "Hausa", "Zarma"], currency: "XOF" },
-];
-
-const westAfricanCurrencyOptions = [
-  { code: "XOF", label: "CFA Franc (XOF)" },
-  { code: "NGN", label: "Nigerian Naira (NGN)" },
-  { code: "GHS", label: "Ghanaian Cedi (GHS)" },
-  { code: "SLL", label: "Sierra Leonean Leone (SLL)" },
-  { code: "LRD", label: "Liberian Dollar (LRD)" },
-  { code: "GMD", label: "Gambian Dalasi (GMD)" },
-  { code: "GNF", label: "Guinean Franc (GNF)" },
-  { code: "CVE", label: "Cape Verde Escudo (CVE)" },
-  { code: "MRU", label: "Mauritanian Ouguiya (MRU)" },
-  { code: "USD", label: "US Dollar (USD)" },
-];
+import { africanCountries, africanCurrencyOptions } from '@/lib/utils/currency'
 
 export default function Navbar() {
   const { user, isLoaded } = useUser();
@@ -111,12 +67,67 @@ export default function Navbar() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [shopDropdownOpen, setShopDropdownOpen] = useState(false);
   const [searchSuggestionsOpen, setSearchSuggestionsOpen] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState("Sierra Leone");
-  const [selectedLanguage, setSelectedLanguage] = useState("English");
-  const [selectedCurrency, setSelectedCurrency] = useState("SLL");
+  const [storeHref, setStoreHref] = useState("/sign-in");
 
+  const dispatch = useDispatch();
+  const { t } = useTranslation();
+  useEffect(() => {
+    const resolveStoreHref = async () => {
+      if (!isLoaded) return;
+
+      if (!user) {
+        setStoreHref("/sign-in");
+        return;
+      }
+
+      try {
+        const { data } = await axios.get("/api/store/is-seller");
+        setStoreHref(
+          getStoreLinkTarget({
+            isSignedIn: true,
+            isSeller: Boolean(data.isSeller),
+            storeUsername: data.storeInfo?.username || null,
+          })
+        );
+      } catch (error) {
+        setStoreHref("/create-store");
+      }
+    };
+
+    resolveStoreHref();
+  }, [isLoaded, user]);
+
+  const navLinks = navLinkDefs.map(({ href, labelKey }) => ({
+    href: href === "/store" ? storeHref : href,
+    label: t(labelKey),
+  }));
+  const shopCategories = shopCategoryDefs.map(({ href, labelKey }) => ({ href, label: t(labelKey) }));
+  const shopMenuGroups = [
+    {
+      title: t("nav.featured"),
+      items: [
+        { label: t("categories.newArrivals"), href: "/shop?sort=newest" },
+        { label: t("categories.bestSellers"), href: "/shop?sort=popular" },
+        { label: t("categories.flashDeals"), href: "/shop?deals=flash" },
+      ],
+    },
+    {
+      title: t("nav.popularCategories"),
+      items: [
+        { label: t("categories.beauty"), href: "/shop?category=beauty" },
+        { label: t("categories.electronics"), href: "/shop?category=electronics" },
+        { label: t("categories.fashion"), href: "/shop?category=fashion" },
+        { label: t("categories.accessories"), href: "/shop?category=accessories" },
+        { label: t("categories.home"), href: "/shop?category=home" },
+      ],
+    },
+  ];
+  const selectedCountry = useSelector((state) => state.preferences.selectedCountry);
+  const selectedLanguage = useSelector((state) => state.preferences.selectedLanguage);
+  const selectedCurrency = useSelector((state) => state.preferences.selectedCurrency);
   const cartCount = useSelector((state) => state.cart?.total || 0);
   const wishlistCount = useSelector((state) => state.wishlist?.items?.length || 0);
+  const { balance: walletBalance, loading: walletLoading } = useWalletBalance();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
@@ -129,23 +140,36 @@ export default function Navbar() {
     setShopDropdownOpen(false);
   }, [pathname]);
 
+  const previousCountry = useRef(selectedCountry);
+
   useEffect(() => {
-    const countryData = westAfricanCountries.find((entry) => entry.country === selectedCountry);
+    // Apply a country's default language/currency only when the user actually
+    // picks a new country — never on mount (persisted preferences win) and
+    // never when the user manually changes language/currency.
+    if (previousCountry.current === selectedCountry) return;
+    previousCountry.current = selectedCountry;
+
+    const countryData = africanCountries.find((entry) => entry.country === selectedCountry);
     if (!countryData) {
-      setSelectedCountry("Sierra Leone");
-      setSelectedLanguage("English");
-      setSelectedCurrency("SLL");
+      dispatch(setPreferences({
+        country: "Sierra Leone",
+        language: "English",
+        currency: "SLL",
+      }))
       return;
     }
-    if (!countryData.languages.includes(selectedLanguage)) {
-      setSelectedLanguage(countryData.languages[0]);
-    }
-    if (countryData.currency && selectedCurrency !== countryData.currency) {
-      setSelectedCurrency(countryData.currency);
-    }
-  }, [selectedCountry, selectedLanguage, selectedCurrency]);
 
-  const currentCountryData = westAfricanCountries.find((entry) => entry.country === selectedCountry) || westAfricanCountries[0];
+    if (!countryData.languages.includes(selectedLanguage)) {
+      dispatch(setLanguage(countryData.languages[0]));
+    }
+
+    if (countryData.currency && selectedCurrency !== countryData.currency) {
+      dispatch(setCurrency(countryData.currency));
+    }
+  }, [selectedCountry, selectedLanguage, selectedCurrency, dispatch]);
+
+  const currentCountryData = africanCountries.find((entry) => entry.country === selectedCountry) || africanCountries[0];
+  const allLanguages = Array.from(new Set(africanCountries.flatMap(c => c.languages))).sort()
   const filteredSearchSuggestions = search
     ? popularSearches.filter((item) => item.toLowerCase().includes(search.toLowerCase()))
     : popularSearches;
@@ -179,6 +203,12 @@ export default function Navbar() {
     return pathname === path || pathname.startsWith(`${path}/`);
   };
 
+  const handleNavLinkClick = () => {
+    setMobileMenuOpen(false);
+    setSearchFocused(false);
+    setSearchSuggestionsOpen(false);
+  };
+
   return (
     <>
       {/* ─── Top Bar — Trust signals (Amazon-style efficiency) ─── */}
@@ -188,22 +218,22 @@ export default function Navbar() {
             <div className="flex flex-wrap items-center gap-6 min-w-0">
               <span className="flex min-w-0 items-center gap-1.5">
                 <span className="w-1 h-1 rounded-full bg-[#C9A96E]" />
-                <span className="truncate">Free Delivery on Orders Over SLe 500</span>
+                <span className="truncate">{t("nav.freeDelivery")} <CurrencyAmount amount={500} /></span>
               </span>
               <span className="flex min-w-0 items-center gap-1.5">
                 <span className="w-1 h-1 rounded-full bg-[#C9A96E]" />
-                <span className="truncate">Authenticity Guaranteed</span>
+                <span className="truncate">{t("nav.authenticityGuaranteed")}</span>
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-2 justify-end">
               <label className="flex min-w-[120px] max-w-[200px] items-center gap-2 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.2em] text-white/85">
-                <span className="text-white/60">Country</span>
+                <span className="text-white/60">{t("nav.country")}</span>
                 <select
                   value={selectedCountry}
-                  onChange={(event) => setSelectedCountry(event.target.value)}
+                  onChange={(event) => dispatch(setCountry(event.target.value))}
                   className="min-w-[90px] max-w-[140px] bg-transparent pr-4 text-white outline-none"
                 >
-                  {westAfricanCountries.map((item) => (
+                  {africanCountries.map((item) => (
                     <option key={item.country} value={item.country} className="text-slate-900">
                       {item.country}
                     </option>
@@ -211,13 +241,13 @@ export default function Navbar() {
                 </select>
               </label>
               <label className="flex min-w-[90px] max-w-[160px] items-center gap-2 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.2em] text-white/85">
-                <span className="text-white/60">Lang</span>
+                <span className="text-white/60">{t("nav.language")}</span>
                 <select
                   value={selectedLanguage}
-                  onChange={(event) => setSelectedLanguage(event.target.value)}
-                  className="min-w-[70px] max-w-[100px] bg-transparent pr-4 text-white outline-none"
+                  onChange={(event) => dispatch(setLanguage(event.target.value))}
+                  className="min-w-[70px] max-w-[140px] bg-transparent pr-4 text-white outline-none"
                 >
-                  {currentCountryData.languages.map((language) => (
+                  {allLanguages.map((language) => (
                     <option key={language} value={language} className="text-slate-900">
                       {language}
                     </option>
@@ -225,13 +255,13 @@ export default function Navbar() {
                 </select>
               </label>
               <label className="flex min-w-[100px] max-w-[160px] items-center gap-2 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.2em] text-white/85">
-                <span className="text-white/60">Curr</span>
+                <span className="text-white/60">{t("nav.currency")}</span>
                 <select
                   value={selectedCurrency}
-                  onChange={(event) => setSelectedCurrency(event.target.value)}
+                  onChange={(event) => dispatch(setCurrency(event.target.value))}
                   className="min-w-[70px] max-w-[100px] bg-transparent pr-4 text-white outline-none"
                 >
-                  {westAfricanCurrencyOptions.map((currency) => (
+                  {africanCurrencyOptions.map((currency) => (
                     <option key={currency.code} value={currency.code} className="text-slate-900">
                       {currency.code}
                     </option>
@@ -262,25 +292,7 @@ export default function Navbar() {
             </button>
 
             {/* Logo — Magazine style */}
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="relative w-11 h-11 overflow-hidden rounded-full ring-1 ring-[#d8c4a2] ring-offset-2 ring-offset-[#f7efe5] bg-white/70 shadow-sm">
-                <Image
-                  src={marketplaceLogo}
-                  alt="ABU"
-                  fill
-                  className="object-cover"
-                  priority
-                />
-              </div>
-              <div className="block">
-                <span className="font-display text-[1.35rem] md:text-[1.5rem] font-semibold text-[#1A1A1A] tracking-[0.2em] leading-none">
-                  ABU
-                </span>
-                <span className="mt-0.5 block text-[8.5px] md:text-[9.5px] tracking-[0.3em] uppercase text-[#8f7d61] font-semibold leading-none">
-                  Marketplace
-                </span>
-              </div>
-            </Link>
+            <BrandLogo className="group" brandClassName="text-[#1A1A1A]" taglineClassName="text-[#8f7d61]" compact={false} />
 
             {/* Desktop Navigation — Clean editorial */}
             <div className="hidden lg:flex items-center gap-8">
@@ -373,7 +385,7 @@ export default function Navbar() {
                   <Search size={16} className="text-[#9B9590] shrink-0" />
                   <input
                     type="text"
-                    placeholder="Search products, brands, categories..."
+                    placeholder={t("nav.searchPlaceholder")}
                     value={search}
                     onChange={(e) => {
                       setSearch(e.target.value);
@@ -409,13 +421,31 @@ export default function Navbar() {
                         ))
                       ) : (
                         <div className="col-span-full rounded-xl px-3 py-3 text-sm text-slate-500">
-                          No matching suggestions.
+                          {t("nav.noSuggestions")}
                         </div>
                       )}
                     </div>
                   </div>
                 )}
               </div>
+
+              {/* Wallet balance chip */}
+              {isLoaded && user && (
+                <Link
+                  href="/wallet"
+                  className="hidden md:flex relative items-center gap-1.5 px-3 py-2 text-[#1A1A1A] hover:text-[#C9A96E] transition group"
+                  title={t("wallet.balance")}
+                >
+                  <Wallet size={19} strokeWidth={1.5} />
+                  <span className="text-[13px] font-medium tabular-nums">
+                    {walletLoading && walletBalance == null ? (
+                      "—"
+                    ) : (
+                      <CurrencyAmount amount={walletBalance ?? 0} />
+                    )}
+                  </span>
+                </Link>
+              )}
 
               {/* Wishlist */}
               <Link
@@ -452,19 +482,19 @@ export default function Navbar() {
                         href="/sign-in"
                         className="text-[13px] font-medium text-[#6B6560] hover:text-[#1A1A1A] transition uppercase tracking-wide"
                       >
-                        Sign In
+                        {t("nav.signIn")}
                       </Link>
                       <Link
                         href="/sign-up"
                         className="btn-gold text-[11px] py-2.5 px-5"
                       >
-                        Sign Up
+                        {t("nav.signUp")}
                       </Link>
                     </div>
                   ) : (
                     <div className="flex items-center gap-3">
                       <button
-                        onClick={() => router.push("/orders")}
+                        onClick={() => router.push("/account")}
                         className="flex items-center gap-2 text-[13px] font-medium text-[#6B6560] hover:text-[#1A1A1A] transition"
                       >
                         {user.imageUrl ? (
@@ -479,7 +509,7 @@ export default function Navbar() {
                           <User size={18} strokeWidth={1.5} />
                         )}
                         <span className="max-w-[80px] truncate hidden xl:inline">
-                          {user.firstName || "Account"}
+                          {user.firstName || t("nav.account")}
                         </span>
                       </button>
                     </div>
@@ -499,7 +529,7 @@ export default function Navbar() {
               <Search size={16} className="text-[#9B9590]" />
               <input
                 type="text"
-                placeholder="Search products..."
+                placeholder={t("nav.searchPlaceholderMobile")}
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
@@ -524,7 +554,7 @@ export default function Navbar() {
                   ))
                 ) : (
                   <div className="rounded-xl px-3 py-3 text-sm text-slate-500">
-                    No matching suggestions.
+                    {t("nav.noSuggestions")}
                   </div>
                 )}
               </div>
@@ -551,6 +581,7 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
+                  onClick={handleNavLinkClick}
                   className={`block py-4 font-display text-4xl transition-all ${
                     isActive(link.href)
                       ? "text-[#C9A96E]"
@@ -563,16 +594,34 @@ export default function Navbar() {
               ))}
             </div>
 
+            {/* Mobile Wallet */}
+            {isLoaded && user && (
+              <Link
+                href="/wallet"
+                onClick={handleNavLinkClick}
+                className="flex items-center justify-between py-4 border-t border-[#E8E2DB]"
+              >
+                <span className="flex items-center gap-3 text-[#1A1A1A]">
+                  <Wallet size={19} strokeWidth={1.5} />
+                  <span className="font-medium">{t("wallet.balance")}</span>
+                </span>
+                <span className="font-semibold text-[#C9A96E]">
+                  <CurrencyAmount amount={walletBalance ?? 0} />
+                </span>
+              </Link>
+            )}
+
             {/* Mobile Categories */}
             <div className="border-t border-[#E8E2DB] pt-6 mb-6">
               <p className="text-[10px] tracking-[0.2em] uppercase text-[#9B9590] mb-4">
-                Popular Categories
+                {t("nav.popularCategories")}
               </p>
               <div className="flex flex-wrap gap-2">
                 {shopCategories.slice(0, 5).map((cat) => (
                   <Link
                     key={cat.href}
                     href={cat.href}
+                    onClick={handleNavLinkClick}
                     className="px-4 py-2 bg-white border border-[#E8E2DB] text-sm text-[#2D2D2D] hover:border-[#C9A96E] hover:text-[#C9A96E] transition"
                   >
                     {cat.label}
@@ -587,23 +636,29 @@ export default function Navbar() {
                 <>
                   <Link
                     href="/sign-up"
+                    onClick={handleNavLinkClick}
                     className="block w-full text-center py-4 bg-[#1A1A1A] text-white text-sm font-medium tracking-wide uppercase"
                   >
-                    Sign Up
+                    {t("nav.signUp")}
                   </Link>
                   <Link
                     href="/sign-in"
+                    onClick={handleNavLinkClick}
                     className="block w-full text-center py-4 border border-[#1A1A1A] text-[#1A1A1A] text-sm font-medium tracking-wide uppercase"
                   >
-                    Sign In
+                    {t("nav.signIn")}
                   </Link>
                 </>
               ) : (
                 <button
-                  onClick={handleSignOut}
+                  type="button"
+                  onClick={() => {
+                    handleNavLinkClick();
+                    handleSignOut();
+                  }}
                   className="block w-full text-center py-4 border border-[#1A1A1A] text-[#1A1A1A] text-sm font-medium tracking-wide uppercase"
                 >
-                  Sign Out
+                  {t("nav.signOut")}
                 </button>
               )}
             </div>

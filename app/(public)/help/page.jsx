@@ -1,4 +1,5 @@
 import CommerceInfoPage from "@/components/CommerceInfoPage";
+import AbuChat from "@/components/AbuChat";
 import { CircleHelp, MessageCircleMore, ShieldCheck, Truck } from "lucide-react";
 
 const highlights = [
@@ -44,7 +45,8 @@ const sections = [
 
 export default function HelpPage() {
   return (
-    <CommerceInfoPage
+    <>
+      <CommerceInfoPage
       eyebrow="Help center"
       title="Support that feels as premium as the marketplace itself."
       description="From account questions to order issues, our help experience is designed to keep every customer feeling informed and supported."
@@ -60,6 +62,11 @@ export default function HelpPage() {
       secondaryAction={{ label: "Browse the shop", href: "/shop" }}
       footerTitle="Need a hand? We’re ready to help."
       footerDescription="The ABU support experience brings together clear answers, helpful policies, and real assistance for every shopper and seller."
-    />
+      />
+
+      <div className="mx-auto max-w-7xl px-6 lg:px-8 -mt-8">
+        <AbuChat />
+      </div>
+    </>
   );
 }

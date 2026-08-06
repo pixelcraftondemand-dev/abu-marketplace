@@ -6,7 +6,9 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import Image from "next/image";
 import Link from "next/link";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import CurrencyAmount from '@/components/CurrencyAmount'
+import { useTranslation } from '@/lib/i18n'
 import {
   Heart,
   Share2,
@@ -26,7 +28,7 @@ export default function ProductDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const dispatch = useDispatch();
-  const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || "SLe";
+  const { t } = useTranslation();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +43,7 @@ export default function ProductDetailPage() {
         const res = await axios.get(`/api/products/${id}`);
         setProduct(res.data.product);
       } catch (err) {
-        toast.error("Product not found");
+        toast.error(t('productPage.productNotFound'));
         router.push("/shop");
       } finally {
         setLoading(false);
@@ -52,13 +54,13 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = () => {
     dispatch({ type: "cart/add", payload: { ...product, quantity } });
-    toast.success("Added to cart");
+    toast.success(t('productPage.addedToCart'));
   };
 
   const handleAddToWishlist = () => {
     dispatch({ type: "wishlist/add", payload: product });
     setLiked(true);
-    toast.success("Added to wishlist");
+    toast.success(t('productPage.addedToWishlist'));
   };
 
   if (loading) return <Loading />;
@@ -73,9 +75,9 @@ export default function ProductDetailPage() {
       <div className="border-b border-[#E8E2DB]">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 py-3">
           <div className="flex items-center gap-2 text-xs text-[#9B9590]">
-            <Link href="/" className="hover:text-[#C9A96E] transition">Home</Link>
+            <Link href="/" className="hover:text-[#C9A96E] transition">{t('productPage.home')}</Link>
             <ChevronRight size={12} />
-            <Link href="/shop" className="hover:text-[#C9A96E] transition">Shop</Link>
+            <Link href="/shop" className="hover:text-[#C9A96E] transition">{t('productPage.shop')}</Link>
             <ChevronRight size={12} />
             <Link href={`/shop?category=${product.category}`} className="hover:text-[#C9A96E] transition">
               {product.category}
@@ -143,23 +145,23 @@ export default function ProductDetailPage() {
                 ))}
               </div>
               <span className="text-sm text-[#6B6560]">
-                {product.rating} ({product.reviewCount || 0} reviews)
+                {product.rating} ({t('productPage.reviews', { count: product.reviewCount || 0 })})
               </span>
             </div>
 
             {/* Price */}
             <div className="flex items-baseline gap-3 mb-6">
               <span className="font-display text-3xl text-[#1A1A1A] font-medium">
-                {currency}{product.price?.toLocaleString()}
+                <CurrencyAmount amount={product.price} />
               </span>
               {product.originalPrice && (
                 <span className="text-lg text-[#9B9590] line-through">
-                  {currency}{product.originalPrice?.toLocaleString()}
+                  <CurrencyAmount amount={product.originalPrice} />
                 </span>
               )}
               {product.originalPrice && (
                 <span className="px-2 py-1 bg-[#1A1A1A] text-white text-xs font-medium">
-                  {Math.round((1 - product.price / product.originalPrice) * 100)}% OFF
+                  {t('productPage.percentOff', { percent: Math.round((1 - product.price / product.originalPrice) * 100) })}
                 </span>
               )}
             </div>
@@ -173,7 +175,7 @@ export default function ProductDetailPage() {
             <div className="space-y-4 mb-8">
               {/* Quantity */}
               <div className="flex items-center gap-4">
-                <span className="text-sm text-[#6B6560]">Quantity</span>
+                <span className="text-sm text-[#6B6560]">{t('productPage.quantity')}</span>
                 <div className="flex items-center border border-[#E8E2DB]">
                   <button
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -197,7 +199,7 @@ export default function ProductDetailPage() {
                   onClick={handleAddToCart}
                   className="flex-1 btn-luxury py-4"
                 >
-                  <span>Add to Cart</span>
+                  <span>{t('productPage.addToCart')}</span>
                 </button>
                 <button
                   onClick={handleAddToWishlist}
@@ -219,19 +221,19 @@ export default function ProductDetailPage() {
             <div className="grid grid-cols-2 gap-3 mb-8">
               <div className="flex items-center gap-2 p-3 bg-white border border-[#E8E2DB]">
                 <Truck size={16} className="text-[#C9A96E]" />
-                <span className="text-xs text-[#6B6560]">Free Shipping</span>
+                <span className="text-xs text-[#6B6560]">{t('productPage.freeShipping')}</span>
               </div>
               <div className="flex items-center gap-2 p-3 bg-white border border-[#E8E2DB]">
                 <Shield size={16} className="text-[#C9A96E]" />
-                <span className="text-xs text-[#6B6560]">Authenticity Guaranteed</span>
+                <span className="text-xs text-[#6B6560]">{t('productPage.authenticityGuaranteed')}</span>
               </div>
               <div className="flex items-center gap-2 p-3 bg-white border border-[#E8E2DB]">
                 <RotateCcw size={16} className="text-[#C9A96E]" />
-                <span className="text-xs text-[#6B6560]">30-Day Returns</span>
+                <span className="text-xs text-[#6B6560]">{t('productPage.returns30')}</span>
               </div>
               <div className="flex items-center gap-2 p-3 bg-white border border-[#E8E2DB]">
                 <Check size={16} className="text-[#C9A96E]" />
-                <span className="text-xs text-[#6B6560]">Secure Checkout</span>
+                <span className="text-xs text-[#6B6560]">{t('productPage.secureCheckout')}</span>
               </div>
             </div>
 
@@ -240,14 +242,12 @@ export default function ProductDetailPage() {
               <div className="p-4 bg-white border border-[#E8E2DB]">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs text-[#9B9590] mb-1">Sold by</p>
+                    <p className="text-xs text-[#9B9590] mb-1">{t('productPage.soldBy')}</p>
                     <p className="text-sm font-medium text-[#1A1A1A]">{product.store.name}</p>
                   </div>
                   <Link
                     href={`/store/${product.store.id}`}
-                    className="text-xs text-[#C9A96E] hover:text-[#A88B52] transition"
-                  >
-                    View Store
+                    className="text-xs text-[#C9A96E] hover:text-[#A88B52] transition">{t('productPage.viewStore')}
                   </Link>
                 </div>
               </div>
@@ -271,7 +271,7 @@ export default function ProductDetailPage() {
                     : "text-[#9B9590] border-transparent hover:text-[#1A1A1A]"
                 }`}
               >
-                {tab}
+                {t('productPage.tab' + tab[0].toUpperCase() + tab.slice(1))}
               </button>
             ))}
           </div>
@@ -281,7 +281,7 @@ export default function ProductDetailPage() {
             {activeTab === "description" && (
               <div className="prose prose-lg max-w-none">
                 <p className="text-[#2D2D2D] leading-relaxed whitespace-pre-line">
-                  {product.description || "No description available."}
+                  {product.description || t('productPage.noDescription')}
                 </p>
               </div>
             )}
@@ -294,7 +294,7 @@ export default function ProductDetailPage() {
                   </div>
                 ))}
                 {(!product.specifications || product.specifications.length === 0) && (
-                  <p className="text-[#9B9590]">No specifications available.</p>
+                  <p className="text-[#9B9590]">{t('productPage.noSpecifications')}</p>
                 )}
               </div>
             )}
@@ -323,26 +323,26 @@ export default function ProductDetailPage() {
                   </div>
                 ))}
                 {(!product.reviews || product.reviews.length === 0) && (
-                  <p className="text-[#9B9590]">No reviews yet. Be the first to review!</p>
+                  <p className="text-[#9B9590]">{t('productPage.noReviews')}</p>
                 )}
               </div>
             )}
             {activeTab === "shipping" && (
               <div className="space-y-4 text-[#2D2D2D]">
-                <p>We offer the following shipping options:</p>
+                <p>{t('productPage.shippingOptions')}</p>
                 <ul className="space-y-3">
                   <li className="flex items-start gap-3">
                     <Truck size={18} className="text-[#C9A96E] mt-0.5 shrink-0" />
                     <div>
-                      <p className="font-medium">Standard Shipping</p>
-                      <p className="text-sm text-[#6B6560]">5-7 business days — Free on orders over SLe 500</p>
+                      <p className="font-medium">{t('productPage.standardShipping')}</p>
+                      <p className="text-sm text-[#6B6560]">{t('productPage.standardNote')} <CurrencyAmount amount={500} /></p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">
                     <Truck size={18} className="text-[#C9A96E] mt-0.5 shrink-0" />
                     <div>
-                      <p className="font-medium">Express Shipping</p>
-                      <p className="text-sm text-[#6B6560]">2-3 business days — SLe 150</p>
+                      <p className="font-medium">{t('productPage.expressShipping')}</p>
+                      <p className="text-sm text-[#6B6560]">{t('productPage.expressNote')} <CurrencyAmount amount={150} /></p>
                     </div>
                   </li>
                 </ul>
@@ -357,7 +357,7 @@ export default function ProductDetailPage() {
         <section className="border-t border-[#E8E2DB] py-16">
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
             <h2 className="font-display text-2xl text-[#1A1A1A] font-medium mb-8">
-              You May Also Like
+              {t('productPage.youMayAlsoLike')}
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
               {relatedProducts.map((item) => (
@@ -379,7 +379,7 @@ export default function ProductDetailPage() {
                       {item.name}
                     </h3>
                     <p className="text-sm font-semibold text-[#1A1A1A] mt-1">
-                      {currency}{item.price?.toLocaleString()}
+                      <CurrencyAmount amount={item.price} />
                     </p>
                   </div>
                 </Link>

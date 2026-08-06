@@ -5,16 +5,18 @@ import Title from '@/components/Title'
 import { getFlashDealProducts } from '@/lib/productUtils'
 import Link from 'next/link'
 import { useSelector } from 'react-redux'
+import { productDummyData } from '@/assets/assets'
 
 const FlashDealsSection = () => {
     const products = useSelector((state) => state.product.list)
-    const flashDeals = getFlashDealProducts(products, 8)
+    const sourceProducts = products.length ? products : productDummyData
+    const flashDeals = getFlashDealProducts(sourceProducts, 8)
 
     if (flashDeals.length === 0) return null
 
     return (
-        <section className="mx-6 my-24">
-            <div className="max-w-7xl mx-auto rounded-2xl bg-gradient-to-r from-red-50 via-orange-50 to-yellow-50 p-6 sm:p-10">
+        <section className="mx-3 my-16 sm:mx-6">
+            <div className="mx-auto max-w-7xl rounded-2xl bg-gradient-to-r from-red-50 via-orange-50 to-yellow-50 p-4 sm:p-8">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <FlashDeals />
@@ -25,7 +27,7 @@ const FlashDealsSection = () => {
                         Shop all deals
                     </Link>
                 </div>
-                <div className="mt-8 grid grid-cols-2 gap-4 sm:flex sm:flex-wrap sm:gap-6">
+                <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:gap-6">
                     {flashDeals.slice(0, 4).map((product) => (
                         <ProductCard key={product.id} product={product} showQuickAdd />
                     ))}

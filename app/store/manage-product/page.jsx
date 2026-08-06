@@ -5,13 +5,13 @@ import axios from "axios"
 import toast from "react-hot-toast"
 import Image from "next/image"
 import Loading from "@/components/Loading"
+import CurrencyAmount from '@/components/CurrencyAmount'
 import { SearchIcon, PackageXIcon } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 export default function ManageProducts() {
     const { getToken } = useAuth()
     const router = useRouter()
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'SLe'
 
     const [products, setProducts] = useState([])
     const [loading, setLoading] = useState(true)
@@ -134,10 +134,10 @@ export default function ManageProducts() {
                                                 <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{product.category}</span>
                                             </td>
                                             <td className="px-5 py-3 hidden md:table-cell text-slate-400 line-through text-xs">
-                                                {currency}{product.mrp.toLocaleString()}
+                                                <CurrencyAmount amount={product.mrp} />
                                             </td>
                                             <td className="px-5 py-3 font-semibold text-slate-800">
-                                                {currency}{product.price.toLocaleString()}
+                                                <CurrencyAmount amount={product.price} />
                                             </td>
                                             <td className="px-5 py-3 hidden md:table-cell">
                                                 {disc > 0

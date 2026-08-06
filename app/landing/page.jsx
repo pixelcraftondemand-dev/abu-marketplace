@@ -15,6 +15,8 @@ import {
   Play,
 } from "lucide-react";
 import marketplaceLogo from "@/assets/abu-marketplace-logo.png";
+import { useTranslation } from "@/lib/i18n";
+import CurrencyAmount from "@/components/CurrencyAmount";
 
 /* ─── Scroll Reveal Hook ─── */
 function useScrollReveal(threshold = 0.1) {
@@ -65,7 +67,7 @@ const featuredProducts = [
     id: 1,
     name: "Heritage Chronograph",
     category: "Watches",
-    price: "SLe 2,499",
+    price: 2499,
     rating: 4.9,
     reviews: 128,
     image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=750&fit=crop",
@@ -75,7 +77,7 @@ const featuredProducts = [
     id: 2,
     name: "Studio Pro Headphones",
     category: "Audio",
-    price: "SLe 849",
+    price: 849,
     rating: 4.8,
     reviews: 342,
     image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&h=750&fit=crop",
@@ -85,7 +87,7 @@ const featuredProducts = [
     id: 3,
     name: "Artisan Leather Tote",
     category: "Fashion",
-    price: "SLe 1,299",
+    price: 1299,
     rating: 4.7,
     reviews: 89,
     image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600&h=750&fit=crop",
@@ -95,7 +97,7 @@ const featuredProducts = [
     id: 4,
     name: "Lumina Mirrorless",
     category: "Photography",
-    price: "SLe 5,999",
+    price: 5999,
     rating: 4.9,
     reviews: 56,
     image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600&h=750&fit=crop",
@@ -105,7 +107,7 @@ const featuredProducts = [
     id: 5,
     name: "Sleek Urban Backpack",
     category: "Lifestyle",
-    price: "SLe 699",
+    price: 699,
     rating: 4.8,
     reviews: 210,
     image: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=600&h=750&fit=crop",
@@ -115,7 +117,7 @@ const featuredProducts = [
     id: 6,
     name: "Asteria Smart Lamp",
     category: "Home",
-    price: "SLe 399",
+    price: 399,
     rating: 4.6,
     reviews: 178,
     image: "https://images.unsplash.com/photo-1493666438817-866a91353ca9?w=600&h=750&fit=crop",
@@ -125,7 +127,7 @@ const featuredProducts = [
     id: 7,
     name: "Silk Comfort Sheets",
     category: "Home",
-    price: "SLe 1,099",
+    price: 1099,
     rating: 4.9,
     reviews: 94,
     image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=600&h=750&fit=crop",
@@ -135,7 +137,7 @@ const featuredProducts = [
     id: 8,
     name: "Voyage Leather Wallet",
     category: "Accessories",
-    price: "SLe 249",
+    price: 249,
     rating: 4.7,
     reviews: 134,
     image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&h=750&fit=crop",
@@ -220,6 +222,7 @@ const testimonials = [
 export default function LandingPage() {
   const router = useRouter();
   const { user, isLoaded } = useUser();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (isLoaded && user) {
@@ -338,19 +341,19 @@ export default function LandingPage() {
       <div className="trust-row">
         <div className="trust-item">
           <Truck size={18} strokeWidth={1.5} />
-          <span>Free Shipping Over SLe 500</span>
+          <span>{t('landing.freeShippingOver')} <CurrencyAmount amount={500} /></span>
         </div>
         <div className="trust-item">
           <Shield size={18} strokeWidth={1.5} />
-          <span>Authenticity Guaranteed</span>
+          <span>{t('landing.authenticityGuaranteed')}</span>
         </div>
         <div className="trust-item">
           <Award size={18} strokeWidth={1.5} />
-          <span>Curated by Experts</span>
+          <span>{t('landing.curatedByExperts')}</span>
         </div>
         <div className="trust-item">
           <Star size={18} strokeWidth={1.5} />
-          <span>4.9 Average Rating</span>
+          <span>{t('landing.averageRating')}</span>
         </div>
       </div>
 
@@ -370,7 +373,7 @@ export default function LandingPage() {
               href="/shop"
               className="hidden md:inline-flex items-center gap-2 text-sm font-medium text-[#1A1A1A] hover:text-[#C9A96E] transition uppercase tracking-wide"
             >
-              View All
+              {t('common.viewAll')}
               <ArrowRight size={16} />
             </Link>
           </div>
@@ -407,7 +410,7 @@ export default function LandingPage() {
                   </h3>
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-sm font-semibold text-[#1A1A1A]">
-                      {product.price}
+                      <CurrencyAmount amount={product.price} />
                     </span>
                     <div className="flex items-center gap-1">
                       <Star size={12} className="text-[#C9A96E] fill-[#C9A96E]" />
@@ -426,7 +429,7 @@ export default function LandingPage() {
               href="/shop"
               className="btn-luxury-outline inline-flex"
             >
-              View All Products
+              {t('common.viewAllProducts')}
             </Link>
           </div>
         </div>
@@ -519,7 +522,7 @@ export default function LandingPage() {
               href="/shop"
               className="hidden md:inline-flex items-center gap-2 text-sm font-medium text-[#1A1A1A] hover:text-[#C9A96E] transition uppercase tracking-wide"
             >
-              Browse All
+              {t('common.browseAll')}
               <ArrowRight size={16} />
             </Link>
           </div>

@@ -12,11 +12,10 @@ const CATEGORIES = [
     'Food & Drink', 'Hobbies & Crafts', 'Others'
 ]
 
-const EMPTY_FORM = { name: '', description: '', mrp: '', price: '', category: '' }
+const EMPTY_FORM = { name: '', description: '', mrp: '', price: '', category: '', halalCertified: false }
 
 export default function AddProduct() {
     const { getToken } = useAuth()
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'SLe'
 
     const [form, setForm] = useState(EMPTY_FORM)
     const [images, setImages] = useState([null, null, null, null])
@@ -85,6 +84,7 @@ export default function AddProduct() {
         try {
             const fd = new FormData()
             Object.entries(form).forEach(([k, v]) => fd.append(k, v))
+            fd.set('halalCertified', form.halalCertified ? 'on' : '')
             validImages.forEach(img => fd.append('images', img))
 
             const token = await getToken()
@@ -195,10 +195,24 @@ export default function AddProduct() {
                             {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
                     </div>
+                    <div className="flex items-center gap-3">
+                        <input
+                            type="checkbox"
+                            id="halalCertified"
+                            name="halalCertified"
+                            checked={form.halalCertified}
+                            onChange={(e) => setForm((f) => ({ ...f, halalCertified: e.target.checked }))}
+                            className="h-4 w-4 rounded border-slate-300 text-green-600 focus:ring-green-500"
+                        />
+                        <label htmlFor="halalCertified" className="text-sm text-slate-600">
+                            Mark this product as <span className="font-semibold text-[#1A1A1A]">Halal Certified</span>
+                        </label>
+                    </div>
                 </section>
 
                 <section className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
                     <p className="text-sm font-semibold text-slate-700">Pricing</p>
+                    <p className="text-xs text-slate-400 -mt-2">Prices are entered and stored in US dollars (USD) and shown to shoppers in their local currency.</p>
                     <div className="grid grid-cols-2 gap-4">
                         {[
                             { label: 'Original Price (MRP)', name: 'mrp' },
@@ -207,7 +221,7 @@ export default function AddProduct() {
                             <div key={name} className="flex flex-col gap-1.5">
                                 <label className="text-xs font-medium text-slate-500">{label} *</label>
                                 <div className="relative">
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">{currency}</span>
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">USD</span>
                                     <input
                                         type="number" name={name} value={form[name]} onChange={onChange}
                                         required min="0" placeholder="0.00"

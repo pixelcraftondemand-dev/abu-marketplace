@@ -4,9 +4,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider  = "sqlite"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 // Required for creating a User: id, name, email, image, cart (optional JSON string)
@@ -16,7 +15,7 @@ model User {
   name  String
   email String
   image String
-  cart  Json   @default("{}")
+  cart  Json
 
   // Relations
   ratings       Rating[]
@@ -24,10 +23,17 @@ model User {
   store         Store?
   buyerOrders   Order[]   @relation("BuyerRelation")
   emailVerified Boolean   @default(false)
+  membershipTier String?
+  membershipStatus String? @default("inactive")
+  membershipProviderId String?
+  membershipStartedAt DateTime?
+  membershipEndsAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  payments      Payment[]
+  wallet        Wallet?
 
   @@map("user")
 }
@@ -40,9 +46,11 @@ model Product {
   description String
   mrp         Float
   price       Float
-  images      String[]
+  halalCertified Boolean @default(false)
+  images      Json
   category    String
   inStock     Boolean  @default(true)
+  stock       Int?     // null = unlimited; atomic decrement guards overselling
   storeId     String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -63,6 +71,18 @@ enum OrderStatus {
 enum PaymentMethod {
   COD
   STRIPE
+  WALLET
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+  PARTIALLY_REFUNDED
 }
 
 // Required for creating an Order: total, userId, storeId, addressId, isPaid, paymentMethod, isCouponUsed, coupon (JSON), orderItems (nested)
@@ -79,13 +99,18 @@ model Order {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   isCouponUsed  Boolean       @default(false)
-  coupon        Json          @default("{}")
+  coupon        Json
+  paymentId     String?
+  paymentStatus PaymentStatus @default(PENDING)
   orderItems    OrderItem[]
 
   // Relations
   user    User    @relation("BuyerRelation", fields: [userId], references: [id])
   store   Store   @relation(fields: [storeId], references: [id])
   address Address @relation(fields: [addressId], references: [id])
+  payment Payment? @relation(fields: [paymentId], references: [id])
+
+  @@index([userId, paymentId])
 }
 
 // Required for creating an OrderItem: orderId, productId, quantity, price
@@ -152,7 +177,9 @@ model Coupon {
   forMember   Boolean  @default(false)
   isPublic    Boolean
   expiresAt   DateTime
-  createdAt   DateTime @default(now())
+  maxUses     Int?
+  usageCount  Int       @default(0)
+  createdAt   DateTime  @default(now())
 }
 
 // Required for creating a Store: userId, name, username, email, contact, logo, description, address (optional: , status, isActive)
@@ -169,6 +196,7 @@ model Store {
   logo        String
   email       String
   contact     String
+  halalCertified Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -216,11 +244,133 @@ model Account {
 model Verification {
   id         String   @id
   identifier String
-  value      String
+  value      String   @unique // SHA-256 hash of the raw token (never stored in plaintext)
   expiresAt  DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
   @@index([identifier])
   @@map("verification")
+}
+
+// Support tickets and messages for customer support
+model SupportTicket {
+  id             String    @id @default(cuid())
+  userId         String?
+  subject        String
+  status         String    @default("open")
+  accessTokenHash String?  // SHA-256 hash of the bearer token (raw token never stored)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  messages  SupportMessage[]
+
+  @@index([userId])
+}
+
+model SupportMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  sender    String   // 'user' | 'abu' | 'agent'
+  content   String
+  createdAt DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+// ─── Payment hardening models ─────────────────────────────────────────────────
+
+// One Payment row per checkout attempt. `idempotencyKey` is unique at the
+// database level so concurrent duplicate checkouts can never create two
+// charges. Provider identifiers are unique to make webhooks/refunds idempotent.
+model Payment {
+  id                      String        @id @default(cuid())
+  idempotencyKey          String        @unique
+  userId                  String
+  providerSessionId       String?       @unique
+  providerSessionUrl      String?
+  providerPaymentIntentId String?       @unique
+  providerTransactionId   String?       @unique
+  currency                String        @default("USD")
+  amount                  Float
+  status                  PaymentStatus @default(PENDING)
+  createdAt               DateTime      @default(now())
+  updatedAt               DateTime      @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id])
+  orders  Order[]
+  refunds Refund[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("payment")
+}
+
+// Idempotent refund ledger. `providerRefundId` is unique so a refund can never
+// be issued twice for the same provider transaction.
+model Refund {
+  id               String   @id @default(cuid())
+  paymentId        String
+  amount           Float
+  status           String   @default("PENDING") // PENDING | SUCCEEDED | FAILED
+  providerRefundId String?  @unique
+  reason           String?
+  createdAt        DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@map("refund")
+}
+
+// Deduplication ledger for provider webhook events (replay protection).
+model WebhookEvent {
+  id              String   @id @default(cuid())
+  provider        String   @default("stripe")
+  providerEventId String   @unique
+  type            String
+  processedAt     DateTime @default(now())
+
+  @@index([provider, providerEventId])
+  @@map("webhook_event")
+}
+
+// ─── Wallet ───────────────────────────────────────────────────────────────────
+// One wallet per user, holding the canonical (USD) balance. All mutations go
+// through atomic conditional updates so balances can never go negative and a
+// top-up/checkout can never be applied twice.
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id])
+  transactions WalletTransaction[]
+
+  @@map("wallet")
+}
+
+// Immutable audit ledger. (referenceType, referenceId) is unique so the same
+// top-up or checkout can never be recorded (and therefore credited/debited)
+// twice, even under concurrent webhook deliveries.
+model WalletTransaction {
+  id            String   @id @default(cuid())
+  walletId      String
+  userId        String
+  type          String   // TOPUP | PAYMENT
+  amount        Float    // positive = credit, negative = debit
+  balanceAfter  Float
+  referenceType String?  // "payment" (top-up) | "order" (checkout)
+  referenceId   String?
+  description   String?
+  createdAt     DateTime @default(now())
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@unique([referenceType, referenceId])
+  @@index([walletId])
+  @@index([userId])
+  @@map("wallet_transaction")
 }

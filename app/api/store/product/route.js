@@ -1,12 +1,13 @@
 import getImageKit from "@/configs/imageKit"
 import prisma from "@/lib/prisma"
-import { isAllowedImage, sanitizeText } from "@/lib/security"
+import { isAllowedImage, sanitizeText, sniffImageMagicBytes } from "@/lib/security"
 import authSeller from "@/middlewares/authSeller"
 import { getSessionFromRequest } from "@/lib/serverAuth"
 import { NextResponse } from "next/server";
 
 const MAX_PRODUCT_IMAGES = 6;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_PRICE = 1_000_000; // upper bound in USD — prevents absurd/overflow values
 
 export async function POST(request){
     try {
@@ -22,9 +23,13 @@ export async function POST(request){
         const mrp =  Number(formData.get("mrp"))
         const price = Number(formData.get("price"))
         const category = sanitizeText(formData.get("category"), 60)
+        const halalCertified = formData.get("halalCertified") === "on"
         const images = formData.getAll("images")
         if(!name || !description || !Number.isFinite(mrp) || !Number.isFinite(price) || mrp <= 0 || price <= 0 || price > mrp || !category || images.length < 1){
             return NextResponse.json({error: 'missing product details'}, { status: 400 } )
+        }
+        if (price > MAX_PRICE || mrp > MAX_PRICE) {
+            return NextResponse.json({ error: `Prices must not exceed $${MAX_PRICE.toLocaleString()}.` }, { status: 422 })
         }
         if(images.length > MAX_PRODUCT_IMAGES){
             return NextResponse.json({error: `You can upload up to ${MAX_PRODUCT_IMAGES} product images.`}, { status: 422 } )
@@ -33,6 +38,14 @@ export async function POST(request){
             const imageValidation = isAllowedImage(image, MAX_IMAGE_BYTES);
             if(imageValidation.error){
                 return NextResponse.json({error: imageValidation.error}, { status: 422 } )
+            }
+            // Never trust the browser MIME type — verify the actual file signature.
+            const buffer = Buffer.from(await image.arrayBuffer());
+            if(buffer.byteLength > MAX_IMAGE_BYTES){
+                return NextResponse.json({ error: "Image file is too large." }, { status: 422 })
+            }
+            if(!sniffImageMagicBytes(buffer)){
+                return NextResponse.json({ error: "Uploaded file is not a valid image." }, { status: 422 } )
             }
         }
         const imagekit = getImageKit();
@@ -63,6 +76,7 @@ export async function POST(request){
                 description,
                 mrp,
                 price,
+                halalCertified,
                 category,
                 images: imagesUrl,
                 storeId
