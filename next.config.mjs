@@ -17,6 +17,11 @@ export default withSentryConfig(nextConfig, {
   // Only print logs for uploading source maps in CI
   silent: !process.env.CI,
 
+  // Skip source map upload when no auth token is available (e.g. CI/Vercel,
+  // where .env.sentry-build-plugin is gitignored and never deployed).
+  // Without this, `next build` fails on Vercel when SENTRY_AUTH_TOKEN is unset.
+  dryRun: !process.env.SENTRY_AUTH_TOKEN,
+
   // For all available options, see:
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
 
