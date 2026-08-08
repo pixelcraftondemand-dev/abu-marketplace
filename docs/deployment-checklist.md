@@ -2,9 +2,10 @@
 
 > **Target:** https://www.abumarketplace.shop (Vercel)
 > **Purpose:** Ship every fix identified during production testing on 2026-08-08.
-> Everything below is currently **uncommitted** in the working tree — prod is
-> still running the old build, so these changes have zero effect until committed
-> and deployed.
+> **Status (2026-08-08 evening):** commits `9c1c801` + `88be23a` are pushed and
+> the new build is LIVE; the prod Supabase DB is fully synced (zero drift). The
+> only remaining catalog blocker is the Vercel `DATABASE_URL` env var (step 3).
+> Tests: 41 files / 351 passing.
 
 ---
 
@@ -108,8 +109,24 @@ npx prisma migrate diff \
 
 ## 3. Set environment variables (Vercel project settings)
 
+> ⚠️ **#1 deploy blocker (verified 2026-08-08):** the deployed `DATABASE_URL`
+> on Vercel must point at the **session pooler host `aws-1-us-west-1`**. The
+> project's direct host `db.ptoztzrgdjxrdqkmarfu.supabase.co` is **IPv6-only**
+> (unreachable from IPv4-only networks), and the old `aws-0-...pooler` format
+> returns "tenant not found". With the schema now in sync, `/api/products`
+> still 500s until `DATABASE_URL` is corrected — proven by running the exact
+> build locally with each candidate URL (wrong host = 500 "Can't reach
+> database server", correct host = 200 `{"products":[]}`).
+
 | Variable | Value | Fixes |
 |---|---|---|
+| `DATABASE_URL` | `postgresql://postgres.ptoztzrgdjxrdqkmarfu:<password>@aws-1-us-west-1.pooler.supabase.com:5432/postgres` | **`/api/products` 500 (catalog)** |
+
+> Note: `DIRECT_URL` on Vercel is inert (the schema has no `directUrl`). The
+> real consumer is the **GitHub Actions secret** below.
+
+- [ ] **GitHub → Settings → Secrets and variables → Actions:** add `PROD_DIRECT_URL`
+      = the same session-pooler URL (used by the guarded DB-sync job in `deploy.yml`).
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | **production** Clerk instance key | Clerk dev-key warnings |
 | `CLERK_SECRET_KEY` | **production** Clerk instance key | same |
 | `CLERK_WEBHOOK_SECRET` | prod webhook secret | webhook verification |
@@ -119,6 +136,7 @@ npx prisma migrate diff \
 | `DATABASE_PROVIDER` | `postgresql` | (documentation of intent) |
 | `VERIFICATION_EMAIL_FROM`, `EMAIL_FROM`, `SUPPORT_EMAIL_FROM` | verified Resend domains | OTP/order emails |
 
+- [ ] `_prisma_migrations` is currently empty (the prod delta was applied via raw SQL, not `prisma migrate`). No runtime impact. If you ever adopt `prisma migrate deploy`, first baseline the live schema: `npx prisma migrate resolve --applied 20260714133553_new-migration` (and the other three).
 - [ ] Clerk dashboard: instance must be a **Production** instance, with Google OAuth enabled, and the app URL set to `https://www.abumarketplace.shop`.
 - [ ] Resend: verify `verification.abumarketplace.shop` (and the main domain) so OTP emails deliver.
 
