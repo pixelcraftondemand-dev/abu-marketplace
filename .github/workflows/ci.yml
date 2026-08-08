@@ -9,59 +9,78 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# WHY npm 11 + these env vars:
+# The runner's default npm 10 ignores the `allowScripts` field in
+# package.json (an npm >= 11.5 feature). That means puppeteer's postinstall
+# downloads Chrome for Testing (~150 MB) and embedded-postgres downloads
+# Postgres binaries on EVERY `npm ci` — from cold caches on concurrent
+# runners this stalls indefinitely (observed: 40+ min hangs on Tests/Build).
+# npm 11 enforces allowScripts, blocking exactly those downloads.
+env:
+  PUPPETEER_SKIP_DOWNLOAD: "true"
+  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
+
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          npm-version: 11
           cache: npm
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
       - name: Run ESLint
         run: npm run lint
 
   typecheck:
     name: Typecheck
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          npm-version: 11
           cache: npm
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
       - name: Run tsc --noEmit
         run: npx tsc --noEmit
 
   test:
     name: Tests (vitest)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          npm-version: 11
           cache: npm
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
       - name: Run unit & API tests
         run: npm test
 
   build:
     name: Build (next build)
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          npm-version: 11
           cache: npm
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
       - name: Run production build
         run: npm run build

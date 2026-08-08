@@ -12,6 +12,14 @@ concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: false
 
+# npm 11 enforces the allowScripts allowlist in package.json (puppeteer Chrome
+# and embedded-postgres binary downloads are blocked), which prevents the
+# 40+ min `npm ci` hangs seen on default npm 10. PUPPETEER_SKIP_* is
+# belt-and-braces.
+env:
+  PUPPETEER_SKIP_DOWNLOAD: "true"
+  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
+
 jobs:
   # ---------------------------------------------------------------------------
   # Guarded production DB sync: applies ONLY additive schema changes.
@@ -20,6 +28,7 @@ jobs:
   db-sync:
     name: Guarded DB sync (additive-only)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: production
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     services:
@@ -45,10 +54,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          npm-version: 11
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
       - name: Generate schema delta against production
         env:
@@ -94,6 +104,7 @@ jobs:
   smoke:
     name: Post-deploy smoke test
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     needs: [db-sync]
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     env:

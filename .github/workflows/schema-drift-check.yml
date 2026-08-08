@@ -33,10 +33,19 @@ concurrency:
   group: schema-drift-${{ github.ref }}
   cancel-in-progress: true
 
+# npm 11 enforces the allowScripts allowlist in package.json, which blocks
+# puppeteer's Chrome download and embedded-postgres binary downloads during
+# `npm ci` — those stalled CI for 40+ min on default npm 10 (which ignores
+# allowScripts). PUPPETEER_SKIP_* are belt-and-braces.
+env:
+  PUPPETEER_SKIP_DOWNLOAD: "true"
+  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
+
 jobs:
   drift-check:
     name: prisma/schema.prisma vs supabase/migrations
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     services:
       postgres:
@@ -62,10 +71,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          npm-version: 11
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
       - name: Apply supabase/migrations to a fresh database
         run: |
