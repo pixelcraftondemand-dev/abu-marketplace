@@ -85,19 +85,23 @@ else
   fail "/api/translate -> $code (expected 200)"
 fi
 
-# 7. Store routes that used to 404
-code=$(status "$BASE_URL/api/store/is-seller")
-if [ "$code" = "401" ] || [ "$code" = "400" ]; then
-  pass "/api/store/is-seller -> $code (route exists, auth-gated)"
+# 7. Store routes that used to 404. Signed-out requests to protected
+# /api/store/* routes are rewritten by Clerk to the sign-in page (200 HTML
+# with X-Clerk-Auth-Reason: protect-rewrite) — that IS the auth gate working.
+code=$(curl -s -o /tmp/smoke-body.txt -w '%{http_code}' --max-time "$TIMEOUT" "$BASE_URL/api/store/is-seller")
+clerk_reason=$(curl -sI --max-time "$TIMEOUT" "$BASE_URL/api/store/is-seller" | grep -i x-clerk-auth-reason | tr -d '\r')
+if [ "$code" = "401" ] || [ "$code" = "400" ] || echo "$clerk_reason" | grep -q 'protect-rewrite'; then
+  pass "/api/store/is-seller -> protected (route exists, auth-gated)"
 else
-  fail "/api/store/is-seller -> $code (expected 401/400; was 404 before deploy)"
+  fail "/api/store/is-seller -> $code (expected 401/400 or Clerk protect-rewrite)"
 fi
 
-code=$(status "$BASE_URL/api/store/data")
-if [ "$code" = "400" ] || [ "$code" = "401" ]; then
-  pass "/api/store/data -> $code (route exists)"
+code=$(curl -s -o /tmp/smoke-body.txt -w '%{http_code}' --max-time "$TIMEOUT" "$BASE_URL/api/store/data")
+clerk_reason=$(curl -sI --max-time "$TIMEOUT" "$BASE_URL/api/store/data" | grep -i x-clerk-auth-reason | tr -d '\r')
+if [ "$code" = "400" ] || [ "$code" = "401" ] || echo "$clerk_reason" | grep -q 'protect-rewrite'; then
+  pass "/api/store/data -> protected (route exists)"
 else
-  fail "/api/store/data -> $code (expected 400/401)"
+  fail "/api/store/data -> $code (expected 400/401 or Clerk protect-rewrite)"
 fi
 
 # 8. Auth status endpoint (new)
