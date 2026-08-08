@@ -1,0 +1,120 @@
+name: Deploy
+
+# Runs after CI passes on main, and can be triggered manually.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Guarded production DB sync: applies ONLY additive schema changes.
+  # Destructive or unrecognized SQL fails the deploy loudly.
+  # ---------------------------------------------------------------------------
+  db-sync:
+    name: Guarded DB sync (additive-only)
+    runs-on: ubuntu-latest
+    environment: production
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    services:
+      # Local Postgres used as the Prisma shadow database for `migrate diff`.
+      shadow:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: shadow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      SHADOW_URL: postgresql://postgres:postgres@127.0.0.1:5432/shadow
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate schema delta against production
+        env:
+          PROD_DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PROD_DIRECT_URL:-}" ]; then
+            echo "::warning::PROD_DIRECT_URL secret not set — skipping DB sync."
+            exit 0
+          fi
+          npx prisma migrate diff \
+            --from-url "$PROD_DIRECT_URL" \
+            --shadow-database-url "$SHADOW_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --script > /tmp/delta.sql
+          echo "Delta generated ($(wc -l < /tmp/delta.sql) lines)."
+
+      - name: Classify delta (additive-only guard)
+        run: |
+          set -euo pipefail
+          if [ ! -s /tmp/delta.sql ]; then
+            echo "No schema changes to apply — database already in sync."
+            exit 0
+          fi
+          node lib/migrationGuard.mjs /tmp/delta.sql
+
+      - name: Apply delta to production
+        env:
+          PROD_DIRECT_URL: ${{ secrets.PROD_DIRECT_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${PROD_DIRECT_URL:-}" ] || [ ! -s /tmp/delta.sql ]; then
+            echo "Nothing to apply."
+            exit 0
+          fi
+          npx prisma db execute --file /tmp/delta.sql --url "$PROD_DIRECT_URL"
+          echo "Additive schema changes applied to production."
+
+  # ---------------------------------------------------------------------------
+  # Post-deploy smoke test: Vercel auto-deploys on push; this waits for the new
+  # build to be live (products endpoint recovers) then runs the battery.
+  # ---------------------------------------------------------------------------
+  smoke:
+    name: Post-deploy smoke test
+    runs-on: ubuntu-latest
+    needs: [db-sync]
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    env:
+      BASE_URL: ${{ vars.APP_URL || 'https://www.abumarketplace.shop' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for new build to serve the catalog
+        run: |
+          set -uo pipefail
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "$BASE_URL/api/products" || true)
+            if [ "$code" = "200" ]; then
+              echo "Catalog live (attempt $i, /api/products -> 200)."
+              exit 0
+            fi
+            echo "attempt $i: /api/products -> $code (waiting for deploy + DB sync)"
+            sleep 20
+          done
+          echo "::error::Timed out waiting for /api/products to return 200 after deploy."
+          exit 1
+
+      - name: Run smoke battery
+        run: bash scripts/prod-smoke.sh

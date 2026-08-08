@@ -1,0 +1,93 @@
+# Schema Drift Check
+#
+# Prevents the class of bug that took down the production catalog on
+# 2026-08-08: GET /api/products returned 500 because the Supabase database
+# drifted from prisma/schema.prisma (the baseline migration was empty and
+# newer columns/tables such as Product/Store halalCertified and Rating were
+# never migrated).
+#
+# This job replays every SQL file in supabase/migrations (in filename order)
+# onto a fresh PostgreSQL database and fails if the resulting schema differs
+# from prisma/schema.prisma in any way.
+#
+# If this check fails:
+#   - Added/removed a field or model in prisma/schema.prisma? Add a matching
+#     SQL migration under supabase/migrations/ (generate with
+#     `npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script`).
+#   - Changed an existing migration? Re-run it against prod and keep the
+#     migration chain consistent (idempotent statements are preferred).
+#
+# To check locally:
+#   npx prisma db execute --file <migration> --url "$DATABASE_URL"
+#   npx prisma migrate diff --from-url "$DATABASE_URL" \
+#     --to-schema-datamodel prisma/schema.prisma --script   # must be empty
+
+name: Schema Drift Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: schema-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift-check:
+    name: prisma/schema.prisma vs supabase/migrations
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: abu_schema_check
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/abu_schema_check
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply supabase/migrations to a fresh database
+        run: |
+          set -euo pipefail
+          for f in supabase/migrations/*.sql; do
+            echo "Applying $f"
+            npx prisma db execute --file "$f" --url "$DATABASE_URL"
+          done
+
+      - name: Fail when migrations drift from the Prisma schema
+        run: |
+          set -euo pipefail
+          DIFF="$(npx prisma migrate diff \
+            --from-url "$DATABASE_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --script)"
+          # "This is an empty migration." -> only comments/blank lines remain.
+          # Any real SQL below means the applied migrations do not match the schema.
+          SQL="$(printf '%s\n' "$DIFF" | grep -vE '^--' | grep -vE '^[[:space:]]*$' || true)"
+          if [ -n "$SQL" ]; then
+            echo "::error title=Schema drift detected::supabase/migrations do not match prisma/schema.prisma. Add a migration (or update the schema) so they stay in sync."
+            printf '%s\n' "$DIFF"
+            exit 1
+          fi
+          echo "OK: migrations and Prisma schema are in sync (no drift)."
