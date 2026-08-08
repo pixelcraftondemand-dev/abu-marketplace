@@ -11,6 +11,8 @@ import { fetchCart, uploadCart } from "@/lib/features/cart/cartSlice";
 import { fetchAddress } from "@/lib/features/address/addressSlice";
 import { fetchUserRatings } from "@/lib/features/rating/ratingSlice";
 import { hydrateWishlist, loadWishlistFromStorage } from "@/lib/features/wishlist/wishlistSlice";
+import { fetchExchangeRates } from "@/lib/features/currencySlice";
+import VerificationGate from "@/components/VerificationGate";
 
 export default function PublicLayout({ children }) {
 
@@ -22,6 +24,7 @@ export default function PublicLayout({ children }) {
     useEffect(()=>{
         dispatch(fetchProducts({}))
         dispatch(hydrateWishlist(loadWishlistFromStorage()))
+        dispatch(fetchExchangeRates())
     },[])
 
     useEffect(()=>{
@@ -45,7 +48,9 @@ export default function PublicLayout({ children }) {
         <>
             <Banner />
             <Navbar />
-            <main className="pb-20 sm:pb-0">{children}</main>
+            <VerificationGate>
+                <main className="pb-20 sm:pb-0">{children}</main>
+            </VerificationGate>
             <Footer />
             <BottomNav />
         </>

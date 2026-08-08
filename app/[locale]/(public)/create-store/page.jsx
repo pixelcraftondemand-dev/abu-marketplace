@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// FILEPATH: app/(public)/create-store/page.jsx
+// FILEPATH: app/[locale]/(public)/create-store/page.jsx
 // ─────────────────────────────────────────────────────────────────────────────
 'use client'
 import { assets } from "@/assets/assets"

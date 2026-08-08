@@ -6,6 +6,7 @@ import { ArrowRightIcon } from "lucide-react"
 import StoreNavbar from "./StoreNavbar"
 import StoreSidebar from "./StoreSidebar"
 import Loading from "@/components/Loading"
+import VerificationGate from "@/components/VerificationGate"
 
 const StoreLayout = ({ children }) => {
     const [isSeller, setIsSeller] = useState(false)
@@ -53,7 +54,9 @@ const StoreLayout = ({ children }) => {
             <div className="flex flex-1 overflow-hidden">
                 <StoreSidebar storeInfo={storeInfo} />
                 <main className="flex-1 overflow-y-auto p-6 lg:p-10">
-                    {children}
+                    <VerificationGate>
+                        {children}
+                    </VerificationGate>
                 </main>
             </div>
         </div>

@@ -1,3 +1,5 @@
+export const runtime = "nodejs";
+
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
@@ -30,6 +32,7 @@ function sortProducts(products, sort) {
 }
 
 export async function GET(request) {
+  const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   try {
     const { searchParams } = new URL(request.url);
     const storeId = searchParams.get("storeId");
@@ -86,7 +89,17 @@ export async function GET(request) {
 
     return NextResponse.json({ products: sortProducts(filtered, sort) });
   } catch (error) {
-    console.error("[GET /api/products]", error);
-    return NextResponse.json({ error: "An internal server error occurred." }, { status: 500 });
+    console.error(`[GET /api/products] requestId=${requestId}`, {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    return NextResponse.json(
+      {
+        error: "Unable to fetch products.",
+        message: "Please try again later.",
+        requestId,
+      },
+      { status: 500 }
+    );
   }
 }

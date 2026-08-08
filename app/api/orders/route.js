@@ -80,16 +80,16 @@ export async function POST(request) {
       return NextResponse.json({ error: "Invalid address." }, { status: 422 });
     }
 
-    // Wallet checkout spends stored funds — require a verified email server-side.
-    // (Card/COD are unchanged so existing unverified buyers are unaffected.)
-    if (paymentMethod === "WALLET") {
-      const verifiedUser = await getVerifiedUserFromRequest();
-      if (!verifiedUser) {
-        return NextResponse.json(
-          { error: "Please verify your email address before paying with your wallet." },
-          { status: 403 }
-        );
-      }
+    // Every order requires a verified email server-side, for all payment
+    // methods. The client-side VerificationGate keeps unverified accounts off
+    // the pages, and this check guarantees it at the API boundary — no client
+    // state can bypass it, and OAuth sign-ins are subject to the same rule.
+    const verifiedUser = await getVerifiedUserFromRequest();
+    if (!verifiedUser) {
+      return NextResponse.json(
+        { error: "Please verify your email address before placing an order." },
+        { status: 403 }
+      );
     }
 
     // A client-supplied idempotency key makes retries provably single-charge.

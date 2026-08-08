@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: abu-marketplace-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: abu-marketplace.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: abu-marketplace
+                port:
+                  number: 3000
+  tls:
+    - hosts:
+        - abu-marketplace.example.com
+      secretName: abu-marketplace-tls

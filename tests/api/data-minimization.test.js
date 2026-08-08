@@ -18,7 +18,7 @@ vi.mock("@/lib/serverAuth", () => ({
 vi.mock("@/lib/prisma", () => ({
   default: {
     order: { findMany: vi.fn() },
-    product: { findMany: vi.fn(), findUnique: vi.fn() },
+    product: { findMany: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn() },
   },
 }));
 
@@ -60,7 +60,7 @@ describe("data minimization (no sensitive data leakage)", () => {
   });
 
   it("public product detail: ratings expose review content but never reviewer ids", async () => {
-    prisma.product.findUnique.mockResolvedValue({
+    prisma.product.findFirst.mockResolvedValue({
       id: "p_1",
       mrp: 50,
       price: 40,
@@ -74,7 +74,7 @@ describe("data minimization (no sensitive data leakage)", () => {
     });
     expect(res.status).toBe(200);
     const json = await res.json();
-    const ratingSelect = prisma.product.findUnique.mock.calls[0][0].include.rating.select;
+    const ratingSelect = prisma.product.findFirst.mock.calls[0][0].include.rating.select;
     expect(ratingSelect.userId).toBeUndefined();
     expect(ratingSelect.orderId).toBeUndefined();
     expect(json.product.reviewCount).toBe(1);

@@ -1,11 +1,14 @@
+export const runtime = "nodejs";
+
 import prisma from '@/lib/prisma'
 import { isValidId } from '@/lib/security'
 import { NextResponse } from 'next/server'
 
 export async function GET(request, { params }) {
+  let productId
   try {
     // Next.js 15 passes `params` as a Promise — must be awaited.
-    const { productId } = await params
+    ;({ productId } = await params)
 
     // Reject malformed/oversized ids before touching the database.
     if (!isValidId(productId)) {
@@ -15,7 +18,7 @@ export async function GET(request, { params }) {
     // Public catalog only: in-stock products from active, approved stores.
     // A deactivated/rejected store's products must never be reachable by
     // guessing a direct URL.
-    const product = await prisma.product.findUnique({
+    const product = await prisma.product.findFirst({
       where: {
         id: productId,
         inStock: true,
@@ -56,7 +59,17 @@ export async function GET(request, { params }) {
       },
     })
   } catch (error) {
-    console.error('[GET /api/products/[productId]]', error)
-    return NextResponse.json({ error: 'Unable to fetch product.' }, { status: 500 })
+    console.error('[GET /api/products/[productId]]', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      productId,
+    });
+    return NextResponse.json(
+      {
+        error: 'Unable to fetch product.',
+        message: 'Please try again later.',
+      },
+      { status: 500 }
+    );
   }
 }

@@ -3,9 +3,10 @@ import { CircleUserRound, Heart, House, ShoppingBag, ShoppingCart } from 'lucide
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSelector } from 'react-redux';
+import { stripLocaleFromPath } from '@/lib/utils/locale';
 
 const BottomNav = () => {
-    const pathname = usePathname();
+    const pathname = stripLocaleFromPath(usePathname());
     const cartCount = useSelector((state) => state.cart.total);
     const wishlistCount = useSelector((state) => state.wishlist.items.length);
     const tabs = [

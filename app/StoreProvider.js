@@ -1,5 +1,5 @@
 "use client"
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import { Provider } from 'react-redux'
 import { makeStore } from '../lib/store'
 import { setPreferences } from '@/lib/features/preferencesSlice'
@@ -15,16 +15,30 @@ export default function StoreProvider({ children }) {
         const savedPrefs = window.localStorage.getItem('marketplacePreferences')
         if (savedPrefs) {
           store.dispatch(setPreferences(JSON.parse(savedPrefs)))
+        } else {
+          const cookies = Object.fromEntries(
+            document.cookie.split(';').map((part) => {
+              const [key, value] = part.split('=')
+              return [key?.trim(), decodeURIComponent(value || '')]
+            })
+          )
+          const language = cookies.marketplaceLanguage
+          const currency = cookies.marketplaceCurrency
+          if (language || currency) {
+            store.dispatch(setPreferences({
+              language: language || undefined,
+              currency: currency || undefined,
+            }))
+          }
         }
       } catch (error) {
-        console.warn('Unable to load preferences from localStorage', error)
+        console.warn('Unable to load preferences from localStorage or cookies', error)
       }
 
       store.subscribe(() => {
           const { preferences } = store.getState()
           window.localStorage.setItem('marketplacePreferences', JSON.stringify(preferences))
           try {
-            // also sync to cookies so server-side code can read preferences for SSR
             const maxAge = 60 * 60 * 24 * 365 // 1 year
             document.cookie = `marketplaceCurrency=${encodeURIComponent(preferences.selectedCurrency)}; Path=/; Max-Age=${maxAge}`
             document.cookie = `marketplaceLanguage=${encodeURIComponent(preferences.selectedLanguage)}; Path=/; Max-Age=${maxAge}`
@@ -37,27 +51,30 @@ export default function StoreProvider({ children }) {
     storeRef.current = store
   }
 
-  // Sync HTML lang attribute when preferences change
-  // Listen to store updates and update document.documentElement.lang
-  if (typeof window !== 'undefined') {
-    const store = storeRef.current
-    // set initial lang
+  // Sync HTML lang attribute when preferences change.
+  // This hook is always declared so React rules stay valid.
+  const currentStore = storeRef.current
+  useEffect(() => {
+    if (!currentStore) return
+
     try {
-      const prefs = store.getState().preferences
+      const prefs = currentStore.getState().preferences
       const lang = languageToLangCode[prefs.selectedLanguage] || 'en'
       document.documentElement.lang = lang
     } catch (e) {}
 
-    store.subscribe(() => {
+    const unsubscribe = currentStore.subscribe(() => {
       try {
-        const prefs = store.getState().preferences
+        const prefs = currentStore.getState().preferences
         const lang = languageToLangCode[prefs.selectedLanguage] || 'en'
         if (document.documentElement.lang !== lang) {
           document.documentElement.lang = lang
         }
       } catch (e) {}
     })
-  }
+
+    return () => unsubscribe()
+  }, [currentStore])
 
   return <Provider store={storeRef.current}>{children}</Provider>
 }

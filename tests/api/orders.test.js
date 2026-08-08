@@ -326,16 +326,30 @@ describe("orders POST", () => {
     );
   });
 
-  it("requires a verified email before paying with the wallet", async () => {
+  it("blocks unverified accounts from ordering with every payment method", async () => {
     getVerifiedUserFromRequest.mockResolvedValue(null);
     prisma.address.findFirst.mockResolvedValue({ id: "addr_123" });
     prisma.product.findMany.mockResolvedValue([productRow]);
 
-    const res = await POST(buildRequest({ ...validBody, paymentMethod: "WALLET" }));
-    expect(res.status).toBe(403);
-    expect((await res.json()).error).toContain("verify your email");
+    for (const paymentMethod of ["COD", "STRIPE", "WALLET"]) {
+      const res = await POST(buildRequest({ ...validBody, paymentMethod }));
+      expect(res.status).toBe(403);
+      expect((await res.json()).error).toContain("verify your email");
+    }
+    // Nothing was created for any method — the check runs before any side effects.
     expect(prisma.payment.create).not.toHaveBeenCalled();
     expect(prisma.order.create).not.toHaveBeenCalled();
+    expect(prisma.product.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("allows verified users to place orders with any payment method", async () => {
+    prisma.address.findFirst.mockResolvedValue({ id: "addr_123" });
+    prisma.product.findMany.mockResolvedValue([productRow]);
+    prisma.order.create.mockResolvedValueOnce({ id: "o1" });
+
+    const res = await POST(buildRequest(validBody)); // COD
+    expect(res.status).toBe(200);
+    expect(getVerifiedUserFromRequest).toHaveBeenCalled();
   });
 
   it("WALLET: debits the wallet, creates a SUCCEEDED payment, and marks orders paid instantly", async () => {

@@ -18,7 +18,10 @@
     "signOut": "Sign Out",
     "account": "Account",
     "featured": "Featured",
-    "popularCategories": "Popular Categories"
+    "popularCategories": "Popular Categories",
+    "ratesStale": "Rates may be stale",
+    "ratesUpdated": "Rates updated",
+    "ratesLoading": "Loading rates..."
   },
   "categories": {
     "newArrivals": "New Arrivals",
@@ -60,6 +63,16 @@
     "phones": "Phones",
     "audio": "Audio",
     "home": "Home"
+  },
+  "landing": {
+    "halalCertifiedSectionLabel": "Halal Certified",
+    "halalCertifiedSectionTitle": "Shop trusted halal-certified products",
+    "halalCertifiedSectionText": "Explore verified halal products across electronics, fashion, home essentials, and brands you can trust.",
+    "exploreHalalCertified": "Browse Halal Certified",
+    "freeShippingOver": "Free Shipping Over",
+    "authenticityGuaranteed": "Authenticity Guaranteed",
+    "curatedByExperts": "Curated by Experts",
+    "averageRating": "4.9 Average Rating"
   },
   "home": {
     "bestSelling": "Best Selling",
@@ -182,12 +195,6 @@
     "failedToLoad": "Failed to load products",
     "priceRangeUnder": "Under",
     "priceRangeOver": "Over"
-  },
-  "landing": {
-    "freeShippingOver": "Free Shipping Over",
-    "authenticityGuaranteed": "Authenticity Guaranteed",
-    "curatedByExperts": "Curated by Experts",
-    "averageRating": "4.9 Average Rating"
   },
   "common": {
     "loading": "Loading...",

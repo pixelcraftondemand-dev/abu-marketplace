@@ -3,17 +3,28 @@
 -- Matches prisma/schema.prisma. For local development the SQLite dev database
 -- is already in sync via `npx prisma db push`.
 --
+-- Idempotent: every object is created with IF NOT EXISTS / ADD COLUMN IF NOT
+-- EXISTS, so this file can safely run on a fresh database (after the baseline
+-- migration 20260714133553_new-migration.sql) or against an older database
+-- that predates payment hardening.
+--
 -- Table names follow Prisma defaults ("Order", "Product", "Coupon") and the
 -- explicit @@map() mappings ("payment", "refund", "webhook_event", "user").
 
--- ── Payment status enum ───────────────────────────────────────────────────────
-CREATE TYPE "PaymentStatus" AS ENUM (
-  'PENDING', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'CANCELLED', 'EXPIRED',
-  'REFUNDED', 'PARTIALLY_REFUNDED'
-);
+-- -- Payment status enum --
+-- Postgres has no CREATE TYPE IF NOT EXISTS, so guard it explicitly.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'PaymentStatus') THEN
+    CREATE TYPE "PaymentStatus" AS ENUM (
+      'PENDING', 'PROCESSING', 'SUCCEEDED', 'FAILED', 'CANCELLED', 'EXPIRED',
+      'REFUNDED', 'PARTIALLY_REFUNDED'
+    );
+  END IF;
+END $$;
 
--- ── Payment table ─────────────────────────────────────────────────────────────
-CREATE TABLE "payment" (
+-- -- Payment table --
+CREATE TABLE IF NOT EXISTS "payment" (
   "id" TEXT NOT NULL,
   "idempotencyKey" TEXT NOT NULL,
   "userId" TEXT NOT NULL,
@@ -32,15 +43,15 @@ CREATE TABLE "payment" (
 
 -- Database-level uniqueness: the final safety net against duplicate charges,
 -- duplicate webhook processing, and duplicate refunds.
-CREATE UNIQUE INDEX "payment_idempotencyKey_key" ON "payment"("idempotencyKey");
-CREATE UNIQUE INDEX "payment_providerSessionId_key" ON "payment"("providerSessionId");
-CREATE UNIQUE INDEX "payment_providerPaymentIntentId_key" ON "payment"("providerPaymentIntentId");
-CREATE UNIQUE INDEX "payment_providerTransactionId_key" ON "payment"("providerTransactionId");
-CREATE INDEX "payment_userId_idx" ON "payment"("userId");
-CREATE INDEX "payment_status_idx" ON "payment"("status");
+CREATE UNIQUE INDEX IF NOT EXISTS "payment_idempotencyKey_key" ON "payment"("idempotencyKey");
+CREATE UNIQUE INDEX IF NOT EXISTS "payment_providerSessionId_key" ON "payment"("providerSessionId");
+CREATE UNIQUE INDEX IF NOT EXISTS "payment_providerPaymentIntentId_key" ON "payment"("providerPaymentIntentId");
+CREATE UNIQUE INDEX IF NOT EXISTS "payment_providerTransactionId_key" ON "payment"("providerTransactionId");
+CREATE INDEX IF NOT EXISTS "payment_userId_idx" ON "payment"("userId");
+CREATE INDEX IF NOT EXISTS "payment_status_idx" ON "payment"("status");
 
--- ── Refund table ──────────────────────────────────────────────────────────────
-CREATE TABLE "refund" (
+-- -- Refund table --
+CREATE TABLE IF NOT EXISTS "refund" (
   "id" TEXT NOT NULL,
   "paymentId" TEXT NOT NULL,
   "amount" DOUBLE PRECISION NOT NULL,
@@ -51,11 +62,11 @@ CREATE TABLE "refund" (
   CONSTRAINT "refund_pkey" PRIMARY KEY ("id"),
   CONSTRAINT "refund_paymentId_fkey" FOREIGN KEY ("paymentId") REFERENCES "payment"("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
-CREATE UNIQUE INDEX "refund_providerRefundId_key" ON "refund"("providerRefundId");
-CREATE INDEX "refund_paymentId_idx" ON "refund"("paymentId");
+CREATE UNIQUE INDEX IF NOT EXISTS "refund_providerRefundId_key" ON "refund"("providerRefundId");
+CREATE INDEX IF NOT EXISTS "refund_paymentId_idx" ON "refund"("paymentId");
 
--- ── Webhook event dedup ledger ────────────────────────────────────────────────
-CREATE TABLE "webhook_event" (
+-- -- Webhook event dedup ledger --
+CREATE TABLE IF NOT EXISTS "webhook_event" (
   "id" TEXT NOT NULL,
   "provider" TEXT NOT NULL DEFAULT 'stripe',
   "providerEventId" TEXT NOT NULL,
@@ -63,27 +74,36 @@ CREATE TABLE "webhook_event" (
   "processedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "webhook_event_pkey" PRIMARY KEY ("id")
 );
-CREATE UNIQUE INDEX "webhook_event_providerEventId_key" ON "webhook_event"("providerEventId");
-CREATE INDEX "webhook_event_provider_providerEventId_idx" ON "webhook_event"("provider", "providerEventId");
+CREATE UNIQUE INDEX IF NOT EXISTS "webhook_event_providerEventId_key" ON "webhook_event"("providerEventId");
+CREATE INDEX IF NOT EXISTS "webhook_event_provider_providerEventId_idx" ON "webhook_event"("provider", "providerEventId");
 
--- ── Order additions ───────────────────────────────────────────────────────────
-ALTER TABLE "Order" ADD COLUMN "paymentId" TEXT;
-ALTER TABLE "Order" ADD COLUMN "paymentStatus" "PaymentStatus" NOT NULL DEFAULT 'PENDING';
-ALTER TABLE "Order" ADD CONSTRAINT "order_paymentId_fkey"
-  FOREIGN KEY ("paymentId") REFERENCES "payment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-CREATE INDEX "order_userId_paymentId_idx" ON "Order"("userId", "paymentId");
+-- -- Order additions --
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "paymentId" TEXT;
+ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "paymentStatus" "PaymentStatus" NOT NULL DEFAULT 'PENDING';
 
--- ── Product inventory (NULL = unlimited) ──────────────────────────────────────
-ALTER TABLE "Product" ADD COLUMN "stock" INTEGER;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'order_paymentId_fkey'
+  ) THEN
+    ALTER TABLE "Order" ADD CONSTRAINT "order_paymentId_fkey"
+      FOREIGN KEY ("paymentId") REFERENCES "payment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
--- ── Coupon usage limits ───────────────────────────────────────────────────────
-ALTER TABLE "Coupon" ADD COLUMN "maxUses" INTEGER;
-ALTER TABLE "Coupon" ADD COLUMN "usageCount" INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS "order_userId_paymentId_idx" ON "Order"("userId", "paymentId");
 
--- ── Wallet ────────────────────────────────────────────────────────────────────
+-- -- Product inventory (NULL = unlimited) --
+ALTER TABLE "Product" ADD COLUMN IF NOT EXISTS "stock" INTEGER;
+
+-- -- Coupon usage limits --
+ALTER TABLE "Coupon" ADD COLUMN IF NOT EXISTS "maxUses" INTEGER;
+ALTER TABLE "Coupon" ADD COLUMN IF NOT EXISTS "usageCount" INTEGER NOT NULL DEFAULT 0;
+
+-- -- Wallet --
 ALTER TYPE "PaymentMethod" ADD VALUE IF NOT EXISTS 'WALLET';
 
-CREATE TABLE "wallet" (
+CREATE TABLE IF NOT EXISTS "wallet" (
   "id" TEXT NOT NULL,
   "userId" TEXT NOT NULL,
   "balance" DOUBLE PRECISION NOT NULL DEFAULT 0,
@@ -92,9 +112,9 @@ CREATE TABLE "wallet" (
   CONSTRAINT "wallet_pkey" PRIMARY KEY ("id"),
   CONSTRAINT "wallet_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
-CREATE UNIQUE INDEX "wallet_userId_key" ON "wallet"("userId");
+CREATE UNIQUE INDEX IF NOT EXISTS "wallet_userId_key" ON "wallet"("userId");
 
-CREATE TABLE "wallet_transaction" (
+CREATE TABLE IF NOT EXISTS "wallet_transaction" (
   "id" TEXT NOT NULL,
   "walletId" TEXT NOT NULL,
   "userId" TEXT NOT NULL,
@@ -110,14 +130,26 @@ CREATE TABLE "wallet_transaction" (
     FOREIGN KEY ("walletId") REFERENCES "wallet"("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 -- DB-level guarantee that a top-up or checkout is never applied twice.
-CREATE UNIQUE INDEX "wallet_transaction_referenceType_referenceId_key"
+CREATE UNIQUE INDEX IF NOT EXISTS "wallet_transaction_referenceType_referenceId_key"
   ON "wallet_transaction"("referenceType", "referenceId");
-CREATE INDEX "wallet_transaction_walletId_idx" ON "wallet_transaction"("walletId");
-CREATE INDEX "wallet_transaction_userId_idx" ON "wallet_transaction"("userId");
+CREATE INDEX IF NOT EXISTS "wallet_transaction_walletId_idx" ON "wallet_transaction"("walletId");
+CREATE INDEX IF NOT EXISTS "wallet_transaction_userId_idx" ON "wallet_transaction"("userId");
 
--- ── Email verification: single-use token hash must be unique ─────────────────
+-- -- Email verification: single-use token hash must be unique --
 -- Token values are SHA-256 hashes of the raw token (never stored in plaintext).
-CREATE UNIQUE INDEX "verification_value_key" ON "verification"("value");
+CREATE UNIQUE INDEX IF NOT EXISTS "verification_value_key" ON "verification"("value");
 
--- ── Support tickets: owner bearer access token (IDOR protection) ─────────────
-ALTER TABLE "SupportTicket" ADD COLUMN "accessToken" TEXT;
+-- -- Support tickets: owner bearer access token (IDOR protection) --
+-- Only the legacy column form is added here. On a fresh database the
+-- baseline already creates SupportTicket.accessTokenHash, so the legacy
+-- accessToken column is skipped (avoiding a stray column that the
+-- support_token_hash migration would never rename).
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'SupportTicket' AND column_name = 'accessTokenHash'
+  ) THEN
+    ALTER TABLE "SupportTicket" ADD COLUMN "accessToken" TEXT;
+  END IF;
+END $$;

@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log*
+.next
+out
+build
+coverage
+.DS_Store
+.git
+.gitignore
+.env
+.env.*
+*.db*
+build-output.txt
+.vscode

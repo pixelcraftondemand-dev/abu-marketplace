@@ -4,6 +4,7 @@
     "shop": "Boutique",
     "collections": "Collections",
     "sellers": "Vendeurs",
+    "store": "Boutique vendeur",
     "about": "À propos",
     "country": "Pays",
     "language": "Langue",
@@ -18,7 +19,10 @@
     "signOut": "Se déconnecter",
     "account": "Compte",
     "featured": "En vedette",
-    "popularCategories": "Catégories populaires"
+    "popularCategories": "Catégories populaires",
+    "ratesStale": "Taux peut-être obsolètes",
+    "ratesUpdated": "Taux mis à jour",
+    "ratesLoading": "Chargement des taux..."
   },
   "categories": {
     "newArrivals": "Nouveautés",
@@ -184,6 +188,10 @@
     "priceRangeOver": "Plus de"
   },
   "landing": {
+    "halalCertifiedSectionLabel": "Certifié halal",
+    "halalCertifiedSectionTitle": "Achetez des produits certifiés halal de confiance",
+    "halalCertifiedSectionText": "Découvrez des produits halal vérifiés dans l'électronique, la mode, les essentiels de la maison et des marques de confiance.",
+    "exploreHalalCertified": "Parcourir les produits certifiés halal",
     "freeShippingOver": "Livraison gratuite au-dessus de",
     "authenticityGuaranteed": "Authenticité garantie",
     "curatedByExperts": "Sélectionné par des experts",

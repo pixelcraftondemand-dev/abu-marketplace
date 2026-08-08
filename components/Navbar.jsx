@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { useUser, useClerk } from "@clerk/nextjs";
 import Link from "next/link";
@@ -24,6 +24,8 @@ import CurrencyAmount from "@/components/CurrencyAmount";
 import useWalletBalance from "@/lib/hooks/useWalletBalance";
 import { useTranslation } from "@/lib/i18n";
 import { getStoreLinkTarget } from "@/lib/storeNavigation";
+import { africanCountries, westAfricanCurrencyOptions } from '@/lib/utils/currency'
+import { languageToLocale, buildLocalizedPath, stripLocaleFromPath } from '@/lib/utils/locale'
 
 const navLinkDefs = [
   { href: "/", labelKey: "nav.home" },
@@ -53,13 +55,12 @@ const popularSearches = [
   "Halal certified",
 ];
 
-import { africanCountries, africanCurrencyOptions } from '@/lib/utils/currency'
-
 export default function Navbar() {
   const { user, isLoaded } = useUser();
   const { signOut } = useClerk();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const [search, setSearch] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -68,6 +69,7 @@ export default function Navbar() {
   const [shopDropdownOpen, setShopDropdownOpen] = useState(false);
   const [searchSuggestionsOpen, setSearchSuggestionsOpen] = useState(false);
   const [storeHref, setStoreHref] = useState("/sign-in");
+  const [now, setNow] = useState(() => Date.now());
 
   const dispatch = useDispatch();
   const { t } = useTranslation();
@@ -125,6 +127,7 @@ export default function Navbar() {
   const selectedCountry = useSelector((state) => state.preferences.selectedCountry);
   const selectedLanguage = useSelector((state) => state.preferences.selectedLanguage);
   const selectedCurrency = useSelector((state) => state.preferences.selectedCurrency);
+  const currencyStatus = useSelector((state) => state.currency);
   const cartCount = useSelector((state) => state.cart?.total || 0);
   const wishlistCount = useSelector((state) => state.wishlist?.items?.length || 0);
   const { balance: walletBalance, loading: walletLoading } = useWalletBalance();
@@ -133,6 +136,13 @@ export default function Navbar() {
     const handleScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Keep the exchange-rate "hours ago" badge fresh without calling Date.now()
+  // during render (keeps the component pure).
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -168,7 +178,6 @@ export default function Navbar() {
     }
   }, [selectedCountry, selectedLanguage, selectedCurrency, dispatch]);
 
-  const currentCountryData = africanCountries.find((entry) => entry.country === selectedCountry) || africanCountries[0];
   const allLanguages = Array.from(new Set(africanCountries.flatMap(c => c.languages))).sort()
   const filteredSearchSuggestions = search
     ? popularSearches.filter((item) => item.toLowerCase().includes(search.toLowerCase()))
@@ -197,10 +206,24 @@ export default function Navbar() {
     router.refresh();
   };
 
+  const handleLanguageChange = (language) => {
+    const locale = languageToLocale[language] || "en";
+    dispatch(setLanguage(language));
+    const rawPath = stripLocaleFromPath(pathname);
+    const nextPath = buildLocalizedPath(rawPath, locale);
+    const query = searchParams.toString();
+    router.push(`${nextPath}${query ? `?${query}` : ''}`);
+  };
+
+  const handleCurrencyChange = (currency) => {
+    dispatch(setCurrency(currency));
+  };
+
   const isActive = (href) => {
     const [path] = href.split("?");
-    if (path === "/") return pathname === "/";
-    return pathname === path || pathname.startsWith(`${path}/`);
+    const current = stripLocaleFromPath(pathname);
+    if (path === "/") return current === "/";
+    return current === path || current.startsWith(`${path}/`);
   };
 
   const handleNavLinkClick = () => {
@@ -244,7 +267,7 @@ export default function Navbar() {
                 <span className="text-white/60">{t("nav.language")}</span>
                 <select
                   value={selectedLanguage}
-                  onChange={(event) => dispatch(setLanguage(event.target.value))}
+                  onChange={(event) => handleLanguageChange(event.target.value)}
                   className="min-w-[70px] max-w-[140px] bg-transparent pr-4 text-white outline-none"
                 >
                   {allLanguages.map((language) => (
@@ -258,16 +281,26 @@ export default function Navbar() {
                 <span className="text-white/60">{t("nav.currency")}</span>
                 <select
                   value={selectedCurrency}
-                  onChange={(event) => dispatch(setCurrency(event.target.value))}
+                  onChange={(event) => handleCurrencyChange(event.target.value)}
                   className="min-w-[70px] max-w-[100px] bg-transparent pr-4 text-white outline-none"
                 >
-                  {africanCurrencyOptions.map((currency) => (
+                  {westAfricanCurrencyOptions.map((currency) => (
                     <option key={currency.code} value={currency.code} className="text-slate-900">
                       {currency.code}
                     </option>
                   ))}
                 </select>
               </label>
+              <div className="text-[10px] text-white/60 uppercase tracking-[0.2em] min-w-[160px]">
+                {currencyStatus.lastFetched ? (
+                  <span>
+                    {currencyStatus.stale ? t("nav.ratesStale") : t("nav.ratesUpdated")}{" "}
+                    {Math.floor((now - currencyStatus.lastFetched) / 3600000)}h ago
+                  </span>
+                ) : (
+                  <span>{t("nav.ratesLoading")}</span>
+                )}
+              </div>
             </div>
           </div>
         </div>

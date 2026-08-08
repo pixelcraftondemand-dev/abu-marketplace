@@ -4,6 +4,7 @@
     "shop": "Shop",
     "collections": "Kɔlɛkshɔn dɛm",
     "sellers": "Sɛla dɛm",
+    "store": "Sɛla Shop",
     "about": "Bɔt wi",
     "country": "Kɔntri",
     "language": "Lang",
@@ -18,7 +19,10 @@
     "signOut": "Sain awt",
     "account": "Akawnt",
     "featured": "Di wan dɛm we i impɔtant",
-    "popularCategories": "Kayn kayn katigori we pipul dɛn lɛk"
+    "popularCategories": "Kayn kayn katigori we pipul dɛn lɛk",
+    "ratesStale": "Reyt dɛn kin bi ɔl",
+    "ratesUpdated": "Dɛn dɔn ʌpdeyt di reyt",
+    "ratesLoading": "De lod reyt dɛn..."
   },
   "categories": {
     "newArrivals": "Nyus tin dɛm",
@@ -184,6 +188,10 @@
     "priceRangeOver": "Pas"
   },
   "landing": {
+    "halalCertifiedSectionLabel": "Halal Sɔtifayd",
+    "halalCertifiedSectionTitle": "Bai halal prɔdɔkt dɛn we yu kin trost",
+    "halalCertifiedSectionText": "Luk ɔl halal prɔdɔkt dɛn we dɛn chɛk na ɛlɛktroniks, fashɔn, ɔm tin dɛn, ɛn brand dɛn we yu kin trost.",
+    "exploreHalalCertified": "Luk Halal Sɔtifayd",
     "freeShippingOver": "Fri Shipin Pan",
     "authenticityGuaranteed": "Gɛranti dat i Rit",
     "curatedByExperts": "Ɛkspɛt dɛn pik am",

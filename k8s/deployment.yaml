@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: abu-marketplace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: abu-marketplace
+  template:
+    metadata:
+      labels:
+        app: abu-marketplace
+    spec:
+      containers:
+        - name: app
+          image: abu-marketplace:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3000"
+          envFrom:
+            - secretRef:
+                name: abu-marketplace-secrets
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: abu-marketplace
+spec:
+  type: ClusterIP
+  selector:
+    app: abu-marketplace
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000

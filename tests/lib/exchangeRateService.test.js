@@ -9,9 +9,10 @@ describe("exchange rate service", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
-  it("fetches live rates from the provider", async () => {
+  it("fetches live rates from exchangerate.host by default", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -20,11 +21,68 @@ describe("exchange rate service", () => {
       }),
     );
     const data = await getExchangeRates("USD", ["EUR", "SLE"]);
-    expect(data.source).toBe("live");
+    expect(data.source).toBe("exchangerate.host");
     expect(data.stale).toBe(false);
     expect(data.rates.EUR).toBe(0.92);
     expect(data.rates.SLE).toBe(22.5);
     expect(data.timestamp).toBeGreaterThan(0);
+  });
+
+  it("fetches from Open Exchange Rates when the app id is configured", async () => {
+    vi.stubEnv("OPEN_EXCHANGE_RATES_APP_ID", "oer_test");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        timestamp: 1767225600,
+        base: "USD",
+        rates: { EUR: 0.92, GBP: 0.79, SLE: 22.5 },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const data = await getExchangeRates("USD", ["EUR", "SLE"]);
+    expect(data.source).toBe("openexchangerates");
+    expect(data.stale).toBe(false);
+    expect(data.rates.EUR).toBe(0.92);
+    expect(data.rates.SLE).toBe(22.5);
+    expect(data.date).toBe("2026-01-01");
+    expect(fetchMock.mock.calls[0][0]).toContain("openexchangerates.org/api/latest.json");
+    expect(fetchMock.mock.calls[0][0]).toContain("app_id=oer_test");
+  });
+
+  it("rebases Open Exchange Rates to a non-USD base", async () => {
+    vi.stubEnv("OPEN_EXCHANGE_RATES_APP_ID", "oer_test");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          timestamp: 1767225600,
+          base: "USD",
+          rates: { EUR: 0.92, GBP: 0.79, SLE: 22.5 },
+        }),
+      }),
+    );
+    const data = await getExchangeRates("EUR", ["USD", "EUR", "GBP", "SLE"]);
+    expect(data.source).toBe("openexchangerates");
+    expect(data.rates.EUR).toBe(1);
+    expect(data.rates.USD).toBeCloseTo(1 / 0.92, 5);
+    expect(data.rates.GBP).toBeCloseTo(0.79 / 0.92, 5);
+    expect(data.rates.SLE).toBeCloseTo(22.5 / 0.92, 5);
+  });
+
+  it("falls back to static stale rates when Open Exchange Rates lacks the base", async () => {
+    vi.stubEnv("OPEN_EXCHANGE_RATES_APP_ID", "oer_test");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ base: "USD", rates: { EUR: 0.92 } }),
+      }),
+    );
+    const data = await getExchangeRates("SLE", ["EUR"]);
+    expect(data.source).toBe("fallback");
+    expect(data.stale).toBe(true);
+    expect(data.rates.EUR).toBe(FALLBACK_RATES.EUR);
   });
 
   it("serves cached rates without refetching within the TTL", async () => {

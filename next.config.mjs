@@ -4,6 +4,7 @@ const nextConfig = {
     images: {
         unoptimized: true,
     },
+    // Locale routing is handled by middleware.ts + the app/[locale] segment.
 };
 
 export default withSentryConfig(nextConfig, {

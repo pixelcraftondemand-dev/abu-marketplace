@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: abu-marketplace-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: abu-marketplace-postgres
+  template:
+    metadata:
+      labels:
+        app: abu-marketplace-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: password
+            - name: POSTGRES_DB
+              value: postgres
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: abu-marketplace-postgres-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: abu-marketplace-postgres-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: abu-marketplace-postgres
+spec:
+  type: ClusterIP
+  selector:
+    app: abu-marketplace-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432

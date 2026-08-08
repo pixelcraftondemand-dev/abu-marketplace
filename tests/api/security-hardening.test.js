@@ -17,7 +17,7 @@ vi.mock("@/lib/serverAuth", () => ({ getSessionFromRequest: vi.fn() }));
 
 vi.mock("@/lib/prisma", () => ({
   default: {
-    product: { findUnique: vi.fn() },
+    product: { findUnique: vi.fn(), findFirst: vi.fn() },
     order: { findFirst: vi.fn(), update: vi.fn() },
     coupon: { findUnique: vi.fn() },
     rating: { create: vi.fn() },
@@ -55,16 +55,16 @@ describe("security hardening", () => {
         params: { productId: "../../etc" },
       });
       expect(res.status).toBe(422);
-      expect(prisma.product.findUnique).not.toHaveBeenCalled();
+      expect(prisma.product.findFirst).not.toHaveBeenCalled();
     });
 
     it("only serves in-stock products from active approved stores", async () => {
-      prisma.product.findUnique.mockResolvedValue({ id: "p_1", mrp: 50, price: 40, rating: [] });
+      prisma.product.findFirst.mockResolvedValue({ id: "p_1", mrp: 50, price: 40, rating: [] });
       const res = await productGET(new Request("http://localhost:3000/api/products/p_1"), {
         params: { productId: "p_1" },
       });
       expect(res.status).toBe(200);
-      const where = prisma.product.findUnique.mock.calls[0][0].where;
+      const where = prisma.product.findFirst.mock.calls[0][0].where;
       expect(where.inStock).toBe(true);
       expect(where.store).toEqual({ is: { isActive: true, status: "approved" } });
     });

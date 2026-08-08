@@ -54,6 +54,7 @@ function ShopPageContent() {
   const [viewMode, setViewMode] = useState("grid"); // grid | list
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const { t } = useTranslation();
 
   const searchQuery = searchParams.get("search") || "";
@@ -62,6 +63,10 @@ function ShopPageContent() {
 
   const showFallbackProducts = !loading && products.length === 0 && !searchQuery && !categoryFilter;
   const displayedProducts = showFallbackProducts ? productDummyData : products;
+
+  useEffect(() => {
+    setSearchTerm(searchQuery);
+  }, [searchQuery]);
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -91,6 +96,11 @@ function ShopPageContent() {
       params.delete(key);
     }
     router.push(`/shop?${params.toString()}`);
+  };
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    updateFilter("search", searchTerm.trim());
   };
 
   const clearFilters = () => {
@@ -129,21 +139,33 @@ function ShopPageContent() {
       <div className="sticky top-[72px] lg:top-[88px] z-30 bg-white border-b border-[#E8E2DB]">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
-            {/* Left — Categories (Etsy-style pills) */}
-            <div className="hidden lg:flex items-center gap-1 overflow-x-auto no-scrollbar">
-              {categories.map((cat) => (
-                <button
-                  key={cat.value}
-                  onClick={() => updateFilter("category", cat.value)}
-                  className={`px-4 py-1.5 text-[13px] font-medium transition whitespace-nowrap ${
-                    categoryFilter === cat.value || (!categoryFilter && !cat.value)
-                      ? "text-[#1A1A1A] border-b-2 border-[#C9A96E]"
-                      : "text-[#9B9590] hover:text-[#1A1A1A]"
-                  }`}
-                >
-                  {t(cat.labelKey)}
-                </button>
-              ))}
+            {/* Left — Search and categories */}
+            <div className="hidden lg:flex items-center gap-4">
+              <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 rounded-full border border-[#E8E2DB] bg-[#F5F0EB] px-4 py-2">
+                <Search size={16} className="text-[#9B9590]" />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={t("nav.searchPlaceholder")}
+                  className="w-72 bg-transparent text-sm text-[#1A1A1A] outline-none placeholder:text-[#9B9590]"
+                />
+              </form>
+
+              <div className="hidden xl:flex items-center gap-1 overflow-x-auto no-scrollbar">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.value}
+                    onClick={() => updateFilter("category", cat.value)}
+                    className={`px-4 py-1.5 text-[13px] font-medium transition whitespace-nowrap ${
+                      categoryFilter === cat.value || (!categoryFilter && !cat.value)
+                        ? "text-[#1A1A1A] border-b-2 border-[#C9A96E]"
+                        : "text-[#9B9590] hover:text-[#1A1A1A]"
+                    }`}
+                  >
+                    {t(cat.labelKey)}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Mobile Category Toggle */}

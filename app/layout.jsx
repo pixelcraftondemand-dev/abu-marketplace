@@ -5,8 +5,19 @@ import StoreProvider from "@/app/StoreProvider";
 import CookieConsentBanner from "@/components/CookieConsent";
 import AbuChatBubble from "@/components/AbuChatBubble";
 import "./globals.css";
-import { cookies } from 'next/headers'
-import { languageToLangCode, defaultLanguage } from '@/lib/utils/currency'
+import { cookies, headers } from 'next/headers'
+import { getPreferredLocaleFromAcceptLanguage, supportedLocales, defaultLocale } from '@/lib/utils/locale'
+import { NextIntlClientProvider } from 'next-intl'
+import en from '@/locales/en/common.json'
+import fr from '@/locales/fr/common.json'
+import kri from '@/locales/kri/common.json'
+import pt from '@/locales/pt/common.json'
+import ha from '@/locales/ha/common.json'
+import yo from '@/locales/yo/common.json'
+import ig from '@/locales/ig/common.json'
+import wo from '@/locales/wo/common.json'
+import ff from '@/locales/ff/common.json'
+import ak from '@/locales/ak/common.json'
 
 const inter = Inter({
   subsets: ["latin"],
@@ -79,22 +90,38 @@ export const viewport = {
 };
 
 export default async function RootLayout({ children }) {
-  // Determine language from cookie for server-side HTML lang
+  let locale = defaultLocale
   let lang = 'en'
   try {
     const cookieStore = await cookies()
-    const cookieLang = cookieStore.get('marketplaceLanguage')?.value
-    lang = languageToLangCode[cookieLang] || languageToLangCode[defaultLanguage] || 'en'
+    const headerStore = await headers()
+    const cookieLang = cookieStore.get('marketplaceLocale')?.value
+    const preferred = getPreferredLocaleFromAcceptLanguage(headerStore.get('accept-language'))
+    const localeCode = cookieLang || preferred
+    locale = supportedLocales.includes(localeCode) ? localeCode : defaultLocale
+    lang = locale
   } catch (e) {
-    // fallback to default
-    lang = languageToLangCode[defaultLanguage] || 'en'
+    locale = defaultLocale
+    lang = defaultLocale
   }
+
+  const messages = {
+    en,
+    fr,
+    kri,
+    pt,
+    ha,
+    yo,
+    ig,
+    wo,
+    ff,
+    ak,
+  }[locale] || en
 
   return (
     <html lang={lang} className={`${inter.variable} ${playfair.variable}`}>
       <head>
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
-        <meta httpEquiv="X-Frame-Options" content="DENY" />
         <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
         <meta name="format-detection" content="telephone=no" />
         <script
@@ -116,7 +143,8 @@ export default async function RootLayout({ children }) {
         />
       </head>
       <body className={`${inter.className} antialiased`}>
-        <ClerkProvider
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <ClerkProvider
           publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
           appearance={{
             elements: {
@@ -175,7 +203,8 @@ export default async function RootLayout({ children }) {
             <CookieConsentBanner />
             <AbuChatBubble />
           </StoreProvider>
-        </ClerkProvider>
+          </ClerkProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

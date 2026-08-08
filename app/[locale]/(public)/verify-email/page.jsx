@@ -32,8 +32,37 @@ function VerifyEmailContent() {
   const [cooldown, setCooldown] = useState(0);
   const inputRefs = useRef([]);
   const verifyingRef = useRef(false);
+  const autoSentRef = useRef(false);
 
   const code = digits.join("");
+
+  // Automatically send a verification code to the signed-in user when they
+  // land on the verify email page, unless they're using a legacy token link.
+  useEffect(() => {
+    if (autoSentRef.current) return;
+    if (!userLoaded || !user) return;
+    if (searchParams.get("token")) return;
+
+    autoSentRef.current = true;
+    (async () => {
+      try {
+        const authToken = await getToken();
+        await axios.post(
+          "/api/auth/send-verification",
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+            },
+          }
+        );
+        setNotice({ type: "info", text: "A 6-digit verification code has been sent to your email." });
+      } catch (error) {
+        console.warn("Auto-send verification email failed:", error?.message || error);
+        setNotice({ type: "error", text: "Could not send the verification code automatically. Please use Resend." });
+      }
+    })();
+  }, [searchParams, userLoaded, user, getToken]);
 
   // ── Legacy support: links from previously-sent verification emails still
   //    carry ?token=… and are auto-verified exactly as before. ─────────────
