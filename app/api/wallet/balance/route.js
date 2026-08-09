@@ -23,6 +23,8 @@ export async function GET(request) {
     });
   } catch (error) {
     console.error("[GET /api/wallet/balance]", error);
-    return NextResponse.json({ error: "Unable to fetch wallet balance." }, { status: 400 });
+    // A failure here is a server-side error (e.g. DB unreachable), never a
+    // client error — report it as 500 so client code doesn't misdiagnose it.
+    return NextResponse.json({ error: "Unable to fetch wallet balance." }, { status: 500 });
   }
 }

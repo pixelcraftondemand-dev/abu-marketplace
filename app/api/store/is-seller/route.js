@@ -4,15 +4,22 @@ import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
 
 // GET /api/store/is-seller
-// Returns { isSeller: true, storeInfo: {...} } or 401
+// Returns { isSeller: true, storeInfo: {...} } for approved/active sellers,
+// { isSeller: false } for signed-in non-sellers, or 401 when unauthenticated.
+// Returning 200 (not 401) for non-sellers keeps the Navbar/account pages from
+// logging a noisy 401 on every page load for the common non-seller case.
 export async function GET(request) {
     try {
         const session = await getSessionFromRequest(request);
         const userId = session?.user?.id;
-        const isSeller = await authSeller(userId);
-
-        if (!isSeller) {
+        if (!userId) {
             return NextResponse.json({ error: "not authorized" }, { status: 401 });
+        }
+
+        // authSeller returns the store id for approved/active sellers, falsy otherwise.
+        const storeId = await authSeller(userId);
+        if (!storeId) {
+            return NextResponse.json({ isSeller: false });
         }
 
         const storeInfo = await prisma.store.findUnique({
@@ -35,6 +42,6 @@ export async function GET(request) {
         return NextResponse.json({ isSeller: true, storeInfo });
     } catch (error) {
         console.error("[is-seller]", error);
-        return NextResponse.json({ error: "Unable to verify seller access." }, { status: 400 });
+        return NextResponse.json({ error: "Unable to verify seller access." }, { status: 500 });
     }
 }

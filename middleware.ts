@@ -52,6 +52,11 @@ const SECURITY_CONFIG: SecurityConfig = {
       "'self'",
       "https://*.clerk.accounts.dev",
       "https://*.accounts.dev",
+      // Custom Clerk frontend API domain — the *.accounts.dev wildcards do NOT
+      // cover it. Without this, Clerk's /v1/environment + /v1/client fetches
+      // are refused ("violates the document's Content Security Policy").
+      "https://clerk.abumarketplace.shop",
+      "wss://clerk.abumarketplace.shop",
       "https://api.abumarketplace.shop",
       "wss://*.clerk.accounts.dev",
       "wss://*.accounts.dev",
@@ -61,6 +66,7 @@ const SECURITY_CONFIG: SecurityConfig = {
       "'self'",
       "https://*.clerk.accounts.dev",
       "https://*.accounts.dev",
+      "https://clerk.abumarketplace.shop",
       "https://challenges.cloudflare.com",
     ],
     "media-src": ["'self'", "https:"],

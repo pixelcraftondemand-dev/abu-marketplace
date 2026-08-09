@@ -88,20 +88,25 @@ fi
 # 7. Store routes that used to 404. Signed-out requests to protected
 # /api/store/* routes are rewritten by Clerk to the sign-in page (200 HTML
 # with X-Clerk-Auth-Reason: protect-rewrite) — that IS the auth gate working.
+# 401 = signed-out user rejected by the handler; 500 = server error (DB down).
 code=$(curl -s -o /tmp/smoke-body.txt -w '%{http_code}' --max-time "$TIMEOUT" "$BASE_URL/api/store/is-seller")
 clerk_reason=$(curl -sI --max-time "$TIMEOUT" "$BASE_URL/api/store/is-seller" | grep -i x-clerk-auth-reason | tr -d '\r')
-if [ "$code" = "401" ] || [ "$code" = "400" ] || echo "$clerk_reason" | grep -q 'protect-rewrite'; then
+if [ "$code" = "401" ] || echo "$clerk_reason" | grep -q 'protect-rewrite'; then
   pass "/api/store/is-seller -> protected (route exists, auth-gated)"
+elif [ "$code" = "500" ]; then
+  fail "/api/store/is-seller -> 500 (server error — check DB reachability on prod)"
 else
-  fail "/api/store/is-seller -> $code (expected 401/400 or Clerk protect-rewrite)"
+  fail "/api/store/is-seller -> $code (expected 401 or Clerk protect-rewrite)"
 fi
 
 code=$(curl -s -o /tmp/smoke-body.txt -w '%{http_code}' --max-time "$TIMEOUT" "$BASE_URL/api/store/data")
 clerk_reason=$(curl -sI --max-time "$TIMEOUT" "$BASE_URL/api/store/data" | grep -i x-clerk-auth-reason | tr -d '\r')
-if [ "$code" = "400" ] || [ "$code" = "401" ] || echo "$clerk_reason" | grep -q 'protect-rewrite'; then
+if [ "$code" = "401" ] || echo "$clerk_reason" | grep -q 'protect-rewrite'; then
   pass "/api/store/data -> protected (route exists)"
+elif [ "$code" = "500" ]; then
+  fail "/api/store/data -> 500 (server error — check DB reachability on prod)"
 else
-  fail "/api/store/data -> $code (expected 400/401 or Clerk protect-rewrite)"
+  fail "/api/store/data -> $code (expected 401 or Clerk protect-rewrite)"
 fi
 
 # 8. Auth status endpoint (new)
@@ -120,12 +125,18 @@ else
   fail "/en/shop -> $code (expected 200, locale routes live)"
 fi
 
-# 10. CSP must include Clerk's accounts.dev (sign-in would be blocked otherwise)
-csp=$(curl -s -D - -o /dev/null --max-time "$TIMEOUT" "$BASE_URL/" | grep -i content-security-policy)
-if echo "$csp" | grep -q 'accounts.dev'; then
-  pass "CSP includes accounts.dev"
+# 10. CSP connect-src must allow both Clerk's accounts.dev wildcards AND the
+# custom frontend API domain (clerk.abumarketplace.shop) — the wildcards do
+# NOT cover the custom domain, so a missing entry blocks every Clerk fetch
+# ("Refused to connect ... violates the document's Content Security Policy").
+# Only the connect-src directive is inspected: script-src also lists
+# clerk.abumarketplace.shop, so grepping the whole header would false-pass.
+csp=$(curl -s -D - -o /dev/null --max-time "$TIMEOUT" "$BASE_URL/" | grep -i content-security-policy | tr -d '\r')
+connect_src=$(printf '%s\n' "$csp" | sed -n 's/.*connect-src \([^;]*\).*/\1/p')
+if printf '%s' "$connect_src" | grep -q 'clerk.abumarketplace.shop' && printf '%s' "$connect_src" | grep -q 'accounts.dev'; then
+  pass "CSP connect-src includes accounts.dev + clerk.abumarketplace.shop"
 else
-  warn "CSP header missing accounts.dev (check middleware.ts on prod)"
+  warn "CSP connect-src missing accounts.dev or clerk.abumarketplace.shop (check middleware.ts on prod)"
 fi
 
 echo

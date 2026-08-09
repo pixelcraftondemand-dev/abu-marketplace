@@ -59,7 +59,12 @@ export default function AccountPage() {
       .get("/api/store/is-seller")
       .then(({ data }) => {
         if (!active) return;
-        setSellerStatus({ checking: false, isSeller: true, storeInfo: data.storeInfo || null });
+        if (data.isSeller) {
+          setSellerStatus({ checking: false, isSeller: true, storeInfo: data.storeInfo || null });
+        } else {
+          // Signed in but not a seller — show the "Become a seller" card.
+          setSellerStatus({ checking: false, isSeller: false, storeInfo: null });
+        }
       })
       .catch(() => {
         if (!active) return;

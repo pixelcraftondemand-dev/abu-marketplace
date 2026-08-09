@@ -70,13 +70,16 @@ The deployed build is stale (missing routes return 404, old CSP, empty catalog).
 > now requires an `access_key`. Set `OPEN_EXCHANGE_RATES_APP_ID` (step 3) or the
 > rates stay permanently stale.
 
-### E. CSP — Clerk `accounts.dev` + locale routing
+### E. CSP — Clerk `accounts.dev` + custom frontend API domain + locale routing
 | File | Change |
 |---|---|
-| `middleware.ts` | CSP `connect-src`/`frame-src`/`script-src` now include `https://*.accounts.dev`; locale rewrite + non-localized prefixes |
+| `middleware.ts` | CSP `connect-src`/`frame-src`/`script-src` now include `https://*.accounts.dev` **and the custom Clerk frontend API domain `https://clerk.abumarketplace.shop`** (+ `wss://clerk.abumarketplace.shop`); locale rewrite + non-localized prefixes |
 
 > Without this, Clerk sign-in redirects from wishlist/orders are refused by the
-> browser ("violates Content-Security-Policy").
+> browser ("violates Content-Security-Policy"). The `*.accounts.dev` wildcards
+> do **not** cover the custom `clerk.abumarketplace.shop` domain — it must be
+> listed explicitly in `connect-src` or every Clerk `/v1/*` fetch is blocked
+> (verified 2026-08-09: script-src had it, connect-src did not).
 
 ### F. Everything else that ships with the working tree
 - Locale restructure `app/[locale]/` (fixes `/en/shop` 404, `app/(public)` deletions)
