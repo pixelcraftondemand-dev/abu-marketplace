@@ -169,4 +169,9 @@ jobs:
           chmod +x /tmp/actionlint
           /tmp/actionlint -version
       - name: Lint all workflow files
-        run: /tmp/actionlint .github/workflows/{*.yml,*.yaml}
+        run: |
+          # nullglob: an unmatched glob expands to nothing instead of staying
+          # literal, so a repo with only .yml files doesn't hand actionlint a
+          # bogus ".github/workflows/*.yaml" path (exit 3).
+          shopt -s nullglob
+          /tmp/actionlint .github/workflows/*.yml .github/workflows/*.yaml
