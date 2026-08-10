@@ -145,12 +145,21 @@ jobs:
           echo "::error::Timed out waiting for /api/products to return 200 after deploy."
           exit 1
 
-      # prod-smoke.sh includes the rate-limiter hammer check (#11): it hammers
-      # /api/exchange from a TEST-NET IP and asserts a 429 with Retry-After,
-      # proving the distributed limiter (rate_limit_entry table) enforces on
-      # prod — CI catches any future limiter regression. Check #12 then reads
-      # the app's per-instance counters (GET /api/health/prisma) and asserts
-      # zero UNEXPECTED prisma:error events were emitted during the hammer,
-      # catching the P2002 log-noise regression if it ever returns.
+      # Rate-limiter enforcement gate: hammers /api/exchange from a TEST-NET
+      # IP (198.51.100.99) with base=NOTREAL (the limiter runs before currency
+      # validation, so each hit is a fast 400 with zero upstream OER cost) and
+      # asserts a 429 with Retry-After after ~60 hits in one window. A FAIL
+      # blocks the deploy — limiter removed/bypassed, or the rate_limit_entry
+      # migration missing on prod (silent per-instance fallback).
+      - name: Rate limiter enforcement gate (429 after hammer)
+        run: bash scripts/rate-limit-smoke.sh
+
+      # The smoke battery (prod-smoke.sh) then runs the full battery — its
+      # check #11 is the same script, so by then the isolated bucket is
+      # already exhausted and it PASSes on the first hit, which additionally
+      # proves the shared counter persisted across the two steps. Check #12
+      # reads the app's per-instance counters (GET /api/health/prisma) and
+      # asserts zero UNEXPECTED prisma:error events were emitted during the
+      # hammer, catching the P2002 log-noise regression if it ever returns.
       - name: Run smoke battery
         run: bash scripts/prod-smoke.sh
