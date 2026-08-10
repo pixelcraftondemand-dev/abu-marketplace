@@ -34,7 +34,8 @@ describe('verifyDbTables (classification)', () => {
     );
     const result = await verifyDbTables(prisma, ['rate_limit_entry']);
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]).toContain("Can't reach database server");
+    expect(result.errors[0].table).toBe('rate_limit_entry');
+    expect(result.errors[0].msg).toContain("Can't reach database server");
     expect(result.missing).toEqual([]);
     expect(exitCodeFor(result)).toBe(1);
   });
@@ -49,14 +50,14 @@ describe('verifyDbTables (classification)', () => {
     const result = await verifyDbTables(prisma, ['user', 'ghost_table', 'another']);
     expect(result.present).toEqual([{ table: 'user', name: 'user' }]);
     expect(result.missing).toEqual(['ghost_table']);
-    expect(result.errors).toEqual(['another: ECONNREFUSED']);
+    expect(result.errors).toEqual([{ table: 'another', msg: 'ECONNREFUSED' }]);
     expect(exitCodeFor(result)).toBe(1);
   });
 
   it('keeps only the first line of a multi-line error message', async () => {
     const prisma = mockPrisma(() => Promise.reject(new Error('line one\nline two\nline three')));
     const result = await verifyDbTables(prisma, ['x']);
-    expect(result.errors).toEqual(['x: line one']);
+    expect(result.errors).toEqual([{ table: 'x', msg: 'line one' }]);
   });
 });
 

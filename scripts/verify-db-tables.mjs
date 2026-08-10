@@ -51,14 +51,16 @@ function main() {
     for (const { table, name } of present) {
       console.log(`  ✓ ${table} present (${name})`);
     }
-    for (const error of errors) {
-      console.error(`  ✗ ${error}`);
+    for (const { table, msg } of errors) {
+      console.error(`  ✗ ${table}: verification query failed: ${msg}`);
     }
 
     const exitCode = exitCodeFor({ missing, errors });
     if (errors.length > 0) {
       console.error(
-        `\nFAILED: could not verify table(s) against the target database (connection/query errors):\n  ${errors.join("\n  ")}`
+        `\nFAILED: could not verify table(s) against the target database (connection/query errors):\n  ${errors
+          .map((e) => `${e.table}: ${e.msg}`)
+          .join("\n  ")}`
       );
     } else if (missing.length > 0) {
       console.error(
