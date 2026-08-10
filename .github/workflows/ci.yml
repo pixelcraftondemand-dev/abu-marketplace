@@ -158,9 +158,15 @@ jobs:
       - name: Install actionlint (pinned v1.7.12)
         run: |
           set -euo pipefail
-          curl -sSL -o /tmp/actionlint.zip \
-            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.zip
-          unzip -q /tmp/actionlint.zip -d /tmp/actionlint
-          chmod +x /tmp/actionlint/actionlint
+          # Linux assets are .tar.gz (only Windows ships .zip) — the earlier
+          # .zip URL 404'd and silently saved an HTML page, failing unzip.
+          # --fail + --retry-all-errors turn any download problem into a
+          # loud, retried failure instead of a confusing one.
+          curl --fail --location --retry 5 --retry-all-errors --retry-delay 3 -sS \
+            -o /tmp/actionlint.tar.gz \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp
+          chmod +x /tmp/actionlint
+          /tmp/actionlint -version
       - name: Lint all workflow files
-        run: /tmp/actionlint/actionlint .github/workflows/{*.yml,*.yaml}
+        run: /tmp/actionlint .github/workflows/{*.yml,*.yaml}
