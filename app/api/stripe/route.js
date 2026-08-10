@@ -16,7 +16,7 @@ export async function POST(request) {
   try {
     // Generous limit — providers legitimately retry; signature is the real gate.
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    const rl = webhookRateLimiter.check(hashIp(ip));
+    const rl = await webhookRateLimiter.check(hashIp(ip));
     if (!rl.allowed) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }

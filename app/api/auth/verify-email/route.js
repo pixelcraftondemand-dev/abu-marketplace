@@ -32,7 +32,7 @@ export async function POST(request) {
   // (including malformed payloads) is throttled.
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const rl = verificationVerifyRateLimiter.check(hashIp(ip));
+  const rl = await verificationVerifyRateLimiter.check(hashIp(ip));
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many attempts. Please try again later." },

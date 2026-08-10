@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import authAdmin from "@/middlewares/authAdmin";
+import { adminActionRateLimiter } from "@/lib/security";
 import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
@@ -25,6 +26,12 @@ export async function GET(request) {
     const isAdmin = await authAdmin(userId);
     if (!isAdmin) {
       return NextResponse.json({ error: "Not authorized." }, { status: 403 });
+    }
+
+    // Reconciliation hits the Stripe API — bound it per admin.
+    const rl = await adminActionRateLimiter.check(userId);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429, headers: { "Retry-After": String(rl.retryAfter || 600) } });
     }
 
     const { searchParams } = new URL(request.url);

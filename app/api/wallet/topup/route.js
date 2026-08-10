@@ -51,7 +51,7 @@ export async function POST(request) {
       );
     }
 
-    const rl = walletTopupRateLimiter.check(userId);
+    const rl = await walletTopupRateLimiter.check(userId);
     if (!rl.allowed) {
       return NextResponse.json(
         { error: "Too many attempts. Please wait a moment and try again." },

@@ -22,73 +22,131 @@ const RATE_LIMIT_MAX = 100; // max requests per window
 const rateLimitStore = new Map<string, number[]>();
 
 // ─── Security Configuration ───
-interface SecurityConfig {
-  csp: Record<string, string[]>;
-  allowedOrigins: string[];
+
+/**
+ * Allowed CORS origins for API responses. NOTE: the CSP external hosts live
+ * in buildCSP() below — keep them in sync with what the app actually loads.
+ */
+const ALLOWED_ORIGINS = [
+  "https://abumarketplace.shop",
+  "https://www.abumarketplace.shop",
+];
+
+/**
+ * Generate a fresh CSP nonce per request (Web Crypto — works on the Edge and
+ * Node runtimes). The nonce authorizes the inline scripts Next.js emits (RSC
+ * flight data, bootstrap) instead of 'unsafe-inline'.
+ */
+function generateNonce(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  // base64url — safe in HTML attributes and for CSP parsing.
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-const SECURITY_CONFIG: SecurityConfig = {
-  csp: {
+/**
+ * Build the Content-Security-Policy header string.
+ *
+ * script-src is fully strict: inline scripts are authorized by the per-request
+ * nonce (Next.js auto-applies it to its own inline scripts when the CSP is
+ * present in the request headers) plus 'strict-dynamic', which lets the
+ * nonce'd framework/Clerk scripts load their runtime dependencies (Clerk's
+ * clerk-js from the FAPI, Cloudflare Turnstile's api.js) without host-source
+ * whitelisting. 'unsafe-eval' is only added in dev (webpack HMR / React
+ * error overlays) — production never uses eval.
+ *
+ * style-src keeps 'unsafe-inline' because Clerk's runtime CSS-in-JS and
+ * react-hot-toast (goober) inject <style> tags from JS without a nonce; this
+ * does NOT weaken script execution, which remains nonce + strict-dynamic only.
+ */
+function buildCSP(nonce: string): string {
+  const isDev = process.env.NODE_ENV !== "production";
+  const csp: Record<string, string[]> = {
     "default-src": ["'self'"],
     "script-src": [
       "'self'",
-      "'unsafe-inline'",
-      "'unsafe-eval'",
-      "https://*.clerk.accounts.dev",
-      "https://*.accounts.dev",
+      `'nonce-${nonce}'`,
+      "'strict-dynamic'",
+      // External script origins actually used: Clerk client JS is served from
+      // the custom FAPI domain (clerk-js is NOT bundled), and Clerk's CAPTCHA
+      // (Cloudflare Turnstile) loads challenges.cloudflare.com. With
+      // 'strict-dynamic' these are legacy-browser fallbacks only.
       "https://clerk.abumarketplace.shop",
-      // Clerk CAPTCHA (Cloudflare Turnstile) requires this host
       "https://challenges.cloudflare.com",
+      ...(isDev ? ["'unsafe-eval'"] : []),
     ],
     "style-src": [
       "'self'",
+      // Clerk CSS-in-JS + goober requirement — see buildCSP() docs above.
       "'unsafe-inline'",
-      "https://fonts.googleapis.com",
+      // Turnstile injects a stylesheet for its widget.
       "https://challenges.cloudflare.com",
     ],
-    "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
-    "img-src": ["'self'", "data:", "https:", "blob:"],
+    // next/font is self-hosted at build time.
+    "font-src": ["'self'"],
+    "img-src": [
+      "'self'",
+      "data:",
+      "blob:",
+      "https://images.unsplash.com",
+      "https://ik.imagekit.io",
+      "https://img.clerk.com",
+    ],
     "connect-src": [
       "'self'",
       "https://*.clerk.accounts.dev",
       "https://*.accounts.dev",
-      "https://api.abumarketplace.shop",
+      // Custom Clerk frontend API domain — the *.accounts.dev wildcards do NOT
+      // cover it. Without this, Clerk's /v1/environment + /v1/client fetches
+      // are refused ("violates the document's Content Security Policy").
+      "https://clerk.abumarketplace.shop",
+      "wss://clerk.abumarketplace.shop",
       "wss://*.clerk.accounts.dev",
       "wss://*.accounts.dev",
+      // Clerk's Accounts portal — createRedirect() derives sign-in redirects to
+      // https://accounts.<domain>/sign-in (observed in the browser console as a
+      // blocked "Connecting to https://accounts.abumarketplace.shop/sign-in...").
+      "https://accounts.abumarketplace.shop",
       "https://challenges.cloudflare.com",
     ],
     "frame-src": [
       "'self'",
       "https://*.clerk.accounts.dev",
       "https://*.accounts.dev",
+      "https://clerk.abumarketplace.shop",
+      "https://accounts.abumarketplace.shop",
       "https://challenges.cloudflare.com",
     ],
-    "media-src": ["'self'", "https:"],
+    "media-src": ["'self'"],
     "object-src": ["'none'"],
     "worker-src": ["'self'", "blob:"],
     "base-uri": ["'self'"],
     "form-action": ["'self'"],
     "frame-ancestors": ["'none'"],
     "upgrade-insecure-requests": [],
-  },
-  allowedOrigins: [
-    "https://abumarketplace.shop",
-    "https://www.abumarketplace.shop",
-  ],
-};
+  };
 
-// ─── Helper Functions ───
-
-/**
- * Build Content-Security-Policy header string from config
- */
-function buildCSP(): string {
-  return Object.entries(SECURITY_CONFIG.csp)
+  return Object.entries(csp)
     .map(([key, values]: [string, string[]]) => {
       if (values.length === 0) return key;
       return `${key} ${values.join(" ")}`;
     })
     .join("; ");
+}
+
+/**
+ * Request headers for the response-to-be. Next.js extracts the nonce from the
+ * *request* Content-Security-Policy header and applies it to its inline
+ * scripts/styles, and Clerk's <ClerkProvider dynamic> reads x-nonce to nonce
+ * its own script tag. Must be applied to the request of every rendered page.
+ */
+function withSecurityRequestHeaders(req: NextRequest, nonce: string): Headers {
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("Content-Security-Policy", buildCSP(nonce));
+  requestHeaders.set("x-nonce", nonce);
+  return requestHeaders;
 }
 
 /**
@@ -202,8 +260,9 @@ function resolveLocale(pathname: string, req: NextRequest): string {
  * Apply the full set of security headers to a response. Used for both normal
  * responses and the early canonical-locale redirects.
  */
-function applySecurityHeaders(response: NextResponse, req: NextRequest, pathname: string, routePath: string) {
-  response.headers.set("Content-Security-Policy", buildCSP());
+function applySecurityHeaders(response: NextResponse, req: NextRequest, pathname: string, routePath: string, nonce: string) {
+  response.headers.set("Content-Security-Policy", buildCSP(nonce));
+  response.headers.set("x-nonce", nonce);
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-XSS-Protection", "1; mode=block");
@@ -227,7 +286,7 @@ function applySecurityHeaders(response: NextResponse, req: NextRequest, pathname
   // CORS headers for API routes
   if (pathname.startsWith("/api/")) {
     const origin = req.headers.get("origin");
-    if (origin && SECURITY_CONFIG.allowedOrigins.includes(origin)) {
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
       response.headers.set("Access-Control-Allow-Origin", origin);
       response.headers.set("Access-Control-Allow-Credentials", "true");
       response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
@@ -249,6 +308,7 @@ function applySecurityHeaders(response: NextResponse, req: NextRequest, pathname
 export default clerkMiddleware(async (auth, req: NextRequest) => {
   const { pathname } = req.nextUrl;
   const ip = getClientIP(req);
+  const nonce = generateNonce();
 
   // ─── Rate Limiting for API Routes ───
   if (isPublicApiRoute(req) || pathname.startsWith("/api/")) {
@@ -292,17 +352,18 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
       const redirect = NextResponse.redirect(
         new URL(`${routePath}${req.nextUrl.search}`, req.url)
       );
-      applySecurityHeaders(redirect, req, req.nextUrl.pathname, routePath);
+      applySecurityHeaders(redirect, req, req.nextUrl.pathname, routePath, nonce);
       return redirect;
     }
-    response = NextResponse.next();
+    response = NextResponse.next({ request: { headers: withSecurityRequestHeaders(req, nonce) } });
   } else if (!isNonLocalizedPath(req.nextUrl.pathname)) {
     const locale = resolveLocale(req.nextUrl.pathname, req);
     response = NextResponse.rewrite(
-      new URL(`/${locale}${req.nextUrl.pathname}${req.nextUrl.search}`, req.url)
+      new URL(`/${locale}${req.nextUrl.pathname}${req.nextUrl.search}`, req.url),
+      { request: { headers: withSecurityRequestHeaders(req, nonce) } }
     );
   } else {
-    response = NextResponse.next();
+    response = NextResponse.next({ request: { headers: withSecurityRequestHeaders(req, nonce) } });
   }
 
   const resolvedLocale = localePath || resolveLocale(req.nextUrl.pathname, req);
@@ -321,7 +382,7 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
   }
 
   // ─── Build Response with Security Headers ───
-  applySecurityHeaders(response, req, pathname, routePath);
+  applySecurityHeaders(response, req, pathname, routePath, nonce);
 
   return response;
 });

@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { sanitizeText } from "@/lib/security";
+import { couponRateLimiter, sanitizeText } from "@/lib/security";
 import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
 
@@ -10,6 +10,12 @@ export async function POST(request) {
 
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+        }
+
+        // Coupon validation is a brute-force surface — bound attempts per user.
+        const rl = await couponRateLimiter.check(userId);
+        if (!rl.allowed) {
+            return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429, headers: { "Retry-After": String(rl.retryAfter || 600) } });
         }
 
         const { code } = await request.json();

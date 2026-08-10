@@ -11,7 +11,8 @@
 #   BASE_URL   target origin (default https://www.abumarketplace.shop)
 set -uo pipefail
 
-BASE_URL="${BASE_URL:-https://www.abumarketplace.shop}"
+# Export so the rate-limit sub-check (scripts/rate-limit-smoke.sh) inherits it.
+export BASE_URL="${BASE_URL:-https://www.abumarketplace.shop}"
 TIMEOUT=20
 FAILURES=0
 
@@ -88,20 +89,25 @@ fi
 # 7. Store routes that used to 404. Signed-out requests to protected
 # /api/store/* routes are rewritten by Clerk to the sign-in page (200 HTML
 # with X-Clerk-Auth-Reason: protect-rewrite) — that IS the auth gate working.
+# 401 = signed-out user rejected by the handler; 500 = server error (DB down).
 code=$(curl -s -o /tmp/smoke-body.txt -w '%{http_code}' --max-time "$TIMEOUT" "$BASE_URL/api/store/is-seller")
 clerk_reason=$(curl -sI --max-time "$TIMEOUT" "$BASE_URL/api/store/is-seller" | grep -i x-clerk-auth-reason | tr -d '\r')
-if [ "$code" = "401" ] || [ "$code" = "400" ] || echo "$clerk_reason" | grep -q 'protect-rewrite'; then
+if [ "$code" = "401" ] || echo "$clerk_reason" | grep -q 'protect-rewrite'; then
   pass "/api/store/is-seller -> protected (route exists, auth-gated)"
+elif [ "$code" = "500" ]; then
+  fail "/api/store/is-seller -> 500 (server error — check DB reachability on prod)"
 else
-  fail "/api/store/is-seller -> $code (expected 401/400 or Clerk protect-rewrite)"
+  fail "/api/store/is-seller -> $code (expected 401 or Clerk protect-rewrite)"
 fi
 
 code=$(curl -s -o /tmp/smoke-body.txt -w '%{http_code}' --max-time "$TIMEOUT" "$BASE_URL/api/store/data")
 clerk_reason=$(curl -sI --max-time "$TIMEOUT" "$BASE_URL/api/store/data" | grep -i x-clerk-auth-reason | tr -d '\r')
-if [ "$code" = "400" ] || [ "$code" = "401" ] || echo "$clerk_reason" | grep -q 'protect-rewrite'; then
+if [ "$code" = "401" ] || echo "$clerk_reason" | grep -q 'protect-rewrite'; then
   pass "/api/store/data -> protected (route exists)"
+elif [ "$code" = "500" ]; then
+  fail "/api/store/data -> 500 (server error — check DB reachability on prod)"
 else
-  fail "/api/store/data -> $code (expected 400/401 or Clerk protect-rewrite)"
+  fail "/api/store/data -> $code (expected 401 or Clerk protect-rewrite)"
 fi
 
 # 8. Auth status endpoint (new)
@@ -120,12 +126,74 @@ else
   fail "/en/shop -> $code (expected 200, locale routes live)"
 fi
 
-# 10. CSP must include Clerk's accounts.dev (sign-in would be blocked otherwise)
-csp=$(curl -s -D - -o /dev/null --max-time "$TIMEOUT" "$BASE_URL/" | grep -i content-security-policy)
-if echo "$csp" | grep -q 'accounts.dev'; then
-  pass "CSP includes accounts.dev"
+# 10. CSP must be strict: script-src is nonce + strict-dynamic with NO
+# unsafe-inline/unsafe-eval (production build never uses eval). connect-src
+# must allow Clerk's accounts.dev wildcards AND the custom frontend API domain
+# (clerk.abumarketplace.shop — the wildcards do NOT cover it; a missing entry
+# blocks every Clerk fetch) plus challenges.cloudflare.com for Turnstile.
+csp=$(curl -s -D - -o /dev/null --max-time "$TIMEOUT" "$BASE_URL/" | grep -i content-security-policy | tr -d '\r')
+script_src=$(printf '%s\n' "$csp" | sed -n 's/.*script-src \([^;]*\).*/\1/p')
+connect_src=$(printf '%s\n' "$csp" | sed -n 's/.*connect-src \([^;]*\).*/\1/p')
+if printf '%s' "$script_src" | grep -q "'nonce-" && printf '%s' "$script_src" | grep -q 'strict-dynamic'; then
+  if printf '%s' "$script_src" | grep -q 'unsafe-inline\|unsafe-eval'; then
+    warn "CSP script-src still contains unsafe-inline or unsafe-eval (should be nonce + strict-dynamic only)"
+  else
+    pass "CSP script-src strict: nonce + strict-dynamic, no unsafe-inline/unsafe-eval"
+  fi
 else
-  warn "CSP header missing accounts.dev (check middleware.ts on prod)"
+  warn "CSP script-src missing nonce or strict-dynamic (check middleware.ts on prod)"
+fi
+if printf '%s' "$connect_src" | grep -q 'clerk.abumarketplace.shop' && printf '%s' "$connect_src" | grep -q 'accounts.dev' && printf '%s' "$connect_src" | grep -q 'accounts.abumarketplace.shop' && printf '%s' "$connect_src" | grep -q 'challenges.cloudflare.com'; then
+  pass "CSP connect-src includes Clerk (accounts.dev + clerk.abumarketplace.shop + accounts portal) + challenges.cloudflare.com"
+else
+  warn "CSP connect-src missing accounts.dev, clerk.abumarketplace.shop, accounts.abumarketplace.shop or challenges.cloudflare.com (check middleware.ts on prod)"
+fi
+
+# 11. Rate limiter enforcement — shared with the deploy workflow's explicit
+# gate step (see scripts/rate-limit-smoke.sh). Its exit 1 folds into the
+# battery's FAILURES; a WARN never blocks the deploy.
+if ! bash scripts/rate-limit-smoke.sh; then
+  FAILURES=$((FAILURES + 1))
+fi
+
+# 12. No prisma:error noise after the hammer. The smoke runner cannot read
+# Vercel's runtime logs, so the app exposes per-instance counters at
+# GET /api/health/prisma (see lib/prismaErrorCounters.js):
+#   { unexpectedPrismaErrors, suppressedRateLimitP2002 }
+# `unexpectedPrismaErrors` MUST stay 0 — the P2002-on-rollover noise was
+# removed by design (rateLimitStore.checkDb reset-before-create + the event
+# filter in lib/prisma.js), so any positive count here is a regression the
+# hammer above would have triggered. `suppressedRateLimitP2002` > 0 is
+# HEALTHY (the concurrent-create filter working). Fetch a few times because
+# serverless requests can land on different instances — the hammer pins one
+# warm instance, and we take the max unexpected count across fetches.
+pe_max_unexpected=0
+pe_suppressed=0
+pe_seen=0
+for i in 1 2 3 4 5; do
+  pe_body=$(mktemp)
+  pe_code=$(curl -s -o "$pe_body" -w '%{http_code}' --max-time "$TIMEOUT" "$BASE_URL/api/health/prisma")
+  if [ "$pe_code" = "200" ] && grep -q '"unexpectedPrismaErrors"' "$pe_body"; then
+    pe_seen=$((pe_seen + 1))
+    pe_unexpected=$(sed -n 's/.*"unexpectedPrismaErrors"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' "$pe_body")
+    pe_supp=$(sed -n 's/.*"suppressedRateLimitP2002"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p' "$pe_body")
+    if [ -n "$pe_unexpected" ] && [ "$pe_unexpected" -gt "$pe_max_unexpected" ]; then
+      pe_max_unexpected="$pe_unexpected"
+    fi
+    if [ -n "$pe_supp" ] && [ "$pe_supp" -gt "$pe_suppressed" ]; then
+      pe_suppressed="$pe_supp"
+    fi
+  fi
+  rm -f "$pe_body"
+done
+if [ "$pe_seen" -gt 0 ]; then
+  if [ "$pe_max_unexpected" -eq 0 ]; then
+    pass "/api/health/prisma -> 0 unexpected prisma errors after hammer (from $pe_seen instance fetch(es); suppressed rate-limit P2002: $pe_suppressed)"
+  else
+    fail "/api/health/prisma -> $pe_max_unexpected unexpected prisma:error event(s) after the hammer — rate-limit noise regression OR a genuine DB error; check Vercel runtime logs (if rate-limit noise: lib/prisma.js event filter + lib/services/rateLimitStore.js checkDb)"
+  fi
+else
+  warn "/api/health/prisma unreachable (route not live on this deployment yet?) — prisma-error-noise check skipped"
 fi
 
 echo

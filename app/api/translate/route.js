@@ -12,7 +12,7 @@ const MAX_TEXT_LENGTH = 5000;
 export async function POST(request) {
   try {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-    const rl = translateRateLimiter.check(ip);
+    const rl = await translateRateLimiter.check(ip);
     if (!rl.allowed) {
       return NextResponse.json({ error: "Too many translation requests. Please wait a moment." }, { status: 429 });
     }

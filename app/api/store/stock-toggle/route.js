@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { isValidId } from "@/lib/security";
+import { isValidId, storeActionRateLimiter } from "@/lib/security";
 import authSeller from "@/middlewares/authSeller";
 import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
@@ -19,6 +19,11 @@ export async function POST(request){
 
         if (!storeId) {
             return NextResponse.json({ error: 'not authorized' }, { status: 401 })
+        }
+
+        const rl = await storeActionRateLimiter.check(userId);
+        if (!rl.allowed) {
+            return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429, headers: { "Retry-After": String(rl.retryAfter || 600) } });
         }
 
         // check if product exists

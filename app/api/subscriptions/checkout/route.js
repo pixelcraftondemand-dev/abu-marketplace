@@ -3,7 +3,7 @@ import { z } from "zod";
 import Stripe from "stripe";
 import { getSessionFromRequest } from "@/lib/serverAuth";
 import { premiumTiers } from "@/lib/pricingPlans";
-import { getSafeOrigin } from "@/lib/security";
+import { getSafeOrigin, subscriptionCheckoutRateLimiter } from "@/lib/security";
 
 const checkoutSchema = z.object({
   tierId: z.enum(["explorer", "plus", "pro"]).default("plus"),
@@ -17,6 +17,12 @@ export async function POST(request) {
     const userId = session?.user?.id;
     if (!userId) {
       return NextResponse.json({ error: "not authorized" }, { status: 401 });
+    }
+
+    // Each request creates a real Stripe checkout session — bound per user.
+    const rl = await subscriptionCheckoutRateLimiter.check(userId);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429, headers: { "Retry-After": String(rl.retryAfter || 600) } });
     }
 
     const body = await request.json().catch(() => ({}));

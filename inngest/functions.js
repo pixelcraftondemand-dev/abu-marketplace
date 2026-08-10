@@ -120,3 +120,20 @@ export const deleteCouponOnExpiry = inngest.createFunction(
         })
     }
 )
+
+// Cron sweep for the distributed rate-limit table (rate_limit_entry). Rows are
+// fixed-window counters keyed by {namespace}:{identifier}; buckets older than
+// an hour can never be consulted again, so delete them to keep the table small.
+export const cleanupRateLimitEntries = inngest.createFunction(
+    {id: 'cleanup-rate-limit-entries'},
+    { cron: '*/15 * * * *' },
+    async () => {
+        const cutoff = new Date(Date.now() - 60 * 60 * 1000)
+        const { count } = await prisma.rateLimitEntry.deleteMany({
+            where: { windowStart: { lt: cutoff } }
+        })
+        if (count > 0) {
+            console.log(`[Inngest cleanup-rate-limit-entries] pruned ${count} stale rows`)
+        }
+    }
+)

@@ -25,7 +25,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "not authorized" }, { status: 401 });
     }
 
-    const rl = verificationSendRateLimiter.check(userId);
+    const rl = await verificationSendRateLimiter.check(userId);
     if (!rl.allowed) {
       return NextResponse.json(
         { error: "Too many requests. Please try again later." },

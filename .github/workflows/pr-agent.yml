@@ -1,0 +1,37 @@
+name: PR Agent
+
+# Automatic AI code review on every pull request (and every new push to it).
+# PR-Agent posts a /review comment with findings, security notes and a
+# summary. Configuration is optional via .pr_agent.toml at the repo root
+# (see https://github.com/The-PR-Agent/pr-agent).
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+# A new push supersedes the previous review run; only the latest head is
+# reviewed (saves LLM tokens on rapid iterations).
+concurrency:
+  group: pr-agent-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write # post review comments
+  issues: write # post summaries / handle slash-command replies
+
+jobs:
+  pr_agent_job:
+    name: Run PR Agent review
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Skip until the OPENAI_KEY secret is configured, so this check is never
+      # red before the secret exists (first push of this workflow). The secrets
+      # context is not allowed in `if:`, so it is mapped to step env instead.
+      # Pinned to the exact v0.42.0 commit (supply-chain safe; no @main).
+      - name: PR Agent action step
+        if: ${{ env.OPENAI_KEY != '' }}
+        uses: the-pr-agent/pr-agent@f6af7d77554ff8d26adffded077e6461329e92fa
+        env:
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

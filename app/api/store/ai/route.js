@@ -1,5 +1,5 @@
 import { getOpenAI } from "@/configs/openai";
-import { ALLOWED_IMAGE_TYPES, sanitizeText } from "@/lib/security";
+import { ALLOWED_IMAGE_TYPES, sanitizeText, storeAIRateLimiter } from "@/lib/security";
 import authSeller from "@/middlewares/authSeller";
 import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
@@ -62,6 +62,11 @@ export async function POST(request) {
         const storeId = await authSeller(userId);
         if (!storeId) {
             return NextResponse.json({ error: 'not authorized' }, { status: 401 })
+        }
+        // Each call invokes OpenAI vision — the most expensive endpoint in the app.
+        const rl = await storeAIRateLimiter.check(userId);
+        if (!rl.allowed) {
+            return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429, headers: { "Retry-After": String(rl.retryAfter || 600) } });
         }
         const { base64Image, mimeType } = await request.json();
         if(!ALLOWED_IMAGE_TYPES.includes(mimeType) || typeof base64Image !== "string" || base64Image.length > 7_000_000){

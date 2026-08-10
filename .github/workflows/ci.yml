@@ -16,6 +16,9 @@ concurrency:
 # Postgres binaries on EVERY `npm ci` — from cold caches on concurrent
 # runners this stalls indefinitely (observed: 40+ min hangs on Tests/Build).
 # npm 11 enforces allowScripts, blocking exactly those downloads.
+# Caveat: setup-node's cold-cache priming still runs `npm ci` with the
+# runner's npm 10 (which ignores allowScripts), so only the explicit per-run
+# `npm ci` below is fully covered by the pin.
 env:
   PUPPETEER_SKIP_DOWNLOAD: "true"
   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
@@ -30,8 +33,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          npm-version: 11
           cache: npm
+      # setup-node@v4 has no `npm-version` input (GitHub silently ignored it),
+      # so npm 11 was never actually active. Pin it explicitly: npm >= 11.5 is
+      # what enforces the allowScripts allowlist that blocks the puppeteer /
+      # embedded-postgres binary downloads during `npm ci` (the hang fix).
+      - name: Pin npm 11 (allowScripts enforcement)
+        run: npm install -g npm@11 --no-audit --no-fund
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Run ESLint
@@ -46,8 +54,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          npm-version: 11
           cache: npm
+      # setup-node@v4 has no `npm-version` input (GitHub silently ignored it),
+      # so npm 11 was never actually active. Pin it explicitly: npm >= 11.5 is
+      # what enforces the allowScripts allowlist that blocks the puppeteer /
+      # embedded-postgres binary downloads during `npm ci` (the hang fix).
+      - name: Pin npm 11 (allowScripts enforcement)
+        run: npm install -g npm@11 --no-audit --no-fund
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Run tsc --noEmit
@@ -62,12 +75,53 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          npm-version: 11
           cache: npm
+      # setup-node@v4 has no `npm-version` input (GitHub silently ignored it),
+      # so npm 11 was never actually active. Pin it explicitly: npm >= 11.5 is
+      # what enforces the allowScripts allowlist that blocks the puppeteer /
+      # embedded-postgres binary downloads during `npm ci` (the hang fix).
+      - name: Pin npm 11 (allowScripts enforcement)
+        run: npm install -g npm@11 --no-audit --no-fund
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Run unit & API tests
         run: npm test
+
+  migration-guard:
+    name: Migration guard (changed SQL files)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # PRs only: guards NEW/changed files under supabase/migrations/ so
+    # destructive or unrecognized SQL cannot land on main. Pushes to main were
+    # already reviewed in their PR; the deploy pipeline additionally guards the
+    # live schema delta before applying it. Legacy migrations that predate the
+    # guard (conditional DO $$ blocks) are never checked because only files
+    # changed in the PR are examined.
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # No npm ci needed: lib/migrationGuard.mjs is dependency-free.
+      - name: Guard changed migration files
+        run: |
+          set -euo pipefail
+          BASE="${{ github.event.pull_request.base.sha }}"
+          CHANGED=$(git diff --name-only "$BASE...HEAD" -- supabase/migrations/ || true)
+          if [ -z "$CHANGED" ]; then
+            echo "No migration files changed — nothing to guard."
+            exit 0
+          fi
+          FAILED=0
+          for f in $CHANGED; do
+            if node lib/migrationGuard.mjs "$f"; then
+              echo "  PASS  $f"
+            else
+              echo "::error::Migration guard rejected $f (destructive or unrecognized SQL)."
+              FAILED=1
+            fi
+          done
+          exit "$FAILED"
 
   build:
     name: Build (next build)
@@ -78,9 +132,46 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          npm-version: 11
           cache: npm
+      # setup-node@v4 has no `npm-version` input (GitHub silently ignored it),
+      # so npm 11 was never actually active. Pin it explicitly: npm >= 11.5 is
+      # what enforces the allowScripts allowlist that blocks the puppeteer /
+      # embedded-postgres binary downloads during `npm ci` (the hang fix).
+      - name: Pin npm 11 (allowScripts enforcement)
+        run: npm install -g npm@11 --no-audit --no-fund
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Run production build
         run: npm run build
+
+  workflow-lint:
+    name: Workflow lint (actionlint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # GitHub silently ignores unknown action inputs (the removed `npm-version`
+    # on setup-node@v4 was a real example) and workflow YAML errors can live
+    # in CI forever without this. actionlint validates inputs, expressions and
+    # permissions, and shellcheck-checks `run:` blocks — so a broken workflow
+    # fails the PR instead of silently shipping.
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install actionlint (pinned v1.7.12)
+        run: |
+          set -euo pipefail
+          # Linux assets are .tar.gz (only Windows ships .zip) — the earlier
+          # .zip URL 404'd and silently saved an HTML page, failing unzip.
+          # --fail + --retry-all-errors turn any download problem into a
+          # loud, retried failure instead of a confusing one.
+          curl --fail --location --retry 5 --retry-all-errors --retry-delay 3 -sS \
+            -o /tmp/actionlint.tar.gz \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          tar -xzf /tmp/actionlint.tar.gz -C /tmp
+          chmod +x /tmp/actionlint
+          /tmp/actionlint -version
+      - name: Lint all workflow files
+        run: |
+          # nullglob: an unmatched glob expands to nothing instead of staying
+          # literal, so a repo with only .yml files doesn't hand actionlint a
+          # bogus ".github/workflows/*.yaml" path (exit 3).
+          shopt -s nullglob
+          /tmp/actionlint .github/workflows/*.yml .github/workflows/*.yaml

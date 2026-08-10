@@ -28,7 +28,7 @@ export async function GET(request) {
       return NextResponse.json({ error: "not authorized" }, { status: 401 });
     }
 
-    const rl = paymentStatusRateLimiter.check(userId);
+    const rl = await paymentStatusRateLimiter.check(userId);
     if (!rl.allowed) {
       return NextResponse.json(
         { error: "Too many requests. Please wait a moment and try again." },

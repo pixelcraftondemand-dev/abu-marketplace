@@ -13,7 +13,7 @@ export async function POST(request){
             return NextResponse.json({error: "Unauthorized"}, { status: 401 })
         }
 
-        const rl = ratingRateLimiter.check(userId)
+        const rl = await ratingRateLimiter.check(userId)
         if (!rl.allowed) {
             return NextResponse.json(
                 { error: "Too many ratings. Please wait a moment and try again." },

@@ -43,7 +43,7 @@ function isAllowedPdfUrl(raw) {
 export async function POST(request) {
   const ip =
     request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const rl = pdfRateLimiter.check(ip);
+  const rl = await pdfRateLimiter.check(ip);
   if (!rl.allowed) {
     return NextResponse.json({ error: "Too many requests." }, { status: 429 });
   }
