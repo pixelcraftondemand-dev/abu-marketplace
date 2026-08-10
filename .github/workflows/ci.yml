@@ -16,6 +16,9 @@ concurrency:
 # Postgres binaries on EVERY `npm ci` — from cold caches on concurrent
 # runners this stalls indefinitely (observed: 40+ min hangs on Tests/Build).
 # npm 11 enforces allowScripts, blocking exactly those downloads.
+# Caveat: setup-node's cold-cache priming still runs `npm ci` with the
+# runner's npm 10 (which ignores allowScripts), so only the explicit per-run
+# `npm ci` below is fully covered by the pin.
 env:
   PUPPETEER_SKIP_DOWNLOAD: "true"
   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
@@ -30,8 +33,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          npm-version: 11
           cache: npm
+      # setup-node@v4 has no `npm-version` input (GitHub silently ignored it),
+      # so npm 11 was never actually active. Pin it explicitly: npm >= 11.5 is
+      # what enforces the allowScripts allowlist that blocks the puppeteer /
+      # embedded-postgres binary downloads during `npm ci` (the hang fix).
+      - name: Pin npm 11 (allowScripts enforcement)
+        run: npm install -g npm@11 --no-audit --no-fund
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Run ESLint
@@ -46,8 +54,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          npm-version: 11
           cache: npm
+      # setup-node@v4 has no `npm-version` input (GitHub silently ignored it),
+      # so npm 11 was never actually active. Pin it explicitly: npm >= 11.5 is
+      # what enforces the allowScripts allowlist that blocks the puppeteer /
+      # embedded-postgres binary downloads during `npm ci` (the hang fix).
+      - name: Pin npm 11 (allowScripts enforcement)
+        run: npm install -g npm@11 --no-audit --no-fund
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Run tsc --noEmit
@@ -62,8 +75,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          npm-version: 11
           cache: npm
+      # setup-node@v4 has no `npm-version` input (GitHub silently ignored it),
+      # so npm 11 was never actually active. Pin it explicitly: npm >= 11.5 is
+      # what enforces the allowScripts allowlist that blocks the puppeteer /
+      # embedded-postgres binary downloads during `npm ci` (the hang fix).
+      - name: Pin npm 11 (allowScripts enforcement)
+        run: npm install -g npm@11 --no-audit --no-fund
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Run unit & API tests
@@ -114,9 +132,35 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          npm-version: 11
           cache: npm
+      # setup-node@v4 has no `npm-version` input (GitHub silently ignored it),
+      # so npm 11 was never actually active. Pin it explicitly: npm >= 11.5 is
+      # what enforces the allowScripts allowlist that blocks the puppeteer /
+      # embedded-postgres binary downloads during `npm ci` (the hang fix).
+      - name: Pin npm 11 (allowScripts enforcement)
+        run: npm install -g npm@11 --no-audit --no-fund
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Run production build
         run: npm run build
+
+  workflow-lint:
+    name: Workflow lint (actionlint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # GitHub silently ignores unknown action inputs (the removed `npm-version`
+    # on setup-node@v4 was a real example) and workflow YAML errors can live
+    # in CI forever without this. actionlint validates inputs, expressions and
+    # permissions, and shellcheck-checks `run:` blocks — so a broken workflow
+    # fails the PR instead of silently shipping.
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install actionlint (pinned v1.7.12)
+        run: |
+          set -euo pipefail
+          curl -sSL -o /tmp/actionlint.zip \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.zip
+          unzip -q /tmp/actionlint.zip -d /tmp/actionlint
+          chmod +x /tmp/actionlint/actionlint
+      - name: Lint all workflow files
+        run: /tmp/actionlint/actionlint .github/workflows/{*.yml,*.yaml}

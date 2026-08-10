@@ -71,8 +71,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          npm-version: 11
           cache: npm
+
+      # setup-node@v4 has no `npm-version` input (silently ignored before),
+      # so npm 11 was never active. Pin it explicitly so npm >= 11.5 enforces
+      # the allowScripts allowlist (blocks puppeteer/embedded-postgres binary
+      # downloads during `npm ci` — the CI hang fix).
+      - name: Pin npm 11 (allowScripts enforcement)
+        run: npm install -g npm@11 --no-audit --no-fund
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
