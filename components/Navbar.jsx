@@ -31,6 +31,7 @@ const navLinkDefs = [
   { href: "/", labelKey: "nav.home" },
   { href: "/shop", labelKey: "nav.shop" },
   { href: "/collections", labelKey: "nav.collections" },
+  { href: "/services", labelKey: "nav.services" },
   { href: "/store", labelKey: "nav.store" },
   { href: "/about", labelKey: "nav.about" },
 ];

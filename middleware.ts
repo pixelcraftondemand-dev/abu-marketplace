@@ -219,6 +219,13 @@ const isProtectedRoute = createRouteMatcher([
   "/api/admin(.*)",
 ]);
 
+// Public read-only storefront endpoint (used by /shop/[username] WITHOUT auth).
+// Clerk's protect() would rewrite it to its interstitial HTML instead of
+// returning JSON — breaking the public store profile page with a load-time
+// error. The seller-management endpoints under /api/store/* protect
+// themselves internally via authSeller, so only this one needs the exemption.
+const isPublicStoreDataRoute = createRouteMatcher(["/api/store/data"]);
+
 const isPublicApiRoute = createRouteMatcher([
   "/api/products(.*)",
   "/api/shop(.*)",
@@ -376,6 +383,7 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
   }
 
   if (
+    !isPublicStoreDataRoute(req) &&
     isProtectedRoute({ ...req, nextUrl: new URL(`http://localhost${routePath}`) } as NextRequest)
   ) {
     await auth.protect();

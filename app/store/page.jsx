@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import axios from "axios";
-import toast from "react-hot-toast";
 import CurrencyAmount from '@/components/CurrencyAmount'
 import {
   Search,
@@ -15,6 +14,7 @@ import {
   Star,
   Heart,
   ArrowUpDown,
+  RotateCcw,
   X,
   ChevronDown,
 } from "lucide-react";
@@ -49,6 +49,8 @@ function ShopPageContent() {
   const [viewMode, setViewMode] = useState("grid"); // grid | list
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   const searchQuery = searchParams.get("search") || "";
   const categoryFilter = searchParams.get("category") || "";
@@ -58,6 +60,7 @@ function ShopPageContent() {
     const fetchProducts = async () => {
       try {
         setLoading(true);
+        setLoadError(false);
         const params = new URLSearchParams();
         if (searchQuery) params.set("search", searchQuery);
         if (categoryFilter) params.set("category", categoryFilter);
@@ -66,13 +69,15 @@ function ShopPageContent() {
         const res = await axios.get(`/api/products?${params.toString()}`);
         setProducts(res.data.products || []);
       } catch (err) {
-        toast.error("Failed to load products");
+        // Temporary API failure — show the inline retry panel instead of
+        // leaving the page empty with only a toast.
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
     };
     fetchProducts();
-  }, [searchQuery, categoryFilter, sortBy]);
+  }, [searchQuery, categoryFilter, sortBy, retryCount]);
 
   const updateFilter = (key, value) => {
     const params = new URLSearchParams(searchParams);
@@ -276,7 +281,20 @@ function ShopPageContent() {
 
       {/* ─── Product Grid — Etsy Discovery + Shopify Clean ─── */}
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
-        {products.length === 0 ? (
+        {loadError ? (
+          <div className="text-center py-24">
+            <p className="font-display text-2xl text-[#1A1A1A] mb-2">Failed to load products</p>
+            <p className="text-[#9B9590] mb-8">We couldn&apos;t load products right now. Please try again.</p>
+            <button
+              type="button"
+              onClick={() => setRetryCount((count) => count + 1)}
+              className="inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#C9A96E]"
+            >
+              <RotateCcw size={16} />
+              Retry
+            </button>
+          </div>
+        ) : products.length === 0 ? (
           <div className="text-center py-24">
             <p className="font-display text-2xl text-[#1A1A1A] mb-2">No products found</p>
             <p className="text-[#9B9590]">Try adjusting your search or filters</p>

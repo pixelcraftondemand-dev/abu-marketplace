@@ -6,7 +6,6 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import axios from "axios";
-import toast from "react-hot-toast";
 import { useSelector } from 'react-redux'
 import CurrencyAmount from '@/components/CurrencyAmount'
 import { useTranslation } from '@/lib/i18n'
@@ -18,6 +17,7 @@ import {
   Star,
   Heart,
   ArrowUpDown,
+  RotateCcw,
   X,
   ChevronDown,
 } from "lucide-react";
@@ -55,6 +55,8 @@ function ShopPageContent() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loadError, setLoadError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const { t } = useTranslation();
 
   const searchQuery = searchParams.get("search") || "";
@@ -72,6 +74,7 @@ function ShopPageContent() {
     const fetchProducts = async () => {
       try {
         setLoading(true);
+        setLoadError(false);
         const params = new URLSearchParams();
         if (searchQuery) params.set("search", searchQuery);
         if (categoryFilter) params.set("category", categoryFilter);
@@ -80,13 +83,15 @@ function ShopPageContent() {
         const res = await axios.get(`/api/products?${params.toString()}`);
         setProducts(res.data.products || []);
       } catch (err) {
-        toast.error(t('shop.failedToLoad'));
+        // Temporary API failure — show the inline retry panel instead of
+        // leaving the page empty with only a toast.
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
     };
     fetchProducts();
-  }, [searchQuery, categoryFilter, sortBy]);
+  }, [searchQuery, categoryFilter, sortBy, retryCount]);
 
   const updateFilter = (key, value) => {
     const params = new URLSearchParams(searchParams);
@@ -181,7 +186,7 @@ function ShopPageContent() {
             <div className="flex items-center gap-4">
               {/* Results count */}
               <span className="hidden sm:block text-sm text-[#9B9590]">
-                {t('shop.results', { count: displayedProducts.length })}
+                {t('shop.results', { count: loadError ? 0 : displayedProducts.length })}
               </span>
 
               {/* Sort Dropdown */}
@@ -238,7 +243,7 @@ function ShopPageContent() {
         </div>
 
         {/* Active Filters */}
-        {showFallbackProducts && (
+        {!loadError && showFallbackProducts && (
           <div className="max-w-7xl mx-auto px-6 lg:px-8 pb-3">
             <div className="rounded-3xl border border-[#E8E2DB] bg-[#FFF9EB] p-5 text-sm text-[#655a3f]">
               <strong className="block font-semibold text-[#1A1A1A] mb-1">{t('shop.sampleProducts')}</strong>
@@ -325,7 +330,20 @@ function ShopPageContent() {
           </div>
         )}
 
-        {displayedProducts.length === 0 ? (
+        {loadError ? (
+          <div className="text-center py-24">
+            <p className="font-display text-2xl text-[#1A1A1A] mb-2">{t('shop.failedToLoad')}</p>
+            <p className="text-[#9B9590] mb-8">{t('shop.retryText')}</p>
+            <button
+              type="button"
+              onClick={() => setRetryCount((count) => count + 1)}
+              className="inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#C9A96E]"
+            >
+              <RotateCcw size={16} />
+              {t('shop.retry')}
+            </button>
+          </div>
+        ) : displayedProducts.length === 0 ? (
           <div className="text-center py-24">
             <p className="font-display text-2xl text-[#1A1A1A] mb-2">{t('shop.noProductsFound')}</p>
             <p className="text-[#9B9590]">{t('shop.tryAdjusting')}</p>

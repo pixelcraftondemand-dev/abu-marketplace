@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import axios from "axios";
-import toast from "react-hot-toast";
 import Image from "next/image";
 import Link from "next/link";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import CurrencyAmount from '@/components/CurrencyAmount'
 import { useTranslation } from '@/lib/i18n'
 import {
@@ -25,32 +24,43 @@ import {
 import Loading from "@/components/Loading";
 
 export default function ProductDetailPage() {
-  const { id } = useParams();
-  const router = useRouter();
+  const { productId } = useParams();
   const dispatch = useDispatch();
   const { t } = useTranslation();
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [liked, setLiked] = useState(false);
   const [activeTab, setActiveTab] = useState("description");
 
   useEffect(() => {
+    if (!productId) return;
+
     const fetchProduct = async () => {
+      setLoading(true);
+      setLoadError(false);
+      setNotFound(false);
       try {
-        const res = await axios.get(`/api/products/${id}`);
+        const res = await axios.get(`/api/products/${productId}`);
         setProduct(res.data.product);
       } catch (err) {
-        toast.error(t('productPage.productNotFound'));
-        router.push("/shop");
+        // 4xx means the product genuinely doesn't exist — no point retrying.
+        if (err?.response?.status && err.response.status >= 400 && err.response.status < 500) {
+          setNotFound(true);
+        } else {
+          setLoadError(true);
+        }
       } finally {
         setLoading(false);
       }
     };
     fetchProduct();
-  }, [id, router]);
+  }, [productId, retryCount]);
 
   const handleAddToCart = () => {
     dispatch({ type: "cart/add", payload: { ...product, quantity } });
@@ -64,9 +74,61 @@ export default function ProductDetailPage() {
   };
 
   if (loading) return <Loading />;
+
+  // Unknown/invalid product (4xx) — show a clear dead-link state.
+  if (notFound) {
+    return (
+      <main className="min-h-screen bg-[#FAF8F5] flex items-center justify-center px-6">
+        <div className="max-w-md w-full text-center py-20">
+          <h1 className="font-display text-2xl text-[#1A1A1A] font-medium mb-2">
+            {t('productPage.productNotFound')}
+          </h1>
+          <p className="text-sm text-[#6B6560] leading-relaxed mb-8">
+            {t('productPage.notFoundText')}
+          </p>
+          <Link
+            href="/shop"
+            className="inline-flex items-center gap-2 bg-[#1A1A1A] text-white px-8 py-3.5 text-sm font-medium tracking-wide uppercase transition hover:bg-[#C9A96E]"
+          >
+            {t('productPage.continueShopping')}
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  // A failed load keeps the user on the page with a clear retry action
+  // instead of a fleeting toast + redirect to a blank shop.
+  if (loadError) {
+    return (
+      <main className="min-h-screen bg-[#FAF8F5] flex items-center justify-center px-6">
+        <div className="max-w-md w-full text-center py-20">
+          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[#F5F0EB]">
+            <RotateCcw size={28} className="text-[#C9A96E]" />
+          </div>
+          <h1 className="font-display text-2xl text-[#1A1A1A] font-medium mb-2">
+            {t('productPage.loadFailed')}
+          </h1>
+          <p className="text-sm text-[#6B6560] leading-relaxed mb-8">
+            {t('productPage.loadFailedText')}
+          </p>
+          <button
+            onClick={() => setRetryCount((n) => n + 1)}
+            className="inline-flex items-center gap-2 bg-[#1A1A1A] text-white px-8 py-3.5 text-sm font-medium tracking-wide uppercase transition hover:bg-[#C9A96E]"
+          >
+            <RotateCcw size={15} />
+            {t('productPage.retry')}
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   if (!product) return null;
 
-  const images = product.images || [product.image];
+  const images = Array.isArray(product.images) && product.images.length
+    ? product.images
+    : [product.image];
   const relatedProducts = product.related || [];
 
   return (

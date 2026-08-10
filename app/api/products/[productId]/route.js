@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 
 import prisma from '@/lib/prisma'
 import { isValidId } from '@/lib/security'
+import { normalizeImages } from '@/lib/productUtils'
 import { NextResponse } from 'next/server'
 
 export async function GET(request, { params }) {
@@ -53,6 +54,9 @@ export async function GET(request, { params }) {
     return NextResponse.json({
       product: {
         ...product,
+        // Prisma's Json column may return a JSON-encoded string when legacy
+        // writers stored `JSON.stringify(...)` — always hand clients a real array.
+        images: normalizeImages(product.images),
         rating: averageRating,
         reviewCount,
         originalPrice: product.mrp,

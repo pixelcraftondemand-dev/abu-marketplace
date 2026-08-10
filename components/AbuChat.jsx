@@ -43,6 +43,13 @@ export default function AbuChat() {
       const reply = data.reply || data.error || "Sorry, something went wrong.";
       if (data.ticketId) setTicketId(data.ticketId);
       if (data.accessToken) setAccessToken(data.accessToken);
+      if (!res.ok) {
+        // 503 = AI provider unavailable (the reply already explains and the
+        // ticket still exists, so escalation works). 429 = app rate limit.
+        const prefix = res.status === 503 ? "" : "Sorry — ";
+        setMessages((m) => [...m, { from: "abu", text: `${prefix}${reply}.` }]);
+        return;
+      }
       setMessages((m) => [...m, { from: "abu", text: reply }]);
     } catch (e) {
       console.error(e);

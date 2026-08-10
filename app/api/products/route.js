@@ -1,6 +1,7 @@
 export const runtime = "nodejs";
 
 import prisma from "@/lib/prisma";
+import { normalizeImages } from "@/lib/productUtils";
 import { NextResponse } from "next/server";
 
 function averageRating(product) {
@@ -87,7 +88,14 @@ export async function GET(request) {
       return true;
     });
 
-    return NextResponse.json({ products: sortProducts(filtered, sort) });
+    return NextResponse.json({
+      // Prisma's Json column may return a JSON-encoded string when legacy
+      // writers stored `JSON.stringify(...)` — always hand clients a real array.
+      products: sortProducts(filtered, sort).map((product) => ({
+        ...product,
+        images: normalizeImages(product.images),
+      })),
+    });
   } catch (error) {
     console.error(`[GET /api/products] requestId=${requestId}`, {
       message: error instanceof Error ? error.message : String(error),

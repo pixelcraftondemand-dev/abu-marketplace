@@ -7,6 +7,7 @@ import LatestProducts from "@/components/LatestProducts";
 import MarketplaceHighlights from "@/components/MarketplaceHighlights";
 import FlashDealsSection from "@/components/FlashDealsSection";
 import HalalCertifiedSection from "@/components/HalalCertifiedSection";
+import ForHireSection from "@/components/ForHireSection";
 
 export default function Home() {
     return (
@@ -17,6 +18,7 @@ export default function Home() {
             <LatestProducts />
             <MarketplaceHighlights />
             <BestSelling />
+            <ForHireSection />
             <OurSpecs />
             <Newsletter />
         </div>

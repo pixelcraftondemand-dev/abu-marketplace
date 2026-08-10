@@ -25,6 +25,14 @@ export default function Footer() {
       ],
     },
     {
+      title: t("footer.hire"),
+      links: [
+        { text: t("services.footerBrowse"), href: "/services" },
+        { text: t("services.footerRequest"), href: "/services#request-a-worker" },
+        { text: t("services.footerListService"), href: "/services#list-your-service" },
+      ],
+    },
+    {
       title: t("footer.support"),
       links: [
         { text: t("footer.helpCenter"), href: "/help" },
@@ -45,7 +53,7 @@ export default function Footer() {
   return (
     <footer className="bg-[#1A1A1A] text-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
-        <div className="grid gap-10 xl:grid-cols-[1.35fr_repeat(3,1fr)]">
+        <div className="grid gap-10 xl:grid-cols-[1.35fr_repeat(4,1fr)]">
           <div>
             <div className="mb-6">
               <BrandLogo

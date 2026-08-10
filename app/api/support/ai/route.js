@@ -102,11 +102,40 @@ export async function POST(request) {
       { role: "user", content: message },
     ];
 
-    const response = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-      messages,
-      max_tokens: 600,
-    });
+    let response;
+    try {
+      response = await openai.chat.completions.create({
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+        messages,
+        max_tokens: 600,
+      });
+    } catch (aiError) {
+      // The AI provider is down, rate-limited (429) or misconfigured. The chat
+      // must degrade gracefully: tell the customer the assistant is unavailable
+      // and point them at human support instead of a raw 500.
+      const isRateLimited = aiError?.status === 429 || aiError?.status === 402;
+      if (isRateLimited || aiError?.status === 401 || aiError?.status === 403) {
+        console.error("[POST /api/support/ai] provider rejected the request", {
+          status: aiError.status,
+          message: aiError.message,
+        });
+        return NextResponse.json(
+          {
+            reply: "I'm having trouble reaching my AI provider right now (rate limit or quota). Your message was saved to our support ticket — please escalate to human support or try again in a few minutes.",
+            aiUnavailable: true,
+            ticketId,
+            accessToken: ticketAccessToken,
+          },
+          { status: 503 }
+        );
+      }
+      // Anything else (network blips, provider 5xx) — report it, do not crash.
+      console.error("[POST /api/support/ai] provider error", {
+        status: aiError?.status,
+        message: aiError instanceof Error ? aiError.message : String(aiError),
+      });
+      throw aiError;
+    }
 
     const reply = response.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
 
