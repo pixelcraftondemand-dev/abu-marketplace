@@ -247,6 +247,12 @@ npx prisma migrate diff \
 
 ```bash
 B=https://www.abumarketplace.shop
+
+# CANONICAL — the full smoke battery (the exact checks the deploy pipeline
+# runs post-deploy). Exit 0 = all hard checks pass, incl. the rate-limiter
+# gate (#11) and the prisma-noise check (#12).
+BASE_URL="$B" bash scripts/prod-smoke.sh
+
 curl -s  $B/api/health                     # {"ok":true}
 curl -s  $B/api/products                   # 200 {"products":[...]}   <-- was 500
 curl -s  $B/api/products?sort=featured     # 200
@@ -259,28 +265,32 @@ curl -s  $B/api/store/data                 # 400 missing username (was 404)
 curl -s -o /dev/null -w '%{http_code}' $B/en/shop     # 200 (locale routes live)
 curl -s -o /dev/null -w '%{http_code}' $B/api/auth/status  # 401 (endpoint exists)
 
-# Rate limiter: hammer /api/exchange with an isolated IP (limiter runs before
-# currency validation, so the invalid base costs no upstream API call).
-# Expect ~60 non-429 responses, then 429 with Retry-After.
-for i in $(seq 1 62); do
-  code=$(curl -s -o /dev/null -w '%{http_code}' -H 'x-forwarded-for: 198.51.100.99' "$B/api/exchange?base=NOTREAL")
-  [ "$code" = "429" ] && echo "429 after $i requests" && break
-done
-curl -s -D - -H 'x-forwarded-for: 198.51.100.99' "$B/api/exchange?base=NOTREAL" | head -2
-# HTTP/1.1 429 Too Many Requests  +  retry-after: N
+# Rate limiter — CANONICAL check: scripts/rate-limit-smoke.sh hammers
+# /api/exchange from TEST-NET IP 198.51.100.99 with base=NOTREAL (the limiter
+# runs before currency validation, so each hit is a fast 400 with zero
+# upstream OER cost) and asserts a 429 with Retry-After after ~60 hits in one
+# fixed 60s window. It loops to 125 so a window-boundary roll can't false-
+# fail. Exit 0 = PASS or WARN, exit 1 = FAIL. This is the same gate the
+# deploy pipeline runs — no need to hand-roll the loop.
+bash scripts/rate-limit-smoke.sh
+# expect: PASS /api/exchange -> 429 after ~61 hits (rate limiter enforcing, Retry-After: N)
+# (if a run in the same 60s window already exhausted the bucket it PASSes on
+#  hit 1 — that additionally proves the shared counter persisted.)
 
-# Prisma log-noise: after the hammer, assert ZERO unexpected prisma:error
-# events. The smoke runner cannot read Vercel's runtime logs, so the app
-# exposes per-instance counters at GET /api/health/prisma
-# (lib/prismaErrorCounters.js): { unexpectedPrismaErrors, suppressedRateLimitP2002 }.
-# `suppressedRateLimitP2002` > 0 is the expected concurrent-create filter
-# working; `unexpectedPrismaErrors` must stay 0.
+# Prisma log-noise: assert ZERO unexpected prisma:error events after the
+# hammer (canonical: check #12 inside scripts/prod-smoke.sh). Directly, the
+# app exposes per-instance counters at GET /api/health/prisma
+# (lib/prismaErrorCounters.js): `suppressedRateLimitP2002` > 0 is the
+# expected concurrent-create filter working; `unexpectedPrismaErrors` must
+# stay 0.
 curl -s "$B/api/health/prisma"
 # {"unexpectedPrismaErrors":0,"suppressedRateLimitP2002":0|N}
 ```
 
-> Smoke check #11 (429 hammer) + #12 (zero unexpected prisma errors after the
-> hammer) run automatically in the deploy pipeline's smoke job.
+> **Canonical:** the rate-limiter gate (`scripts/rate-limit-smoke.sh`) and the
+> full battery (`BASE_URL="$B" bash scripts/prod-smoke.sh`, checks #11 + #12)
+> run automatically in the deploy pipeline's smoke job — prefer them over
+> hand-rolled curls.
 
 - [ ] **Browser:** sign in with Google as a new user → expect redirect to `/verify-email`, an OTP email arrives, entering the code unlocks the site. Verify the "Clerk has been loaded with development keys" warning is gone from the console.
 - [ ] **Browser:** wishlist → sign-in redirect does NOT throw a CSP "Refused to connect" error.
