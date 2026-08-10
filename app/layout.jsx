@@ -92,6 +92,7 @@ export const viewport = {
 export default async function RootLayout({ children }) {
   let locale = defaultLocale
   let lang = 'en'
+  let nonce = ''
   try {
     const cookieStore = await cookies()
     const headerStore = await headers()
@@ -100,6 +101,11 @@ export default async function RootLayout({ children }) {
     const localeCode = cookieLang || preferred
     locale = supportedLocales.includes(localeCode) ? localeCode : defaultLocale
     lang = locale
+    // Per-request CSP nonce set by middleware.ts. Next.js nonces its own
+    // inline scripts automatically; we forward it so ClerkProvider dynamic
+    // renders Clerk's <script> tag with the same nonce and the JSON-LD data
+    // block below is bulletproof across browsers.
+    nonce = headerStore.get('x-nonce') || ''
   } catch (e) {
     locale = defaultLocale
     lang = defaultLocale
@@ -126,6 +132,7 @@ export default async function RootLayout({ children }) {
         <meta name="format-detection" content="telephone=no" />
         <script
           type="application/ld+json"
+          nonce={nonce || undefined}
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
@@ -145,6 +152,7 @@ export default async function RootLayout({ children }) {
       <body className={`${inter.className} antialiased`}>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ClerkProvider
+          dynamic
           publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
           appearance={{
             elements: {

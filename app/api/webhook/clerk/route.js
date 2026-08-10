@@ -1,8 +1,18 @@
 import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { inngest } from "@/inngest/client";
+import { clerkWebhookRateLimiter } from "@/lib/security";
+import { hashIp } from "@/lib/paymentLog";
 
 export async function POST(request) {
+    // Signature verification is the real gate, but a generous per-IP limit
+    // stops replay/flood abuse of the Inngest dispatch.
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const rl = await clerkWebhookRateLimiter.check(hashIp(ip));
+    if (!rl.allowed) {
+        return new Response("Too many requests", { status: 429, headers: { "Retry-After": String(rl.retryAfter || 600) } });
+    }
+
     const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
     if (!WEBHOOK_SECRET) {

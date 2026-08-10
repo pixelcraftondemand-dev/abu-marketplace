@@ -13,7 +13,7 @@ export async function POST(request) {
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     const session = await getSessionFromRequest();
     const userId = session?.user?.id || null;
-    const rl = supportAIRateLimiter.check(userId || ip);
+    const rl = await supportAIRateLimiter.check(userId || ip);
     if (!rl.allowed) {
       return NextResponse.json({ error: "Too many messages. Please wait a moment." }, { status: 429 });
     }

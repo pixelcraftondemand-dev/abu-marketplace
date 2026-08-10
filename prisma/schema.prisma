@@ -381,3 +381,19 @@ model WalletTransaction {
   @@index([userId])
   @@map("wallet_transaction")
 }
+
+// ─── Rate limiting ────────────────────────────────────────────────────────────
+// Distributed fixed-window counters shared across serverless instances (the
+// in-memory Maps are single-instance only). Key = "{namespace}:{identifier}".
+// Rows are short-lived and swept by the Inngest cleanup job.
+model RateLimitEntry {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  windowStart DateTime
+  count       Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([windowStart])
+  @@map("rate_limit_entry")
+}

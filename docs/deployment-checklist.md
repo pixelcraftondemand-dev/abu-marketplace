@@ -5,14 +5,14 @@
 > **Status (2026-08-08 evening):** commits `9c1c801` + `88be23a` are pushed and
 > the new build is LIVE; the prod Supabase DB is fully synced (zero drift). The
 > only remaining catalog blocker is the Vercel `DATABASE_URL` env var (step 3).
-> Tests: 41 files / 351 passing.
+> Tests: 44 files / 370 passing.
 
 ---
 
 ## 0. Pre-flight
 
 - [ ] `git status --short` shows the working tree changes below (nothing staged yet).
-- [ ] `npx vitest run` passes (currently **40 files / 341 tests**).
+- [ ] `npx vitest run` passes (currently **44 files / 370 tests**).
 - [ ] `npm run build` passes locally **before** pushing (Prisma client must generate with the Postgres schema — see step 2).
 - [ ] You have access to the Vercel project env vars and the Supabase SQL editor / direct DB URL.
 
@@ -70,21 +70,98 @@ The deployed build is stale (missing routes return 404, old CSP, empty catalog).
 > now requires an `access_key`. Set `OPEN_EXCHANGE_RATES_APP_ID` (step 3) or the
 > rates stay permanently stale.
 
-### E. CSP — Clerk `accounts.dev` + custom frontend API domain + locale routing
+### E. CSP — strict nonce-based policy (no `unsafe-inline`/`unsafe-eval` in script-src)
 | File | Change |
 |---|---|
-| `middleware.ts` | CSP `connect-src`/`frame-src`/`script-src` now include `https://*.accounts.dev` **and the custom Clerk frontend API domain `https://clerk.abumarketplace.shop`** (+ `wss://clerk.abumarketplace.shop`); locale rewrite + non-localized prefixes |
+| `middleware.ts` | CSP rebuilt around a **per-request nonce**: `script-src 'self' 'nonce-…' 'strict-dynamic' https://clerk.abumarketplace.shop https://challenges.cloudflare.com` (no `unsafe-inline`, no `unsafe-eval` in prod — dev adds `unsafe-eval` only). CSP + `x-nonce` are forwarded as **request headers** so Next.js nonces its inline scripts and `<ClerkProvider dynamic>` nonces Clerk's script tag. `connect-src`/`frame-src` keep `https://*.accounts.dev` + the custom FAPI `https://clerk.abumarketplace.shop` (+ `wss:`) plus Clerk's Accounts portal `https://accounts.abumarketplace.shop` (`createRedirect` derives `accounts.<domain>` sign-in URLs), `https://challenges.cloudflare.com` for Turnstile. `style-src` retains `'unsafe-inline'` — required by Clerk's runtime CSS-in-JS and react-hot-toast (goober); it does not weaken script execution. `img-src` tightened to `images.unsplash.com` + `ik.imagekit.io` + `img.clerk.com` (was `https:`). `api.abumarketplace.shop`/Google-font origins removed (unused — `next/font` is self-hosted). |
+| `app/layout.jsx` | `<ClerkProvider dynamic …>` (server-renders Clerk's `<script>` with the nonce) + `nonce` on the JSON-LD data block |
+| `scripts/prod-smoke.sh` | CSP check now asserts `script-src` has a nonce + `strict-dynamic` and **no** `unsafe-inline`/`unsafe-eval`; `connect-src` must include Clerk (accounts.dev + custom domain) + `challenges.cloudflare.com` |
 
-> Without this, Clerk sign-in redirects from wishlist/orders are refused by the
-> browser ("violates Content-Security-Policy"). The `*.accounts.dev` wildcards
-> do **not** cover the custom `clerk.abumarketplace.shop` domain — it must be
-> listed explicitly in `connect-src` or every Clerk `/v1/*` fetch is blocked
-> (verified 2026-08-09: script-src had it, connect-src did not).
+> Without the Clerk origins, sign-in redirects from wishlist/orders are refused
+> by the browser ("violates Content-Security-Policy"). The `*.accounts.dev`
+> wildcards do **not** cover the custom `clerk.abumarketplace.shop` domain — it
+> must be listed explicitly in `connect-src` or every Clerk `/v1/*` fetch is
+> blocked (verified 2026-08-09: script-src had it, connect-src did not).
+>
+> **Nonce mechanics (verified against Next.js 15):** all pages are dynamically
+> rendered (root layout reads `cookies()`/`headers()`), so Next.js parses the
+> `'nonce-…'` from the request CSP header and applies it to its inline RSC/
+> bootstrap scripts automatically. Clerk's client JS is **not** bundled — it
+> loads from `https://clerk.abumarketplace.shop/npm/@clerk/clerk-js@…/dist/clerk.browser.js`
+> (hence the `script-src` host entry) and Turnstile's `api.js` from
+> `https://challenges.cloudflare.com`; `strict-dynamic` lets the nonce'd Clerk
+> script load Turnstile at runtime.
 
 ### F. Everything else that ships with the working tree
 - Locale restructure `app/[locale]/` (fixes `/en/shop` 404, `app/(public)` deletions)
 - `components/HalalCertifiedSection.jsx`, currency slice, i18n/locale utils, `lib/prisma.js`, `.env.example`
 - Existing-but-undeployed routes: `/api/store/is-seller`, `/api/store/data` (currently 404 on prod)
+
+### G. Distributed rate limiting — complete limiter inventory (24 limiters)
+
+All state-changing / cost-bearing API endpoints are rate limited with a
+**distributed, Postgres-backed** fixed-window limiter
+(`createDistributedRateLimiter` in `lib/security.js`, store in
+`lib/services/rateLimitStore.js`). The counters live in the `rate_limit_entry`
+table, so limits hold across every serverless instance (in-memory Map limiters
+would only count hits on one lambda). Keys are **namespaced per limiter**
+(`{name}:{identifier}`) so two limiters never collide on the same row — a
+user's checkout traffic can never count against their verification/rating
+limits or vice versa.
+
+| Limiter (export) | Namespace | Window | Limit | Routes | Key |
+|---|---|---|---|---|---|
+| `checkoutRateLimiter` | `checkout` | 60 s | 15 | `POST /api/orders` (checkout) | userId |
+| `paymentStatusRateLimiter` | `payment-status` | 60 s | 30 | `GET /api/payments/status` | userId |
+| `refundRateLimiter` | `refund` | 60 s | 20 | `POST /api/admin/refund` | userId |
+| `webhookRateLimiter` | `webhook` | 60 s | 120 | `POST /api/stripe` (Stripe webhook) | hashIp |
+| `walletTopupRateLimiter` | `wallet-topup` | 60 s | 10 | `POST /api/wallet/topup` | userId |
+| `ratingRateLimiter` | `rating` | 60 s | 15 | `POST /api/rating` | userId |
+| `verificationSendRateLimiter` | `verification-send` | 10 min | 3 | `POST /api/auth/send-verification` | userId |
+| `verificationVerifyRateLimiter` | `verification-verify` | 10 min | 20 | `POST /api/auth/verify-email` | hashIp |
+| `supportAIRateLimiter` | `support-ai` | 60 s | 20 | `POST /api/support/ai` | userId ‖ ip |
+| `translateRateLimiter` | `translate` | 60 s | 30 | `POST /api/translate` | ip |
+| `supportNotifyRateLimiter` | `support-notify` | 10 min | 5 | `POST /api/support/notify` | userId ‖ ip |
+| `adminSupportReplyRateLimiter` | `admin-support-reply` | 60 s | 30 | `POST /api/admin/support-reply` | userId |
+| `pdfRateLimiter` | `pdf` | 10 min | 10 | `POST /api/legal/pdf` | ip |
+| `cartRateLimiter` | `cart` | 60 s | 60 | `POST /api/cart` | userId |
+| `storeProductRateLimiter` | `store-product` | 60 s | 20 | `POST /api/store/product` | userId |
+| `storeAIRateLimiter` | `store-ai` | 60 s | 10 | `POST /api/store/ai` (OpenAI) | userId |
+| `storeCreateRateLimiter` | `store-create` | 10 min | 5 | `POST /api/store/create` | userId |
+| `storeActionRateLimiter` | `store-action` | 60 s | 60 | `POST /api/store/stock-toggle`, `POST /api/store/orders` | userId |
+| `adminActionRateLimiter` | `admin-action` | 60 s | 30 | `POST /api/store/approve`, `POST /api/admin/approve-store`, `POST /api/admin/toggle-store`, `POST`+`DELETE /api/admin/coupon`, `GET /api/admin/reconcile` | userId |
+| `couponRateLimiter` | `coupon` | 60 s | 30 | `POST /api/coupon` | userId |
+| `exchangeRateLimiter` | `exchange` | 60 s | 60 | `GET /api/exchange` (OER/upstream) | hashIp |
+| `subscriptionCheckoutRateLimiter` | `subscription-checkout` | 60 s | 10 | `POST /api/subscriptions/checkout` | userId |
+| `clerkWebhookRateLimiter` | `clerk-webhook` | 60 s | 120 | `POST /api/webhook/clerk` | hashIp |
+| `addressRateLimiter` | `address` | 60 s | 30 | `POST /api/address` | userId |
+
+**Mechanics (verified in prod, 2026-08-10):**
+- Fixed bucket `floor(now / windowMs) * windowMs`; each check is an **atomic
+  conditional increment** (`updateMany … count += 1` on `key + windowStart`),
+  so concurrent lambdas can never double-count a bucket. A lost-insert race
+  (P2002) is retried; a stale bucket is reset before incrementing. When the DB
+  is unreachable the limiter degrades to a per-instance in-memory fallback
+  (logged) so requests are never hard-failed by the limiter itself.
+- Under vitest the limiter runs in-memory so `_clear()` fully resets state and
+  the API tests never need a live database; the Postgres path is covered by
+  `tests/lib/rateLimitStore.test.js` + the runtime hammer check below.
+- Placement discipline: the check runs **after authentication, before any
+  expensive work** — ImageKit uploads, OpenAI calls, Stripe session creation
+  and external OER lookups are all blocked before cost is incurred.
+- 429 responses are uniform: `{ "error": "Too many requests. Please try
+  again later." }` with a `Retry-After` header (seconds to window roll).
+- **Intentionally NOT distributed-limited:** read-only GET endpoints (public
+  catalog `/api/products`, `/api/store/data`, wallet/auth status reads, admin
+  dashboards) — the middleware IP throttle covers them, and DB-backed limits
+  on public reads would self-DoS browsing. There is no `/api/search` route;
+  search is the public `GET /api/products`.
+- **Schema/migration:** `RateLimitEntry` in `prisma/schema.prisma` + migration
+  `supabase/migrations/20260810000000_rate_limit_entries.sql`
+  (`key` unique, `windowStart`, `count`, `@@index([windowStart])`).
+- **Cleanup:** Inngest cron `cleanup-rate-limit-entries` runs every 15 min and
+  deletes rows with `windowStart` older than 1 h (largest window is 10 min, so
+  an hour is a safe margin).
 
 ---
 
@@ -139,7 +216,20 @@ npx prisma migrate diff \
 | `DATABASE_PROVIDER` | `postgresql` | (documentation of intent) |
 | `VERIFICATION_EMAIL_FROM`, `EMAIL_FROM`, `SUPPORT_EMAIL_FROM` | verified Resend domains | OTP/order emails |
 
-- [ ] `_prisma_migrations` is currently empty (the prod delta was applied via raw SQL, not `prisma migrate`). No runtime impact. If you ever adopt `prisma migrate deploy`, first baseline the live schema: `npx prisma migrate resolve --applied 20260714133553_new-migration` (and the other three).
+- [ ] **Apply the rate-limit migration too** (new table, additive):
+      `supabase/migrations/20260810000000_rate_limit_entries.sql` — creates
+      `rate_limit_entry` (`key` unique, `windowStart`, `count`, index on
+      `windowStart`). Without it, every limiter check 500s → the in-memory
+      fallback engages and rate limiting silently becomes per-instance. Run it
+      in the Supabase SQL editor alongside the schema delta in step 2 (or add
+      `npx prisma migrate deploy` once the baseline is resolved).
+      **The deploy pipeline now does this automatically:** the guarded `db-sync`
+      job in `deploy.yml` generates the delta from the Prisma schema (which
+      includes `RateLimitEntry`), applies it, then runs
+      `scripts/verify-db-tables.mjs rate_limit_entry` to confirm the table
+      exists on prod — so a missed migration fails the deploy loudly instead of
+      silently degrading to in-memory limiting.
+- [ ] `_prisma_migrations` is currently empty (the prod delta was applied via raw SQL, not `prisma migrate`). No runtime impact. If you ever adopt `prisma migrate deploy`, first baseline the live schema: `npx prisma migrate resolve --applied 20260714133553_new-migration` (and the other four).
 - [ ] Clerk dashboard: instance must be a **Production** instance, with Google OAuth enabled, and the app URL set to `https://www.abumarketplace.shop`.
 - [ ] Resend: verify `verification.abumarketplace.shop` (and the main domain) so OTP emails deliver.
 
@@ -168,7 +258,29 @@ curl -s  $B/api/store/is-seller            # 401 not authorized (was 404 — rou
 curl -s  $B/api/store/data                 # 400 missing username (was 404)
 curl -s -o /dev/null -w '%{http_code}' $B/en/shop     # 200 (locale routes live)
 curl -s -o /dev/null -w '%{http_code}' $B/api/auth/status  # 401 (endpoint exists)
+
+# Rate limiter: hammer /api/exchange with an isolated IP (limiter runs before
+# currency validation, so the invalid base costs no upstream API call).
+# Expect ~60 non-429 responses, then 429 with Retry-After.
+for i in $(seq 1 62); do
+  code=$(curl -s -o /dev/null -w '%{http_code}' -H 'x-forwarded-for: 198.51.100.99' "$B/api/exchange?base=NOTREAL")
+  [ "$code" = "429" ] && echo "429 after $i requests" && break
+done
+curl -s -D - -H 'x-forwarded-for: 198.51.100.99' "$B/api/exchange?base=NOTREAL" | head -2
+# HTTP/1.1 429 Too Many Requests  +  retry-after: N
+
+# Prisma log-noise: after the hammer, assert ZERO unexpected prisma:error
+# events. The smoke runner cannot read Vercel's runtime logs, so the app
+# exposes per-instance counters at GET /api/health/prisma
+# (lib/prismaErrorCounters.js): { unexpectedPrismaErrors, suppressedRateLimitP2002 }.
+# `suppressedRateLimitP2002` > 0 is the expected concurrent-create filter
+# working; `unexpectedPrismaErrors` must stay 0.
+curl -s "$B/api/health/prisma"
+# {"unexpectedPrismaErrors":0,"suppressedRateLimitP2002":0|N}
 ```
+
+> Smoke check #11 (429 hammer) + #12 (zero unexpected prisma errors after the
+> hammer) run automatically in the deploy pipeline's smoke job.
 
 - [ ] **Browser:** sign in with Google as a new user → expect redirect to `/verify-email`, an OTP email arrives, entering the code unlocks the site. Verify the "Clerk has been loaded with development keys" warning is gone from the console.
 - [ ] **Browser:** wishlist → sign-in redirect does NOT throw a CSP "Refused to connect" error.

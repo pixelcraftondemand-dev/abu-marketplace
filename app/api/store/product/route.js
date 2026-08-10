@@ -1,6 +1,6 @@
 import getImageKit from "@/configs/imageKit"
 import prisma from "@/lib/prisma"
-import { isAllowedImage, sanitizeText, sniffImageMagicBytes } from "@/lib/security"
+import { isAllowedImage, sanitizeText, sniffImageMagicBytes, storeProductRateLimiter } from "@/lib/security"
 import authSeller from "@/middlewares/authSeller"
 import { getSessionFromRequest } from "@/lib/serverAuth"
 import { NextResponse } from "next/server";
@@ -16,6 +16,11 @@ export async function POST(request){
         const storeId = await authSeller(userId)
         if(!storeId){
             return NextResponse.json({error: 'not authorized'}, { status: 401 } )
+        }
+        // Bound product creation — each request uploads up to 6 images to ImageKit.
+        const rl = await storeProductRateLimiter.check(userId);
+        if (!rl.allowed) {
+            return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429, headers: { "Retry-After": String(rl.retryAfter || 600) } });
         }
         const formData = await request.formData()
         const name = sanitizeText(formData.get("name"), 120)

@@ -35,7 +35,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "Not authorized." }, { status: 403 });
     }
 
-    const rl = refundRateLimiter.check(userId);
+    const rl = await refundRateLimiter.check(userId);
     if (!rl.allowed) {
       return NextResponse.json(
         { error: "Too many refund attempts. Please wait and try again." },

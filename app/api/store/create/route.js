@@ -3,7 +3,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
 import prisma from "@/lib/prisma";
 import getImageKit from "@/configs/imageKit";
-import { sniffImageMagicBytes, sanitizeText } from "@/lib/security";
+import { sniffImageMagicBytes, sanitizeText, storeCreateRateLimiter } from "@/lib/security";
 import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
 
@@ -76,6 +76,12 @@ export async function POST(request) {
 
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+        }
+
+        // Store applications include a logo upload — bound them per account.
+        const rl = await storeCreateRateLimiter.check(userId);
+        if (!rl.allowed) {
+            return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429, headers: { "Retry-After": String(rl.retryAfter || 600) } });
         }
 
         const dbUser = await prisma.user.findUnique({

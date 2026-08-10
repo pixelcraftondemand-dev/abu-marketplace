@@ -65,7 +65,7 @@ export async function POST(request) {
 
     // Rate limit per user — retries are safe via idempotency, so a modest limit
     // never blocks legitimate retries.
-    const rl = checkoutRateLimiter.check(userId);
+    const rl = await checkoutRateLimiter.check(userId);
     if (!rl.allowed) {
       return NextResponse.json(
         { error: "Too many attempts. Please wait a moment and try again." },

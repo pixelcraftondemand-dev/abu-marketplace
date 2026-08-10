@@ -2,6 +2,7 @@
 // FILEPATH: app/api/admin/approve-store/route.js
 // ─────────────────────────────────────────────────────────────────────────────
 import prisma from "@/lib/prisma";
+import { adminActionRateLimiter } from "@/lib/security";
 import authAdmin from "@/middlewares/authAdmin";
 import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
@@ -48,6 +49,11 @@ export async function POST(request) {
 
         if (!isAdmin) {
             return NextResponse.json({ error: "Not authorized." }, { status: 403 });
+        }
+
+        const rl = await adminActionRateLimiter.check(userId);
+        if (!rl.allowed) {
+            return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429, headers: { "Retry-After": String(rl.retryAfter || 600) } });
         }
 
         const { storeId, status } = await request.json();

@@ -23,7 +23,11 @@ env:
 jobs:
   # ---------------------------------------------------------------------------
   # Guarded production DB sync: applies ONLY additive schema changes.
-  # Destructive or unrecognized SQL fails the deploy loudly.
+  # Destructive or unrecognized SQL fails the deploy loudly. After applying,
+  # critical tables are verified to actually exist on prod (e.g. the
+  # rate_limit_entry table backing the distributed rate limiter), so a missed
+  # migration can never silently degrade to the per-instance in-memory
+  # fallback while the smoke battery still passes.
   # ---------------------------------------------------------------------------
   db-sync:
     name: Guarded DB sync (additive-only)
@@ -97,6 +101,20 @@ jobs:
           npx prisma db execute --file /tmp/delta.sql --url "$PROD_DIRECT_URL"
           echo "Additive schema changes applied to production."
 
+      - name: Verify critical tables exist on production
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DIRECT_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::warning::PROD_DIRECT_URL not set — skipping table verification."
+            exit 0
+          fi
+          # rate_limit_entry backs the distributed rate limiter; without it the
+          # app silently degrades to per-instance in-memory limiting and the
+          # smoke 429 check can still pass. Fail the deploy loudly instead.
+          node scripts/verify-db-tables.mjs rate_limit_entry
+
   # ---------------------------------------------------------------------------
   # Post-deploy smoke test: Vercel auto-deploys on push; this waits for the new
   # build to be live (products endpoint recovers) then runs the battery.
@@ -127,5 +145,12 @@ jobs:
           echo "::error::Timed out waiting for /api/products to return 200 after deploy."
           exit 1
 
+      # prod-smoke.sh includes the rate-limiter hammer check (#11): it hammers
+      # /api/exchange from a TEST-NET IP and asserts a 429 with Retry-After,
+      # proving the distributed limiter (rate_limit_entry table) enforces on
+      # prod — CI catches any future limiter regression. Check #12 then reads
+      # the app's per-instance counters (GET /api/health/prisma) and asserts
+      # zero UNEXPECTED prisma:error events were emitted during the hammer,
+      # catching the P2002 log-noise regression if it ever returns.
       - name: Run smoke battery
         run: bash scripts/prod-smoke.sh

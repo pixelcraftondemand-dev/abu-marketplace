@@ -69,6 +69,42 @@ jobs:
       - name: Run unit & API tests
         run: npm test
 
+  migration-guard:
+    name: Migration guard (changed SQL files)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # PRs only: guards NEW/changed files under supabase/migrations/ so
+    # destructive or unrecognized SQL cannot land on main. Pushes to main were
+    # already reviewed in their PR; the deploy pipeline additionally guards the
+    # live schema delta before applying it. Legacy migrations that predate the
+    # guard (conditional DO $$ blocks) are never checked because only files
+    # changed in the PR are examined.
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # No npm ci needed: lib/migrationGuard.mjs is dependency-free.
+      - name: Guard changed migration files
+        run: |
+          set -euo pipefail
+          BASE="${{ github.event.pull_request.base.sha }}"
+          CHANGED=$(git diff --name-only "$BASE...HEAD" -- supabase/migrations/ || true)
+          if [ -z "$CHANGED" ]; then
+            echo "No migration files changed — nothing to guard."
+            exit 0
+          fi
+          FAILED=0
+          for f in $CHANGED; do
+            if node lib/migrationGuard.mjs "$f"; then
+              echo "  PASS  $f"
+            else
+              echo "::error::Migration guard rejected $f (destructive or unrecognized SQL)."
+              FAILED=1
+            fi
+          done
+          exit "$FAILED"
+
   build:
     name: Build (next build)
     runs-on: ubuntu-latest
