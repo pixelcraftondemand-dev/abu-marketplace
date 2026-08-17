@@ -1,5 +1,22 @@
 # Kubernetes Deployment Guide
 
+> ## ⚠️ STATUS: EXPLORATORY — NOT THE PRODUCTION DEPLOYMENT PATH
+>
+> The site is deployed **exclusively through Vercel's git integration**
+> (push to `main` → Vercel builds and deploys; `.github/workflows/deploy.yml`
+> runs the guarded DB sync + post-deploy smoke battery against that Vercel
+> deployment). Nothing in this directory is wired to a live cluster, and
+> **nothing here is required for production**.
+>
+> The only consumer of these manifests and the `Dockerfile` is
+> `.github/workflows/k8s-deploy.yml`, which is **disabled by default**: it
+> only runs when the `ENABLE_K8S_DEPLOY` repository variable is `true` AND a
+> `KUBE_CONFIG` secret is configured. Until both exist, treat this directory
+> as exploratory/example material — do not assume it is (or will be) the
+> deployment path.
+>
+> Keep it in sync if you touch it, but do not build deployment decisions on it.
+
 This directory contains example Kubernetes manifests for running the Abu Marketplace app.
 
 ## Files

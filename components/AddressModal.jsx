@@ -39,7 +39,8 @@ const AddressModal = ({ setShowAddressModal }) => {
             toast.success(data.message)
             setShowAddressModal(false)
         } catch (error) {
-            console.log(error)
+            // Dev-only — the user-facing error is surfaced via toast below.
+            if (process.env.NODE_ENV !== "production") console.log(error)
             toast.error(error?.response?.data?.message || error.message)
         }
     }

@@ -17,13 +17,15 @@ const AdminLayout = ({ children }) => {
     const [loading, setLoading] = useState(true)
 
     const fetchIsAdmin = async () => {
-        console.log("fetchIsAdmin called")
+        // Dev-only tracing — inlined away by the production build (webpack
+        // replaces process.env.NODE_ENV at build time), so nothing prints in prod.
+        if (process.env.NODE_ENV !== "production") console.log("fetchIsAdmin called")
         try {
             const {data} = await axios.get('/api/admin/is-admin')
-            console.log("data:", data)
+            if (process.env.NODE_ENV !== "production") console.log("data:", data)
             setIsAdmin(data.isAdmin)
         } catch (error) {
-            console.log("error:", error)
+            if (process.env.NODE_ENV !== "production") console.log("error:", error)
         } finally {
             setLoading(false)
         }

@@ -32,6 +32,30 @@ const ALLOWED_ORIGINS = [
   "https://www.abumarketplace.shop",
 ];
 
+// Payment and identity providers call these routes server-to-server, so they
+// cannot carry a browser Origin header. Their signature verification in the
+// route handler is the authentication boundary. Every other unsafe API call
+// originates in the browser and is protected from cross-site request forgery
+// here, before a route handler can mutate state.
+const WEBHOOK_PATHS = new Set(["/api/flutterwave", "/api/webhook/clerk"]);
+const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function isTrustedMutationOrigin(req: NextRequest): boolean {
+  if (!req.nextUrl.pathname.startsWith("/api/") || !UNSAFE_METHODS.has(req.method)) return true;
+  if (WEBHOOK_PATHS.has(req.nextUrl.pathname)) return true;
+
+  const origin = req.headers.get("origin");
+  if (!origin) return false;
+
+  const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  const trusted = new Set([
+    ...ALLOWED_ORIGINS,
+    "http://localhost:3000",
+    ...(configuredOrigin ? [configuredOrigin] : []),
+  ]);
+  return trusted.has(origin);
+}
+
 /**
  * Generate a fresh CSP nonce per request (Web Crypto — works on the Edge and
  * Node runtimes). The nonce authorizes the inline scripts Next.js emits (RSC
@@ -232,6 +256,55 @@ const isPublicApiRoute = createRouteMatcher([
   "/api/search(.*)",
 ]);
 
+// ─── Admin IP Allowlist (second layer over Clerk auth) ───
+// Admin surfaces (/admin pages + /api/admin/*) are already gated by Clerk
+// sign-in + the ADMIN_EMAIL check (middlewares/authAdmin.js). This adds an
+// optional network-level layer: when ADMIN_IP_ALLOWLIST is set, only those
+// IPs/CIDRs may even reach the admin routes — everyone else gets 403 before
+// Clerk is involved.
+//
+// Format: comma-separated IPv4 addresses and/or CIDR ranges, e.g.
+//   ADMIN_IP_ALLOWLIST=203.0.113.10,198.51.100.0/24
+// Leave unset/empty to keep the previous behavior (Clerk + ADMIN_EMAIL only).
+const isAdminRoute = createRouteMatcher(["/admin(.*)", "/api/admin(.*)"]);
+
+function ipv4ToInt(ip: string): number | null {
+  const parts = ip.split(".");
+  if (parts.length !== 4) return null;
+  const nums = parts.map(Number);
+  if (nums.some((n) => Number.isNaN(n) || n < 0 || n > 255)) return null;
+  return ((nums[0] << 24) | (nums[1] << 16) | (nums[2] << 8) | nums[3]) >>> 0;
+}
+
+/** Match a single client IP against one allowlist entry (exact IP or CIDR). */
+function ipMatchesEntry(ip: string, entry: string): boolean {
+  const trimmed = entry.trim();
+  if (!trimmed) return false;
+  const slash = trimmed.indexOf("/");
+  if (slash === -1) return ip === trimmed; // exact match (covers IPv6 literals too)
+  const range = trimmed.slice(0, slash);
+  const bits = Number(trimmed.slice(slash + 1));
+  if (!Number.isInteger(bits) || bits < 0 || bits > 32) return false;
+  const ipInt = ipv4ToInt(ip);
+  const rangeInt = ipv4ToInt(range);
+  if (ipInt === null || rangeInt === null) return false;
+  const mask = bits === 0 ? 0 : (~0 << (32 - bits)) >>> 0;
+  return (ipInt & mask) === (rangeInt & mask);
+}
+
+/**
+ * Whether this request IP is allowed to reach admin routes. An unset/empty
+ * allowlist means "not configured" — fall back to the existing auth layers.
+ */
+function isAdminIpAllowed(ip: string): boolean {
+  const allowlist = (process.env.ADMIN_IP_ALLOWLIST || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (allowlist.length === 0) return true;
+  return allowlist.some((entry) => ipMatchesEntry(ip, entry));
+}
+
 // Routes that intentionally live at the app root and must never receive a
 // locale prefix (auth, seller/admin dashboards, legal page, API, Sentry).
 const NON_LOCALIZED_PREFIXES = [
@@ -317,6 +390,15 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
   const ip = getClientIP(req);
   const nonce = generateNonce();
 
+  // Defense in depth for cookie-backed sessions: do not allow another site to
+  // trigger writes on a signed-in shopper's behalf. This is intentionally an
+  // origin allowlist rather than a referer check (Referer may be absent).
+  if (!isTrustedMutationOrigin(req)) {
+    const response = NextResponse.json({ error: "Untrusted request origin." }, { status: 403 });
+    applySecurityHeaders(response, req, pathname, pathname, nonce);
+    return response;
+  }
+
   // ─── Rate Limiting for API Routes ───
   if (isPublicApiRoute(req) || pathname.startsWith("/api/")) {
     const rateLimit = checkRateLimit(ip);
@@ -339,6 +421,19 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
         }
       );
     }
+  }
+
+  // ─── Admin second layer: IP allowlist ───
+  // Runs before Clerk so a non-allowlisted IP is rejected outright (no auth
+  // redirect, no DB lookup). Only enforced when ADMIN_IP_ALLOWLIST is set.
+  if (isAdminRoute(req) && !isAdminIpAllowed(ip)) {
+    return new NextResponse(
+      JSON.stringify({ error: "Forbidden", message: "Your IP is not allowed to access admin resources." }),
+      {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 
   // ─── Locale Routing ───
@@ -379,6 +474,8 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
     response.cookies.set("marketplaceLocale", resolvedLocale, {
       path: "/",
       maxAge: 60 * 60 * 24 * 365,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
     });
   }
 
@@ -398,8 +495,10 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
 // ─── Middleware Config ───
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    // Skip Next.js internals and all static files. txt|xml must stay here so
+    // /robots.txt and /sitemap.xml are served by app/robots.js + app/sitemap.js
+    // instead of being rewritten into a locale prefix (which 404s them).
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest|txt|xml)).*)",
     // Always run for API routes
     "/(api|trpc)(.*)",
   ],
