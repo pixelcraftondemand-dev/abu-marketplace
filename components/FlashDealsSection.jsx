@@ -1,13 +1,14 @@
 'use client'
 import ProductCard from '@/components/ProductCard'
 import FlashDeals from '@/components/FlashDeals'
-import Title from '@/components/Title'
 import { getFlashDealProducts } from '@/lib/productUtils'
 import Link from 'next/link'
 import { useSelector } from 'react-redux'
 import { productDummyData } from '@/assets/assets'
+import { useTranslation } from '@/lib/i18n'
 
 const FlashDealsSection = () => {
+    const { t } = useTranslation()
     const products = useSelector((state) => state.product.list)
     const sourceProducts = products.length ? products : productDummyData
     const flashDeals = getFlashDealProducts(sourceProducts, 8)
@@ -16,15 +17,15 @@ const FlashDealsSection = () => {
 
     return (
         <section className="mx-3 my-16 sm:mx-6">
-            <div className="mx-auto max-w-7xl rounded-2xl bg-gradient-to-r from-red-50 via-orange-50 to-yellow-50 p-4 sm:p-8">
+            <div className="mx-auto max-w-7xl rounded-3xl bg-[linear-gradient(135deg,#1A1A1A_0%,#2d2d2d_60%,#3a3123_100%)] p-4 text-white sm:p-8">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <FlashDeals />
-                        <h2 className="mt-3 text-2xl font-semibold text-slate-800 sm:text-3xl">Daily Flash Deals</h2>
-                        <p className="mt-2 text-sm text-slate-600">Up to 90% off — limited time only. Inspired by Shein&apos;s flash sale experience.</p>
+                        <h2 className="mt-3 font-display text-2xl font-medium text-white sm:text-3xl">{t('flashDeals.title')}</h2>
+                        <p className="mt-2 text-sm text-white/60">{t('flashDeals.subtitle')}</p>
                     </div>
-                    <Link href="/shop?deals=flash" className="rounded-full bg-red-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-red-600 transition">
-                        Shop all deals
+                    <Link href="/shop?deals=flash" className="rounded-full bg-[#C9A96E] px-5 py-2.5 text-sm font-semibold text-[#1A1A1A] transition hover:bg-[#D4B87A]">
+                        {t('flashDeals.shopAll')}
                     </Link>
                 </div>
                 <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:gap-6">

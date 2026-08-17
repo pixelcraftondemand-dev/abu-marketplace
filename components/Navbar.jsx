@@ -24,6 +24,7 @@ import CurrencyAmount from "@/components/CurrencyAmount";
 import useWalletBalance from "@/lib/hooks/useWalletBalance";
 import { useTranslation } from "@/lib/i18n";
 import { getStoreLinkTarget } from "@/lib/storeNavigation";
+import { FREE_DELIVERY_THRESHOLD } from "@/lib/paymentOptions";
 import { africanCountries, westAfricanCurrencyOptions } from '@/lib/utils/currency'
 import { languageToLocale, buildLocalizedPath, stripLocaleFromPath } from '@/lib/utils/locale'
 
@@ -242,7 +243,7 @@ export default function Navbar() {
             <div className="flex flex-wrap items-center gap-6 min-w-0">
               <span className="flex min-w-0 items-center gap-1.5">
                 <span className="w-1 h-1 rounded-full bg-[#C9A96E]" />
-                <span className="truncate">{t("nav.freeDelivery")} <CurrencyAmount amount={500} /></span>
+                <span className="truncate">{t("nav.freeDelivery")} <CurrencyAmount amount={FREE_DELIVERY_THRESHOLD} /></span>
               </span>
               <span className="flex min-w-0 items-center gap-1.5">
                 <span className="w-1 h-1 rounded-full bg-[#C9A96E]" />
@@ -416,13 +417,13 @@ export default function Navbar() {
               <div className="hidden lg:block relative">
                 <form
                   onSubmit={handleSearch}
-                  className={`flex items-center transition-all duration-300 ${
+                  className={`flex items-center transition-all duration-300 rounded-full bg-white ${
                     searchFocused
-                      ? "w-80 border-[#C9A96E]"
-                      : "w-64 border-[#E8E2DB]"
-                  } border-b bg-transparent`}
+                      ? "w-80 ring-2 ring-[#C9A96E]"
+                      : "w-64 ring-1 ring-[#E8E2DB]"
+                  }`}
                 >
-                  <Search size={16} className="text-[#9B9590] shrink-0" />
+                  <Search size={16} className="text-[#9B9590] shrink-0 ml-4" />
                   <input
                     type="text"
                     placeholder={t("nav.searchPlaceholder")}
@@ -436,10 +437,10 @@ export default function Navbar() {
                       setSearchSuggestionsOpen(true);
                     }}
                     onBlur={() => setTimeout(() => setSearchSuggestionsOpen(false), 150)}
-                    className="w-full py-3 px-3 bg-transparent outline-none text-sm text-[#1A1A1A] placeholder:text-[#9B9590]"
+                    className="w-full py-2.5 px-3 bg-transparent outline-none text-sm text-[#1A1A1A] placeholder:text-[#9B9590]"
                   />
                   {search && (
-                    <button type="button" onClick={() => setSearch("")} className="text-[#9B9590] hover:text-[#1A1A1A]">
+                    <button type="button" onClick={() => setSearch("")} className="text-[#9B9590] hover:text-[#1A1A1A] pr-3">
                       <X size={14} />
                     </button>
                   )}

@@ -20,6 +20,7 @@ const LatestProducts = () => {
     return (
         <div className='mx-auto my-16 max-w-6xl px-3 sm:px-6'>
             <Title
+                eyebrow={t('home.eyebrowLatest')}
                 title={t('home.latestProducts')}
                 description={t('home.showingProducts', { count: latestProducts.length, total: sourceProducts.length })}
                 href='/shop'

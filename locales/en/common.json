@@ -80,7 +80,21 @@
     "bestSelling": "Best Selling",
     "latestProducts": "Latest Products",
     "showingProducts": "Showing {count} of {total} products",
-    "viewMore": "View more"
+    "viewMore": "View more",
+    "eyebrowLatest": "Just in",
+    "eyebrowBestSelling": "Most loved"
+  },
+  "newsletter": {
+    "title": "Join the Newsletter",
+    "description": "Subscribe to get exclusive deals, new arrivals, and insider updates delivered straight to your inbox every week.",
+    "placeholder": "Enter your email address",
+    "cta": "Get Updates"
+  },
+  "flashDeals": {
+    "title": "Daily Flash Deals",
+    "subtitle": "Up to 90% off — limited time only. Inspired by Shein's flash sale experience.",
+    "shopAll": "Shop all deals",
+    "endsIn": "Flash Sale ends in"
   },
   "product": {
     "halalCertified": "Halal Certified",

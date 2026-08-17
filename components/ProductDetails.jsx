@@ -12,6 +12,7 @@ import { useDispatch, useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import CurrencyAmount from '@/components/CurrencyAmount'
 import { useTranslation } from '@/lib/i18n'
+import { FREE_DELIVERY_THRESHOLD } from '@/lib/paymentOptions'
 
 const ProductDetails = ({ product }) => {
 
@@ -99,7 +100,7 @@ const ProductDetails = ({ product }) => {
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                         <TruckIcon size={18} className="text-green-600" />
                         <p className="mt-2 text-sm font-medium text-slate-800">{t('productDetails.freeDelivery')}</p>
-                        <p className="text-xs text-slate-500">{t('productDetails.onOrdersAbove')} <CurrencyAmount amount={500} /></p>
+                        <p className="text-xs text-slate-500">{t('productDetails.onOrdersAbove')} <CurrencyAmount amount={FREE_DELIVERY_THRESHOLD} /></p>
                     </div>
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                         <RotateCcwIcon size={18} className="text-green-600" />

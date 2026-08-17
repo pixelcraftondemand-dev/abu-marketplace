@@ -17,6 +17,7 @@ import {
 import marketplaceLogo from "@/assets/abu-marketplace-logo.png";
 import { useTranslation } from "@/lib/i18n";
 import CurrencyAmount from "@/components/CurrencyAmount";
+import { FREE_DELIVERY_THRESHOLD } from "@/lib/paymentOptions";
 
 /* ─── Scroll Reveal Hook ─── */
 function useScrollReveal(threshold = 0.1) {
@@ -341,7 +342,7 @@ export default function LandingPage() {
       <div className="trust-row">
         <div className="trust-item">
           <Truck size={18} strokeWidth={1.5} />
-          <span>{t('landing.freeShippingOver')} <CurrencyAmount amount={500} /></span>
+          <span>{t('landing.freeShippingOver')} <CurrencyAmount amount={FREE_DELIVERY_THRESHOLD} /></span>
         </div>
         <div className="trust-item">
           <Shield size={18} strokeWidth={1.5} />

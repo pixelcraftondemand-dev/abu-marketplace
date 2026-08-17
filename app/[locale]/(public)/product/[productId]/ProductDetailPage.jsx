@@ -28,6 +28,7 @@ import { addToCart } from "@/lib/features/cart/cartSlice";
 import { toggleWishlist } from "@/lib/features/wishlist/wishlistSlice";
 import { emitAddedToCart } from "@/lib/cartEvents";
 import { getProductDiscount } from "@/lib/productUtils";
+import { FREE_DELIVERY_THRESHOLD } from "@/lib/paymentOptions";
 
 export default function ProductDetailPage() {
   const { productId } = useParams();
@@ -444,7 +445,7 @@ export default function ProductDetailPage() {
                     <Truck size={18} className="text-[#C9A96E] mt-0.5 shrink-0" />
                     <div>
                       <p className="font-medium">{t('productPage.standardShipping')}</p>
-                      <p className="text-sm text-[#6B6560]">{t('productPage.standardNote')} <CurrencyAmount amount={500} /></p>
+                      <p className="text-sm text-[#6B6560]">{t('productPage.standardNote')} <CurrencyAmount amount={FREE_DELIVERY_THRESHOLD} /></p>
                     </div>
                   </li>
                   <li className="flex items-start gap-3">

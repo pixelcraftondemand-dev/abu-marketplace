@@ -17,7 +17,7 @@ const CategoriesMarquee = () => {
             <div className="flex gap-4 overflow-x-auto px-1 pb-2 no-scrollbar sm:justify-center">
                 {categoryItems.map((category) => (
                     <Link key={category.label} href={`/shop?category=${encodeURIComponent(category.label)}`} className="group flex min-w-17 flex-col items-center gap-2 text-center text-xs font-medium text-slate-600">
-                        <span className="flex size-16 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 transition group-hover:border-green-500 group-hover:ring-2 group-hover:ring-green-100 sm:size-20">
+                        <span className="flex size-16 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-100 transition group-hover:border-[#C9A96E] group-hover:ring-2 group-hover:ring-[#C9A96E]/20 sm:size-20">
                             <img src={category.image.src} alt="" className="size-full object-cover" />
                         </span>
                         <span>{category.label}</span>

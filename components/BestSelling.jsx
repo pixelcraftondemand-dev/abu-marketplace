@@ -19,6 +19,7 @@ const BestSelling = () => {
     return (
         <div className='mx-auto my-16 max-w-6xl px-3 sm:px-6'>
             <Title
+                eyebrow={t('home.eyebrowBestSelling')}
                 title={t('home.bestSelling')}
                 description={t('home.showingProducts', { count: bestSelling.length, total: sourceProducts.length })}
                 href='/shop'
