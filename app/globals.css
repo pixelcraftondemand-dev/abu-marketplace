@@ -44,6 +44,13 @@
 
   html {
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Keep keyboard navigation visible everywhere, including icon-only controls. */
+  :focus-visible {
+    outline: 3px solid var(--luxury-gold-dark);
+    outline-offset: 3px;
   }
 
   body {
@@ -547,6 +554,48 @@
   }
   to {
     clip-path: inset(0 0 0 0);
+  }
+}
+
+/* The editorial grids are intentionally asymmetric on large screens, but
+   flatten to stable, readable cards on touch devices. */
+@media (max-width: 767px) {
+  .asymmetric-hero,
+  .asymmetric-split,
+  .asymmetric-editorial,
+  .asymmetric-broken {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    min-height: 0;
+  }
+
+  .asymmetric-hero-main,
+  .asymmetric-editorial-feature { grid-row: auto; }
+
+  .asymmetric-hero-offset,
+  .asymmetric-broken-offset-1,
+  .asymmetric-broken-offset-2 { transform: none; }
+
+  .magazine-card-content { padding: 1.25rem; }
+
+  .trust-row {
+    justify-content: flex-start;
+    gap: 1.25rem;
+    overflow-x: auto;
+    padding-inline: 1rem;
+    scroll-snap-type: x proximity;
+  }
+
+  .trust-item { flex: 0 0 auto; scroll-snap-align: start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

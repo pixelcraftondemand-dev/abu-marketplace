@@ -34,7 +34,8 @@ const playfair = Playfair_Display({
 });
 
 export const metadata = {
-  metadataBase: new URL("https://abumarketplace.shop"),
+  // Vercel 307-redirects the apex domain to www — make www the canonical base.
+  metadataBase: new URL("https://www.abumarketplace.shop"),
   title: {
     default: "ABU Marketplace — Trusted online shopping in Sierra Leone",
     template: "%s | ABU Marketplace",
@@ -52,9 +53,9 @@ export const metadata = {
   authors: [{ name: "ABU Marketplace" }],
   creator: "ABU Marketplace",
   applicationName: "ABU Marketplace",
-  alternates: {
-    canonical: "https://abumarketplace.shop",
-  },
+  // No global canonical here — pages set their own (locale-aware) canonical in
+  // generateMetadata. A static root canonical made every page canonicalize to
+  // the homepage, telling Google to deindex everything else.
   robots: {
     index: true,
     follow: true,
@@ -62,19 +63,27 @@ export const metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://abumarketplace.shop",
+    url: "https://www.abumarketplace.shop",
     siteName: "ABU Marketplace",
     title: "ABU Marketplace — Trusted online shopping in Sierra Leone",
     description:
       "Discover electronics, fashion, home essentials, and everyday gadgets from a trusted marketplace built for modern shoppers.",
-    images: [{ url: "/og-image.svg", width: 1200, height: 630, alt: "ABU Marketplace" }],
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        type: "image/png",
+        alt: "ABU Marketplace",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "ABU Marketplace — Trusted online shopping in Sierra Leone",
     description:
       "Discover electronics, fashion, home essentials, and everyday gadgets from a trusted marketplace built for modern shoppers.",
-    images: ["/og-image.svg"],
+    images: ["/og-image.png"],
   },
   icons: {
     icon: "/favicon.ico",
@@ -138,8 +147,8 @@ export default async function RootLayout({ children }) {
               "@context": "https://schema.org",
               "@type": "Organization",
               name: "ABU Marketplace",
-              url: "https://abumarketplace.shop",
-              logo: "https://abumarketplace.shop/favicon.ico",
+              url: "https://www.abumarketplace.shop",
+              logo: "https://www.abumarketplace.shop/og-image.png",
               sameAs: [
                 "https://www.instagram.com/abumarketplace",
                 "https://www.facebook.com/abumarketplace",

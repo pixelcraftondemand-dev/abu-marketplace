@@ -1,0 +1,478 @@
+"use client";
+
+import { Suspense, useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import Image from "next/image";
+import Link from "next/link";
+import axios from "axios";
+import { useSelector } from 'react-redux'
+import CurrencyAmount from '@/components/CurrencyAmount'
+import { useTranslation } from '@/lib/i18n'
+import {
+  Search,
+  SlidersHorizontal,
+  Grid3X3,
+  LayoutList,
+  Star,
+  Heart,
+  ArrowUpDown,
+  RotateCcw,
+  X,
+  ChevronDown,
+} from "lucide-react";
+import Loading from "@/components/Loading";
+import { productDummyData } from "@/assets/assets";
+import { getProductRating } from "@/lib/productUtils";
+
+const sortOptions = [
+  { labelKey: "shop.sortFeatured", value: "featured" },
+  { labelKey: "shop.sortNewest", value: "newest" },
+  { labelKey: "shop.sortPriceAsc", value: "price_asc" },
+  { labelKey: "shop.sortPriceDesc", value: "price_desc" },
+  { labelKey: "shop.sortTopRated", value: "rating" },
+  { labelKey: "shop.sortMostPopular", value: "popular" },
+];
+
+const categories = [
+  { labelKey: "categories.all", value: "" },
+  { labelKey: "categories.electronics", value: "electronics" },
+  { labelKey: "categories.fashion", value: "fashion" },
+  { labelKey: "categories.watches", value: "watches" },
+  { labelKey: "categories.audio", value: "audio" },
+  { labelKey: "categories.home", value: "home" },
+  { labelKey: "categories.accessories", value: "accessories" },
+  { labelKey: "categories.halalCertified", value: "halal-certified" },
+];
+
+function ShopPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState("grid"); // grid | list
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loadError, setLoadError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const { t } = useTranslation();
+
+  const searchQuery = searchParams.get("search") || "";
+  const categoryFilter = searchParams.get("category") || "";
+  const sortBy = searchParams.get("sort") || "featured";
+
+  const showFallbackProducts = !loading && products.length === 0 && !searchQuery && !categoryFilter;
+  const displayedProducts = showFallbackProducts ? productDummyData : products;
+
+  useEffect(() => {
+    setSearchTerm(searchQuery);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        setLoadError(false);
+        const params = new URLSearchParams();
+        if (searchQuery) params.set("search", searchQuery);
+        if (categoryFilter) params.set("category", categoryFilter);
+        if (sortBy) params.set("sort", sortBy);
+
+        const res = await axios.get(`/api/products?${params.toString()}`);
+        setProducts(res.data.products || []);
+      } catch (err) {
+        // Temporary API failure — show the inline retry panel instead of
+        // leaving the page empty with only a toast.
+        setLoadError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProducts();
+  }, [searchQuery, categoryFilter, sortBy, retryCount]);
+
+  const updateFilter = (key, value) => {
+    const params = new URLSearchParams(searchParams);
+    if (value) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+    router.push(`/shop?${params.toString()}`);
+  };
+
+  const handleSearchSubmit = (event) => {
+    event.preventDefault();
+    updateFilter("search", searchTerm.trim());
+  };
+
+  const clearFilters = () => {
+    router.push("/shop");
+  };
+
+  if (loading) return <Loading />;
+
+  return (
+    <main className="min-h-screen bg-[#FAF8F5]">
+      {/* ─── Shop Header — Editorial Magazine Style ─── */}
+      <div className="relative h-[40vh] min-h-[300px] overflow-hidden">
+        <Image
+          src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&h=600&fit=crop"
+          alt="Shop"
+          fill
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-[#1A1A1A]/40" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-editorial text-white/70 mb-3">{t('shop.theCollection')}</p>
+            <h1 className="font-display text-5xl md:text-6xl text-white font-medium">
+              {t('shop.title')}
+            </h1>
+            {searchQuery && (
+              <p className="text-white/60 mt-3 text-lg">
+                {t('shop.resultsFor', { query: searchQuery })}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Filter Bar — Amazon + Etsy Efficiency ─── */}
+      <div className="sticky top-[72px] lg:top-[88px] z-30 bg-white border-b border-[#E8E2DB]">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14">
+            {/* Left — Search and categories */}
+            <div className="hidden lg:flex items-center gap-4">
+              <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 rounded-full border border-[#E8E2DB] bg-[#F5F0EB] px-4 py-2">
+                <Search size={16} className="text-[#9B9590]" />
+                <input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={t("nav.searchPlaceholder")}
+                  className="w-72 bg-transparent text-sm text-[#1A1A1A] outline-none placeholder:text-[#9B9590]"
+                />
+              </form>
+
+              <div className="hidden xl:flex items-center gap-1 overflow-x-auto no-scrollbar">
+                {categories.map((cat) => (
+                  <button
+                    key={cat.value}
+                    onClick={() => updateFilter("category", cat.value)}
+                    className={`px-4 py-1.5 text-[13px] font-medium transition whitespace-nowrap ${
+                      categoryFilter === cat.value || (!categoryFilter && !cat.value)
+                        ? "text-[#1A1A1A] border-b-2 border-[#C9A96E]"
+                        : "text-[#9B9590] hover:text-[#1A1A1A]"
+                    }`}
+                  >
+                    {t(cat.labelKey)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Mobile Category Toggle */}
+            <button
+              onClick={() => setFilterOpen(!filterOpen)}
+              className="lg:hidden flex items-center gap-2 text-sm text-[#1A1A1A]"
+            >
+              <SlidersHorizontal size={16} />
+              {t('shop.filters')}
+            </button>
+
+            {/* Right — Sort + View Toggle */}
+            <div className="flex items-center gap-4">
+              {/* Results count */}
+              <span className="hidden sm:block text-sm text-[#9B9590]">
+                {t('shop.results', { count: loadError ? 0 : displayedProducts.length })}
+              </span>
+
+              {/* Sort Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setSortOpen(!sortOpen)}
+                  className="flex items-center gap-2 text-sm text-[#1A1A1A] hover:text-[#C9A96E] transition"
+                >
+                  <ArrowUpDown size={14} />
+                  <span className="hidden sm:inline">
+                    {t(sortOptions.find((s) => s.value === sortBy)?.labelKey || 'shop.sort')}
+                  </span>
+                  <ChevronDown size={12} className={`transition-transform ${sortOpen ? "rotate-180" : ""}`} />
+                </button>
+                {sortOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-[#E8E2DB] shadow-xl z-50">
+                    {sortOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          updateFilter("sort", option.value);
+                          setSortOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 text-sm transition ${
+                          sortBy === option.value
+                            ? "bg-[#FAF8F5] text-[#C9A96E] font-medium"
+                            : "text-[#2D2D2D] hover:bg-[#FAF8F5]"
+                        }`}
+                      >
+                        {t(option.labelKey)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* View Toggle */}
+              <div className="hidden sm:flex items-center border border-[#E8E2DB]">
+                <button
+                  onClick={() => setViewMode("grid")}
+                  className={`p-2 transition ${viewMode === "grid" ? "bg-[#1A1A1A] text-white" : "text-[#9B9590] hover:text-[#1A1A1A]"}`}
+                >
+                  <Grid3X3 size={16} />
+                </button>
+                <button
+                  onClick={() => setViewMode("list")}
+                  className={`p-2 transition ${viewMode === "list" ? "bg-[#1A1A1A] text-white" : "text-[#9B9590] hover:text-[#1A1A1A]"}`}
+                >
+                  <LayoutList size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Active Filters */}
+        {!loadError && showFallbackProducts && (
+          <div className="max-w-7xl mx-auto px-6 lg:px-8 pb-3">
+            <div className="rounded-3xl border border-[#E8E2DB] bg-[#FFF9EB] p-5 text-sm text-[#655a3f]">
+              <strong className="block font-semibold text-[#1A1A1A] mb-1">{t('shop.sampleProducts')}</strong>
+              {t('shop.sampleProductsText')}
+            </div>
+          </div>
+        )}
+        {(searchQuery || categoryFilter) && (
+          <div className="max-w-7xl mx-auto px-6 lg:px-8 pb-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              {searchQuery && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#1A1A1A] text-white text-xs">
+                  {t('shop.search', { query: searchQuery })}
+                  <button onClick={() => updateFilter("search", "")}>
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
+              {categoryFilter && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#1A1A1A] text-white text-xs">
+                  {t(categories.find((c) => c.value === categoryFilter)?.labelKey || "")}
+                  <button onClick={() => updateFilter("category", "")}>
+                    <X size={12} />
+                  </button>
+                </span>
+              )}
+              <button
+                onClick={clearFilters}
+                className="text-xs text-[#9B9590] hover:text-[#C9A96E] transition underline"
+              >
+                {t('shop.clearAll')}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── Mobile Filter Panel ─── */}
+      {filterOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 bg-white">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-8">
+              <h3 className="font-display text-2xl text-[#1A1A1A]">{t('shop.filters')}</h3>
+              <button onClick={() => setFilterOpen(false)}>
+                <X size={24} />
+              </button>
+            </div>
+            <div className="space-y-6">
+              <div>
+                <p className="text-editorial text-[#9B9590] mb-3">{t('shop.categories')}</p>
+                <div className="space-y-2">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.value}
+                      onClick={() => {
+                        updateFilter("category", cat.value);
+                        setFilterOpen(false);
+                      }}
+                      className={`block w-full text-left py-2 text-sm ${
+                        categoryFilter === cat.value
+                          ? "text-[#C9A96E] font-medium"
+                          : "text-[#2D2D2D]"
+                      }`}
+                    >
+                      {t(cat.labelKey)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Product Grid — Etsy Discovery + Shopify Clean ─── */}
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+        {categoryFilter === "halal-certified" && (
+          <div className="mb-8 rounded-2xl border border-[#E8E2DB] bg-white/80 p-6 shadow-sm">
+            <p className="text-[10px] tracking-[0.24em] uppercase text-[#C9A96E] mb-2">{t('shop.featuredCollection')}</p>
+            <h2 className="font-display text-2xl text-[#1A1A1A] mb-2">{t('shop.halalCertifiedProducts')}</h2>
+            <p className="max-w-2xl text-sm text-[#6B6560]">
+              {t('shop.halalCertifiedText')}
+            </p>
+          </div>
+        )}
+
+        {loadError ? (
+          <div className="text-center py-24">
+            <p className="font-display text-2xl text-[#1A1A1A] mb-2">{t('shop.failedToLoad')}</p>
+            <p className="text-[#9B9590] mb-8">{t('shop.retryText')}</p>
+            <button
+              type="button"
+              onClick={() => setRetryCount((count) => count + 1)}
+              className="inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#C9A96E]"
+            >
+              <RotateCcw size={16} />
+              {t('shop.retry')}
+            </button>
+          </div>
+        ) : displayedProducts.length === 0 ? (
+          <div className="text-center py-24">
+            <p className="font-display text-2xl text-[#1A1A1A] mb-2">{t('shop.noProductsFound')}</p>
+            <p className="text-[#9B9590]">{t('shop.tryAdjusting')}</p>
+          </div>
+        ) : (
+          <div
+            className={
+              viewMode === "grid"
+                ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6"
+                : "space-y-6"
+            }
+          >
+            {displayedProducts.map((product, i) => (
+              <ProductCard
+                key={product.id || i}
+                product={product}
+                viewMode={viewMode}
+                index={i}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
+
+function ProductCard({ product, viewMode, index }) {
+  const [liked, setLiked] = useState(false);
+  const { rating: ratingValue, count: ratingCount } = getProductRating(product);
+
+  if (viewMode === "list") {
+    return (
+      <Link
+        href={`/product/${product.id}`}
+        className="group flex gap-6 p-4 bg-white border border-[#E8E2DB] hover:border-[#C9A96E]/30 transition-all duration-500"
+      >
+        <div className="relative w-40 h-48 shrink-0 overflow-hidden bg-[#F5F0EB]">
+          <Image
+            src={product.image || "/placeholder.jpg"}
+            alt={product.name}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-700"
+          />
+        </div>
+        <div className="flex-1 py-2">
+          <p className="text-[10px] tracking-[0.15em] uppercase text-[#9B9590] mb-1">
+            {product.category || "General"}
+          </p>
+          <h3 className="font-display text-xl text-[#1A1A1A] group-hover:text-[#C9A96E] transition-colors mb-2">
+            {product.name}
+          </h3>
+          <p className="text-sm text-[#6B6560] line-clamp-2 mb-3">
+            {product.description}
+          </p>
+          <div className="flex items-center gap-4">
+            <span className="text-lg font-semibold text-[#1A1A1A]">
+              <CurrencyAmount amount={product.price} />
+            </span>
+            {product.originalPrice && (
+              <span className="text-sm text-[#9B9590] line-through">
+                <CurrencyAmount amount={product.originalPrice} />
+              </span>
+            )}
+          </div>
+        </div>
+      </Link>
+    );
+  }
+
+  return (
+    <div
+      className="group product-discovery"
+      style={{ animationDelay: `${index * 50}ms` }}
+    >
+      <Link href={`/product/${product.id}`}>
+        <div className="relative aspect-[3/4] overflow-hidden bg-[#F5F0EB]">
+          <Image
+            src={product.images?.[0] || product.image || "/placeholder.jpg"}
+            alt={product.name}
+            fill
+            className="object-cover product-discovery-img"
+          />
+          {product.badge && (
+            <span className="product-discovery-badge bg-[#C9A96E] text-white border-transparent">
+              {product.badge}
+            </span>
+          )}
+          {/* Wishlist button */}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              setLiked(!liked);
+            }}
+            className="absolute top-3 right-3 w-9 h-9 bg-white/90 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-white"
+          >
+            <Heart
+              size={16}
+              className={liked ? "text-red-500 fill-red-500" : "text-[#1A1A1A]"}
+            />
+          </button>
+        </div>
+        <div className="p-4">
+          <p className="text-[10px] tracking-[0.15em] uppercase text-[#9B9590] mb-1">
+            {product.category || "General"}
+          </p>
+          <h3 className="font-display text-[17px] text-[#1A1A1A] group-hover:text-[#C9A96E] transition-colors leading-snug">
+            {product.name}
+          </h3>
+          <div className="flex items-center justify-between mt-2">
+            <span className="text-sm font-semibold text-[#1A1A1A]">
+              <CurrencyAmount amount={product.price} />
+            </span>
+            {ratingCount > 0 && (
+              <div className="flex items-center gap-1">
+                <Star size={12} className="text-[#C9A96E] fill-[#C9A96E]" />
+                <span className="text-xs text-[#6B6560]">{ratingValue}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </Link>
+    </div>
+  );
+}
+
+export default function ShopPage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <ShopPageContent />
+    </Suspense>
+  );
+}

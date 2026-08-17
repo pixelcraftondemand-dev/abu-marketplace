@@ -321,6 +321,9 @@ export default function Navbar() {
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="lg:hidden p-2 -ml-2 text-[#1A1A1A] hover:text-[#C9A96E] transition"
+              aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+              aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-navigation"
             >
               {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
@@ -402,6 +405,9 @@ export default function Navbar() {
               <button
                 onClick={() => setSearchFocused(!searchFocused)}
                 className="lg:hidden p-2 text-[#1A1A1A] hover:text-[#C9A96E] transition"
+                aria-label={searchFocused ? "Close search" : "Open search"}
+                aria-expanded={searchFocused}
+                aria-controls="mobile-search"
               >
                 <Search size={20} />
               </button>
@@ -555,6 +561,7 @@ export default function Navbar() {
 
           {/* Mobile Search Bar */}
           <div
+            id="mobile-search"
             className={`lg:hidden overflow-hidden transition-all duration-300 ${
               searchFocused ? "max-h-[280px] pb-4" : "max-h-0"
             }`}
@@ -599,6 +606,10 @@ export default function Navbar() {
 
       {/* ─── Mobile Menu — Full screen editorial ─── */}
       <div
+        id="mobile-navigation"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Site navigation"
         className={`fixed inset-0 z-40 lg:hidden transition-all duration-500 ${
           mobileMenuOpen ? "visible" : "invisible"
         }`}
