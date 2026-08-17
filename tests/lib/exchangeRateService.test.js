@@ -17,14 +17,14 @@ describe("exchange rate service", () => {
       "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ base: "USD", date: "2026-01-01", rates: { EUR: 0.92, SLE: 22.5 } }),
+        json: async () => ({ base: "USD", date: "2026-01-01", rates: { EUR: 0.92, SLL: 22500 } }),
       }),
     );
-    const data = await getExchangeRates("USD", ["EUR", "SLE"]);
+    const data = await getExchangeRates("USD", ["EUR", "SLL"]);
     expect(data.source).toBe("exchangerate.host");
     expect(data.stale).toBe(false);
     expect(data.rates.EUR).toBe(0.92);
-    expect(data.rates.SLE).toBe(22.5);
+    expect(data.rates.SLL).toBe(22500);
     expect(data.timestamp).toBeGreaterThan(0);
   });
 
@@ -35,15 +35,15 @@ describe("exchange rate service", () => {
       json: async () => ({
         timestamp: 1767225600,
         base: "USD",
-        rates: { EUR: 0.92, GBP: 0.79, SLE: 22.5 },
+        rates: { EUR: 0.92, GBP: 0.79, SLL: 22500 },
       }),
     });
     vi.stubGlobal("fetch", fetchMock);
-    const data = await getExchangeRates("USD", ["EUR", "SLE"]);
+    const data = await getExchangeRates("USD", ["EUR", "SLL"]);
     expect(data.source).toBe("openexchangerates");
     expect(data.stale).toBe(false);
     expect(data.rates.EUR).toBe(0.92);
-    expect(data.rates.SLE).toBe(22.5);
+    expect(data.rates.SLL).toBe(22500);
     expect(data.date).toBe("2026-01-01");
     expect(fetchMock.mock.calls[0][0]).toContain("openexchangerates.org/api/latest.json");
     expect(fetchMock.mock.calls[0][0]).toContain("app_id=oer_test");
@@ -58,16 +58,16 @@ describe("exchange rate service", () => {
         json: async () => ({
           timestamp: 1767225600,
           base: "USD",
-          rates: { EUR: 0.92, GBP: 0.79, SLE: 22.5 },
+          rates: { EUR: 0.92, GBP: 0.79, SLL: 22500 },
         }),
       }),
     );
-    const data = await getExchangeRates("EUR", ["USD", "EUR", "GBP", "SLE"]);
+    const data = await getExchangeRates("EUR", ["USD", "EUR", "GBP", "SLL"]);
     expect(data.source).toBe("openexchangerates");
     expect(data.rates.EUR).toBe(1);
     expect(data.rates.USD).toBeCloseTo(1 / 0.92, 5);
     expect(data.rates.GBP).toBeCloseTo(0.79 / 0.92, 5);
-    expect(data.rates.SLE).toBeCloseTo(22.5 / 0.92, 5);
+    expect(data.rates.SLL).toBeCloseTo(22500 / 0.92, 5);
   });
 
   it("falls back to static stale rates when Open Exchange Rates lacks the base", async () => {
@@ -79,7 +79,7 @@ describe("exchange rate service", () => {
         json: async () => ({ base: "USD", rates: { EUR: 0.92 } }),
       }),
     );
-    const data = await getExchangeRates("SLE", ["EUR"]);
+    const data = await getExchangeRates("SLL", ["EUR"]);
     expect(data.source).toBe("fallback");
     expect(data.stale).toBe(true);
     expect(data.rates.EUR).toBe(FALLBACK_RATES.EUR);
@@ -102,7 +102,7 @@ describe("exchange rate service", () => {
       json: async () => ({
         base: "USD",
         date: "2026-01-01",
-        rates: { EUR: 0.92, GBP: 0.79, SLE: 22.5 },
+        rates: { EUR: 0.92, GBP: 0.79, SLL: 22500 },
       }),
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -124,10 +124,10 @@ describe("exchange rate service", () => {
 
   it("falls back to static stale rates when the provider returns no rates", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }));
-    const data = await getExchangeRates("USD", ["SLE"]);
+    const data = await getExchangeRates("USD", ["SLL"]);
     expect(data.source).toBe("fallback");
     expect(data.stale).toBe(true);
-    expect(data.rates.SLE).toBe(FALLBACK_RATES.SLE);
+    expect(data.rates.SLL).toBe(FALLBACK_RATES.SLL);
   });
 
   it("throws for an unsupported base currency", async () => {

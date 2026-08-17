@@ -19,7 +19,7 @@ describe("GET /api/exchange", () => {
   it("returns live rates for the default base currency", async () => {
     getExchangeRates.mockResolvedValue({
       base: "USD",
-      rates: { EUR: 0.92, SLE: 22.5 },
+      rates: { EUR: 0.92, SLL: 22500 },
       date: "2026-01-01",
       source: "openexchangerates",
       stale: false,

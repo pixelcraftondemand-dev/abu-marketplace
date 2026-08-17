@@ -61,7 +61,7 @@ else
 fi
 
 # 5. Exchange rates — must not be the stale fallback
-code=$(status "$BASE_URL/api/exchange?base=USD&symbols=EUR,SLE")
+code=$(status "$BASE_URL/api/exchange?base=USD&symbols=EUR,SLL")
 if [ "$code" = "200" ]; then
   if grep -q '"stale":true' /tmp/smoke-body.txt; then
     warn "/api/exchange -> 200 but STALE (OPEN_EXCHANGE_RATES_APP_ID not set on prod?)"

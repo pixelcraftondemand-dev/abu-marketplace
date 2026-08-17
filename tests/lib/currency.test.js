@@ -13,14 +13,16 @@ import {
 describe("currency utils", () => {
   it("treats USD as the canonical base currency", () => {
     expect(supportedCurrencies).toContain("USD");
-    expect(supportedCurrencies).toContain("SLE");
+    expect(supportedCurrencies).toContain("SLL");
     expect(supportedCurrencies).toContain("EUR");
     expect(supportedCurrencies).toContain("GBP");
+    // The legacy new-leone code was dropped in favor of SLL.
+    expect(supportedCurrencies).not.toContain("SLE");
   });
 
   it("validates supported and unsupported currencies", () => {
     expect(isValidCurrency("USD")).toBe(true);
-    expect(isValidCurrency("SLE")).toBe(true);
+    expect(isValidCurrency("SLL")).toBe(true);
     expect(isValidCurrency("EUR")).toBe(true);
     expect(isValidCurrency("GBP")).toBe(true);
     expect(isValidCurrency("BTC")).toBe(false);
@@ -44,8 +46,8 @@ describe("currency utils", () => {
     expect(formatPrice(1234.5, "USD")).toContain("1,234.50");
   });
 
-  it("formats SLE with the brand SLe symbol and grouped numbers", () => {
-    const out = formatPrice(1234.5, "SLE");
+  it("formats SLL with the brand SLe symbol and grouped numbers", () => {
+    const out = formatPrice(1234.5, "SLL");
     expect(out).toContain("SLe");
     expect(out).toContain("1,234.50");
   });
@@ -71,7 +73,7 @@ describe("currency utils", () => {
 
   it("formats compact amounts with the currency symbol", () => {
     expect(formatPriceCompact(1250, "USD")).toMatch(/\$/);
-    expect(formatPriceCompact(25312.5, "SLE")).toContain("SLe");
+    expect(formatPriceCompact(25312.5, "SLL")).toContain("SLe");
   });
 
   it("handles non-finite compact amounts gracefully", () => {
@@ -81,14 +83,14 @@ describe("currency utils", () => {
 
   it("exposes the static fallback rates used when the API is unreachable", () => {
     expect(FALLBACK_RATES.USD).toBe(1);
-    expect(FALLBACK_RATES.SLE).toBeGreaterThan(1);
+    expect(FALLBACK_RATES.SLL).toBeGreaterThan(1);
   });
 
   it("maps currency codes to symbols", () => {
     expect(getCurrencySymbol("USD")).toBe("$");
     expect(getCurrencySymbol("EUR")).toBe("€");
     expect(getCurrencySymbol("GBP")).toBe("£");
-    expect(getCurrencySymbol("SLE")).toContain("SLe");
+    expect(getCurrencySymbol("SLL")).toContain("SLe");
     expect(getCurrencySymbol("XYZ")).toBe("XYZ ");
   });
 });
