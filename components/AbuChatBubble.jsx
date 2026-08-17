@@ -109,16 +109,15 @@ export default function AbuChatBubble() {
   };
 
   return (
+    // Position is applied via inline style ONLY once the mount effect has run
+    // (position !== null). Before that — including the SSR pass and the very
+    // first client render — the bubble sits in the default corner via CSS
+    // classes. Computing left/top from window during render would make the
+    // server HTML (style={}) and the client hydration (style={{left,top}})
+    // differ, which React flags as a hydration mismatch on every page.
     <div
-      className="fixed z-50"
-      style={{
-        left:
-          position?.x ??
-          (typeof window !== "undefined" ? window.innerWidth - BUBBLE_SIZE - EDGE_PADDING : undefined),
-        top:
-          position?.y ??
-          (typeof window !== "undefined" ? window.innerHeight - BUBBLE_SIZE - EDGE_PADDING : undefined),
-      }}
+      className={`fixed z-50 ${position ? "" : "right-4 bottom-4"}`}
+      style={position ? { left: position.x, top: position.y } : undefined}
     >
       {open && (
         <div

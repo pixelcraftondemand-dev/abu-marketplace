@@ -102,7 +102,6 @@ export const viewport = {
 export default async function RootLayout({ children }) {
   let locale = defaultLocale
   let lang = 'en'
-  let nonce = ''
   try {
     const cookieStore = await cookies()
     const headerStore = await headers()
@@ -111,11 +110,6 @@ export default async function RootLayout({ children }) {
     const localeCode = cookieLang || preferred
     locale = supportedLocales.includes(localeCode) ? localeCode : defaultLocale
     lang = locale
-    // Per-request CSP nonce set by middleware.ts. Next.js nonces its own
-    // inline scripts automatically; we forward it so ClerkProvider dynamic
-    // renders Clerk's <script> tag with the same nonce and the JSON-LD data
-    // block below is bulletproof across browsers.
-    nonce = headerStore.get('x-nonce') || ''
   } catch (e) {
     locale = defaultLocale
     lang = defaultLocale
@@ -140,9 +134,12 @@ export default async function RootLayout({ children }) {
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
         <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
         <meta name="format-detection" content="telephone=no" />
+        {/* JSON-LD is a data block (application/ld+json), never executed, so it
+            needs no CSP nonce — and giving it one would desync the server HTML
+            (nonce from x-nonce) from client hydration (next/headers unavailable
+            on the client), which React flags as a hydration mismatch. */}
         <script
           type="application/ld+json"
-          nonce={nonce || undefined}
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",

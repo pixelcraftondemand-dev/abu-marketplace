@@ -165,19 +165,20 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
                             )}
                         </div>
                     </div>
-                    {/* Seller / Official Store badge — Jumia trust signal */}
-                    {product.store && (
-                        <Link
-                            href={`/shop/${product.store.username}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 transition hover:text-[#C9A96E]"
-                        >
-                            <BadgeCheck size={13} className="shrink-0 text-[#C9A96E]" />
-                            <span className="truncate">{product.store.name}</span>
-                        </Link>
-                    )}
                 </div>
             </Link>
+            {/* Seller / Official Store badge — Jumia trust signal. Kept OUTSIDE
+                the product Link — a nested <a> inside <a> is invalid HTML and
+                breaks hydration. */}
+            {product.store && (
+                <Link
+                    href={`/shop/${product.store.username}`}
+                    className="mt-3 flex items-center gap-1.5 text-[11px] font-medium text-slate-500 transition hover:text-[#C9A96E]"
+                >
+                    <BadgeCheck size={13} className="shrink-0 text-[#C9A96E]" />
+                    <span className="truncate">{product.store.name}</span>
+                </Link>
+            )}
             <button
                 onClick={handleWishlist}
                 className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm transition hover:scale-105"
