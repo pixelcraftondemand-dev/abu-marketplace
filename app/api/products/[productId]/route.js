@@ -51,6 +51,34 @@ export async function GET(request, { params }) {
       ? product.rating.reduce((sum, item) => sum + item.rating, 0) / reviewCount
       : 0
 
+    // Related products: same category, in stock, public stores — the current
+    // product first (newest), then a deterministic fill. Enriches the PDP's
+    // "You may also like" grid without a separate endpoint.
+    const related = await prisma.product.findMany({
+      where: {
+        category: product.category,
+        id: { not: product.id },
+        inStock: true,
+        store: { is: { isActive: true, status: 'approved' } },
+      },
+      include: {
+        store: {
+          select: {
+            id: true, name: true, username: true, logo: true,
+            description: true, halalCertified: true,
+          },
+        },
+        rating: {
+          select: {
+            createdAt: true, rating: true, review: true,
+            user: { select: { name: true, image: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 4,
+    })
+
     return NextResponse.json({
       product: {
         ...product,
@@ -60,6 +88,10 @@ export async function GET(request, { params }) {
         rating: averageRating,
         reviewCount,
         originalPrice: product.mrp,
+        related: related.map((item) => ({
+          ...item,
+          images: normalizeImages(item.images),
+        })),
       },
     })
   } catch (error) {

@@ -5,7 +5,7 @@ import { GET as productGET } from "@/app/api/products/[productId]/route";
 
 vi.mock("@/lib/prisma", () => ({
   default: {
-    product: { findFirst: vi.fn() },
+    product: { findFirst: vi.fn(), findMany: vi.fn() },
   },
 }));
 
@@ -71,6 +71,7 @@ describe("product detail page error states (API boundary)", () => {
       ],
       store: { id: "st_1", name: "ABU Demo Store" },
     });
+    prisma.product.findMany.mockResolvedValue([]);
 
     const res = await productGET(
       new Request("http://localhost:3000/api/products/p_1"),
@@ -81,6 +82,48 @@ describe("product detail page error states (API boundary)", () => {
     const json = await res.json();
     expect(json.product.images).toEqual(["https://img.example/1.jpg"]);
     expect(Array.isArray(json.product.images)).toBe(true);
+  });
+
+  it("returns same-category related products normalized for the PDP grid", async () => {
+    prisma.product.findFirst.mockResolvedValue({
+      id: "p_1",
+      name: "Leather Crossbody Bag",
+      category: "fashion",
+      mrp: 110,
+      price: 84,
+      images: ["https://img.example/1.jpg"],
+      rating: [],
+      store: { id: "st_1", name: "ABU Demo Store" },
+    });
+    prisma.product.findMany.mockResolvedValue([
+      {
+        id: "p_2",
+        name: "Canvas Tote",
+        category: "fashion",
+        mrp: 60,
+        price: 45,
+        images: '["https://img.example/2.jpg"]',
+        rating: [],
+        store: { id: "st_1", name: "ABU Demo Store" },
+      },
+    ]);
+
+    const res = await productGET(
+      new Request("http://localhost:3000/api/products/p_1"),
+      { params: { productId: "p_1" } }
+    );
+
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.product.related).toHaveLength(1);
+    expect(json.product.related[0].id).toBe("p_2");
+    expect(json.product.related[0].images).toEqual(["https://img.example/2.jpg"]);
+    expect(prisma.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ category: "fashion", id: { not: "p_1" } }),
+        take: 4,
+      })
+    );
   });
 
 });

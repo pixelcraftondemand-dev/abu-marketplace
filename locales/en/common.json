@@ -263,6 +263,7 @@
     "standardNote": "5-7 business days — Free on orders over",
     "expressNote": "2-3 business days —",
     "youMayAlsoLike": "You May Also Like",
+    "youMayAlsoLikeEyebrow": "Complete the look",
     "productNotFound": "Product not found",
     "notFoundText": "This product may have been removed or the link is incorrect.",
     "continueShopping": "Continue shopping",
@@ -272,6 +273,14 @@
     "addedToCart": "Added to cart",
     "addedToWishlist": "Added to wishlist",
     "buyNow": "Buy Now"
+  },
+  "wishlist": {
+    "title": "My Wishlist",
+    "savedItems": "{count} saved items",
+    "empty": "Your wishlist is empty",
+    "emptyText": "Tap the heart on any product to save it for later",
+    "startShopping": "Start shopping",
+    "eyebrow": "Saved for later"
   },
   "wallet": {
     "title": "My Wallet",

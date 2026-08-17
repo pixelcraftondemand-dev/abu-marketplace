@@ -29,6 +29,7 @@ import { toggleWishlist } from "@/lib/features/wishlist/wishlistSlice";
 import { emitAddedToCart } from "@/lib/cartEvents";
 import { getProductDiscount } from "@/lib/productUtils";
 import { FREE_DELIVERY_THRESHOLD } from "@/lib/paymentOptions";
+import ProductCard from "@/components/ProductCard";
 
 export default function ProductDetailPage() {
   const { productId } = useParams();
@@ -462,37 +463,19 @@ export default function ProductDetailPage() {
         </div>
       </section>
 
-      {/* ─── Related Products — Editorial Grid ─── */}
+      {/* ─── Related Products — same shared ProductCard as the shop ─── */}
       {relatedProducts.length > 0 && (
         <section className="border-t border-[#E8E2DB] py-16">
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
-            <h2 className="font-display text-2xl text-[#1A1A1A] font-medium mb-8">
-              {t('productPage.youMayAlsoLike')}
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            <div className="mb-8">
+              <p className="text-editorial mb-2 text-[#C9A96E]">{t('productPage.youMayAlsoLikeEyebrow')}</p>
+              <h2 className="font-display text-2xl text-[#1A1A1A] font-medium sm:text-3xl">
+                {t('productPage.youMayAlsoLike')}
+              </h2>
+            </div>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-6">
               {relatedProducts.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/product/${item.id}`}
-                  className="group product-discovery"
-                >
-                  <div className="relative aspect-[3/4] overflow-hidden bg-[#F5F0EB]">
-                    <Image
-                      src={item.image}
-                      alt={item.name}
-                      fill
-                      className="object-cover product-discovery-img"
-                    />
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-display text-[15px] text-[#1A1A1A] group-hover:text-[#C9A96E] transition-colors">
-                      {item.name}
-                    </h3>
-                    <p className="text-sm font-semibold text-[#1A1A1A] mt-1">
-                      <CurrencyAmount amount={item.price} />
-                    </p>
-                  </div>
-                </Link>
+                <ProductCard key={item.id} product={item} />
               ))}
             </div>
           </div>
