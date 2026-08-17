@@ -160,11 +160,14 @@ jobs:
       - name: Verify guard rejects test keys and accepts live keys
         run: |
           set -euo pipefail
-          if NODE_ENV=production FLW_SECRET_KEY=FLWSECK_TEST_dummy node scripts/check-flutterwave-live.mjs >/dev/null 2>&1; then
+          # Real Flutterwave test keys are FLWSECK_TEST-... (dash) — the guard
+          # must trip on them. The underscore form is NOT a valid test key and
+          # must not be used as the negative fixture.
+          if NODE_ENV=production FLW_SECRET_KEY=FLWSECK_TEST-dummy node scripts/check-flutterwave-live.mjs >/dev/null 2>&1; then
             echo "::error::Flutterwave guard accepted a test key in production — scripts/check-flutterwave-live.mjs is broken."
             exit 1
           fi
-          NODE_ENV=production FLW_SECRET_KEY=FLWSECK_live_dummy node scripts/check-flutterwave-live.mjs
+          NODE_ENV=production FLW_SECRET_KEY=FLWSECK-dummy node scripts/check-flutterwave-live.mjs
           echo "Flutterwave live-mode guard self-test passed."
 
   workflow-lint:
