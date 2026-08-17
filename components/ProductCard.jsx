@@ -1,12 +1,14 @@
 'use client'
-import { StarIcon, Heart, ShoppingBag } from 'lucide-react'
+import { StarIcon, Heart, ShoppingBag, Zap, BadgeCheck } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useDispatch, useSelector } from 'react-redux'
 import toast from 'react-hot-toast'
 import { addToCart } from '@/lib/features/cart/cartSlice'
 import { toggleWishlist } from '@/lib/features/wishlist/wishlistSlice'
 import { getProductDiscount, getProductRating } from '@/lib/productUtils'
+import { emitAddedToCart } from '@/lib/cartEvents'
 import CurrencyAmount from '@/components/CurrencyAmount'
 import { useTranslation } from '@/lib/i18n'
 
@@ -14,11 +16,15 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
     const selectedCurrency = useSelector((state) => state.preferences.selectedCurrency)
     const { t } = useTranslation()
     const dispatch = useDispatch()
+    const router = useRouter()
     const wishlistItems = useSelector((state) => state.wishlist.items)
     const isWishlisted = wishlistItems.includes(product.id)
 
-    const { rating } = getProductRating(product)
+    const { rating, count } = getProductRating(product)
     const discount = getProductDiscount(product)
+    const images = Array.isArray(product.images) && product.images.length
+        ? product.images
+        : [product.image]
 
     const handleWishlist = (e) => {
         e.preventDefault()
@@ -35,8 +41,24 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
             return
         }
         dispatch(addToCart({ productId: product.id }))
-        toast.success(t('product.addedToCart'))
+        emitAddedToCart(product)
     }
+
+    // Jumia-style "Buy Now": add to cart, then go straight to checkout.
+    const handleBuyNow = (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (!product.inStock) {
+            toast.error(t('product.outOfStock'))
+            return
+        }
+        dispatch(addToCart({ productId: product.id }))
+        emitAddedToCart(product)
+        router.push('/cart')
+    }
+
+    // Shein-style low-stock urgency: show "only X left" for tracked, scarce stock.
+    const lowStock = product.stock != null && Number(product.stock) > 0 && Number(product.stock) <= 5
 
     return (
         <div className="group relative mx-auto w-full max-w-[220px] rounded-[28px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(15,23,42,0.15)]">
@@ -47,7 +69,12 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
                             -{discount}%
                         </span>
                     )}
-                    {(product.halalCertified || product.badge) && (
+                    {lowStock && (
+                        <span className="absolute bottom-3 left-3 rounded-full bg-amber-500/95 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white shadow-sm">
+                            {t('product.onlyXLeft', { count: product.stock })}
+                        </span>
+                    )}
+                    {(product.halalCertified || product.badge) && !lowStock && (
                         <span className="absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm">
                             {product.halalCertified ? t('product.halalCertified') : product.badge}
                         </span>
@@ -57,17 +84,27 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
                         width={500}
                         height={500}
                         className="h-full w-full object-contain p-4 transition duration-300 group-hover:scale-105"
-                        src={product.images[0]}
+                        src={images[0]}
                         alt={product.name}
                     />
                     {showQuickAdd && (
-                        <button
-                            onClick={handleQuickAdd}
-                            className="absolute bottom-3 right-3 flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-white shadow-2xl shadow-slate-900/10 transition hover:bg-slate-800"
-                            aria-label={t('product.quickAdd')}
-                        >
-                            <ShoppingBag size={18} />
-                        </button>
+                        <div className="absolute bottom-3 right-3 flex gap-2">
+                            <button
+                                onClick={handleBuyNow}
+                                className="flex h-11 items-center gap-1.5 rounded-full bg-slate-900 px-4 text-[11px] font-semibold uppercase tracking-wider text-white shadow-2xl shadow-slate-900/10 transition hover:bg-slate-800"
+                                aria-label={t('product.buyNow')}
+                            >
+                                <Zap size={15} />
+                                {t('product.buyNow')}
+                            </button>
+                            <button
+                                onClick={handleQuickAdd}
+                                className="flex h-11 w-11 items-center justify-center rounded-full bg-[#C9A96E] text-white shadow-2xl shadow-slate-900/10 transition hover:bg-[#b18d45]"
+                                aria-label={t('product.quickAdd')}
+                            >
+                                <ShoppingBag size={18} />
+                            </button>
+                        </div>
                     )}
                 </div>
                 <div className="mt-4 flex flex-col gap-3">
@@ -84,7 +121,10 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
                                     />
                                 ))}
                             </div>
-                            <span className="font-medium text-slate-600">{rating.toFixed(1)} / 5</span>
+                            <span className="font-medium text-slate-600">
+                                {rating.toFixed(1)}
+                                {count > 0 && <span className="ml-1 text-slate-400">({count})</span>}
+                            </span>
                         </div>
                         <p className="mt-2 text-[12px] text-slate-500">{t('product.easyReturns')}</p>
                     </div>
@@ -104,6 +144,17 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
                             )}
                         </div>
                     </div>
+                    {/* Seller / Official Store badge — Jumia trust signal */}
+                    {product.store && (
+                        <Link
+                            href={`/shop/${product.store.username}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 transition hover:text-[#C9A96E]"
+                        >
+                            <BadgeCheck size={13} className="shrink-0 text-[#C9A96E]" />
+                            <span className="truncate">{product.store.name}</span>
+                        </Link>
+                    )}
                 </div>
             </Link>
             <button

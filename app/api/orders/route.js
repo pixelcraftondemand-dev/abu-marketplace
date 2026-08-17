@@ -7,7 +7,7 @@ import { PaymentMethod } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { initiatePayment } from "@/lib/services/flutterwave";
 import { isValidCurrency } from "@/lib/utils/currency";
-import { isCashOnDeliveryAvailable } from "@/lib/paymentOptions";
+import { DELIVERY_FEE, FREE_DELIVERY_THRESHOLD, isCashOnDeliveryAvailable } from "@/lib/paymentOptions";
 import { reserveStock, releaseStock, StockUnavailableError } from "@/lib/services/paymentService";
 import { debitWallet, WalletInsufficientFundsError } from "@/lib/services/walletService";
 import { PAYMENT_STATES } from "@/lib/services/paymentState";
@@ -15,7 +15,6 @@ import { logPayment, getRequestId } from "@/lib/paymentLog";
 
 const MAX_ORDER_ITEMS = 50;
 const MAX_ITEM_QUANTITY = 99;
-const DELIVERY_FEE = 5; // canonical USD
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._-]{8,128}$/;
 const SESSION_REUSE_WINDOW_MS = 25 * 60 * 1000; // reuse an in-flight session for 25 min
 
@@ -228,22 +227,23 @@ export async function POST(request) {
 
     // Per-store totals from canonical prices only (client amounts are ignored).
     const storeTotals = [];
-    let fullAmount = 0;
-    let isDeliveryFeeAdded = false;
+    let subtotal = 0;
     for (const [storeId, sellerItems] of ordersByStore.entries()) {
       let total = sellerItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
       if (couponCode) {
         total -= (total * coupon.discount) / 100;
       }
-      if (!isDeliveryFeeAdded) {
-        total += DELIVERY_FEE;
-        isDeliveryFeeAdded = true;
-      }
       total = parseFloat(total.toFixed(2));
-      fullAmount += total;
+      subtotal += total;
       storeTotals.push({ storeId, sellerItems, total });
     }
-    fullAmount = parseFloat(fullAmount.toFixed(2));
+    // Delivery is charged once per order (landing on the first store's order,
+    // matching the historical behavior), and is free at/above the threshold.
+    const deliveryFee = subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_FEE;
+    if (deliveryFee > 0 && storeTotals.length > 0) {
+      storeTotals[0].total = parseFloat((storeTotals[0].total + deliveryFee).toFixed(2));
+    }
+    const fullAmount = parseFloat((subtotal + deliveryFee).toFixed(2));
 
     // ── Atomic transaction: payment + orders + inventory + coupon usage ─────────
     // A single transaction means a failure (stock, coupon, DB) rolls everything

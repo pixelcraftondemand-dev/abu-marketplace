@@ -12,7 +12,7 @@ import { fetchCart } from '@/lib/features/cart/cartSlice';
 import CurrencyAmount from '@/components/CurrencyAmount'
 import useWalletBalance from '@/lib/hooks/useWalletBalance'
 import { useTranslation } from '@/lib/i18n'
-import { isCashOnDeliveryAvailable } from '@/lib/paymentOptions'
+import { isCashOnDeliveryAvailable, isFreeDelivery } from '@/lib/paymentOptions'
 
 const OrderSummary = ({ totalPrice, items }) => {
 
@@ -26,6 +26,7 @@ const OrderSummary = ({ totalPrice, items }) => {
     const addressList = useSelector(state => state.address.list);
     const selectedCountry = useSelector(state => state.preferences.selectedCountry);
     const codEnabled = isCashOnDeliveryAvailable();
+    const deliveryFree = isFreeDelivery(totalPrice);
 
     const [paymentMethod, setPaymentMethod] = useState('COD');
     const { balance: walletBalance, loading: walletLoading } = useWalletBalance();
@@ -175,7 +176,7 @@ const OrderSummary = ({ totalPrice, items }) => {
                     <div className='flex flex-col gap-1 font-medium text-right'>
                         <p><CurrencyAmount amount={totalPrice} /></p>
                         <p>
-                            <Show when={(has) => has({ plan: 'plus' })} fallback={<span><CurrencyAmount amount={5} /></span>}>
+                            <Show when={(has) => has({ plan: 'plus' })} fallback={<span><CurrencyAmount amount={deliveryFree ? 0 : 5} /></span>}>
                                 {t('checkout.free')}
                             </Show>
                         </p>
@@ -200,7 +201,7 @@ const OrderSummary = ({ totalPrice, items }) => {
             <div className='flex justify-between py-4'>
                 <p>{t('checkout.total')}</p>
                 <p className='font-medium text-right'>
-                    <Show when={(has) => has({ plan: 'plus' })} fallback={<span><CurrencyAmount amount={coupon ? (totalPrice + 5 - (coupon.discount / 100 * totalPrice)) : (totalPrice + 5)} /></span>}>
+                    <Show when={(has) => has({ plan: 'plus' })} fallback={<span><CurrencyAmount amount={coupon ? (totalPrice + (deliveryFree ? 0 : 5) - (coupon.discount / 100 * totalPrice)) : (totalPrice + (deliveryFree ? 0 : 5))} /></span>}>
                         <CurrencyAmount amount={coupon ? (totalPrice - (coupon.discount / 100 * totalPrice)) : totalPrice} />
                     </Show>
                 </p>

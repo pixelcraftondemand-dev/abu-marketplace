@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import Image from "next/image";
 import Link from "next/link";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import toast from "react-hot-toast";
 import CurrencyAmount from '@/components/CurrencyAmount'
 import { useTranslation } from '@/lib/i18n'
 import {
@@ -19,14 +20,21 @@ import {
   Minus,
   Plus,
   Check,
-  ArrowLeft,
+  Zap,
+  BadgeCheck,
 } from "lucide-react";
 import Loading from "@/components/Loading";
+import { addToCart } from "@/lib/features/cart/cartSlice";
+import { toggleWishlist } from "@/lib/features/wishlist/wishlistSlice";
+import { emitAddedToCart } from "@/lib/cartEvents";
+import { getProductDiscount } from "@/lib/productUtils";
 
 export default function ProductDetailPage() {
   const { productId } = useParams();
   const dispatch = useDispatch();
+  const router = useRouter();
   const { t } = useTranslation();
+  const wishlistItems = useSelector((state) => state.wishlist.items);
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -63,14 +71,31 @@ export default function ProductDetailPage() {
   }, [productId, retryCount]);
 
   const handleAddToCart = () => {
-    dispatch({ type: "cart/add", payload: { ...product, quantity } });
-    toast.success(t('productPage.addedToCart'));
+    if (!product.inStock) {
+      toast.error(t('product.outOfStock'));
+      return;
+    }
+    for (let i = 0; i < quantity; i++) {
+      dispatch(addToCart({ productId: product.id }));
+    }
+    emitAddedToCart(product, quantity);
+  };
+
+  const handleBuyNow = () => {
+    if (!product.inStock) {
+      toast.error(t('product.outOfStock'));
+      return;
+    }
+    for (let i = 0; i < quantity; i++) {
+      dispatch(addToCart({ productId: product.id }));
+    }
+    emitAddedToCart(product, quantity);
+    router.push("/cart");
   };
 
   const handleAddToWishlist = () => {
-    dispatch({ type: "wishlist/add", payload: product });
-    setLiked(true);
-    toast.success(t('productPage.addedToWishlist'));
+    dispatch(toggleWishlist(product.id));
+    setLiked(!wishlistItems.includes(product.id));
   };
 
   if (loading) return <Loading />;
@@ -195,7 +220,7 @@ export default function ProductDetailPage() {
               {product.name}
             </h1>
 
-            {/* Rating */}
+            {/* Rating — Jumia-style stars + review count */}
             <div className="flex items-center gap-3 mb-6">
               <div className="flex items-center gap-1">
                 {Array(5).fill(null).map((_, i) => (
@@ -207,23 +232,23 @@ export default function ProductDetailPage() {
                 ))}
               </div>
               <span className="text-sm text-[#6B6560]">
-                {product.rating} ({t('productPage.reviews', { count: product.reviewCount || 0 })})
+                {Number(product.rating || 0).toFixed(1)} ({t('productPage.reviews', { count: product.reviewCount || 0 })})
               </span>
             </div>
 
-            {/* Price */}
+            {/* Price — discounted price vs crossed-out list price */}
             <div className="flex items-baseline gap-3 mb-6">
               <span className="font-display text-3xl text-[#1A1A1A] font-medium">
                 <CurrencyAmount amount={product.price} />
               </span>
-              {product.originalPrice && (
+              {(product.originalPrice || product.mrp) && (product.originalPrice || product.mrp) > product.price && (
                 <span className="text-lg text-[#9B9590] line-through">
-                  <CurrencyAmount amount={product.originalPrice} />
+                  <CurrencyAmount amount={product.originalPrice || product.mrp} />
                 </span>
               )}
-              {product.originalPrice && (
+              {getProductDiscount(product) > 0 && (
                 <span className="px-2 py-1 bg-[#1A1A1A] text-white text-xs font-medium">
-                  {t('productPage.percentOff', { percent: Math.round((1 - product.price / product.originalPrice) * 100) })}
+                  {t('productPage.percentOff', { percent: getProductDiscount(product) })}
                 </span>
               )}
             </div>
@@ -255,16 +280,24 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
-              {/* Buttons */}
+              {/* Buttons — Jumia-style Add to Cart + Buy Now split */}
               <div className="flex gap-3">
                 <button
                   onClick={handleAddToCart}
-                  className="flex-1 btn-luxury py-4"
+                  className="flex-1 border-2 border-[#1A1A1A] py-4 text-sm font-medium uppercase tracking-wide transition hover:bg-[#1A1A1A] hover:text-white"
                 >
                   <span>{t('productPage.addToCart')}</span>
                 </button>
                 <button
+                  onClick={handleBuyNow}
+                  className="flex items-center justify-center gap-2 flex-1 btn-luxury py-4"
+                >
+                  <Zap size={16} />
+                  <span>{t('productPage.buyNow')}</span>
+                </button>
+                <button
                   onClick={handleAddToWishlist}
+                  aria-label={t('productPage.addedToWishlist')}
                   className={`p-4 border transition ${
                     liked
                       ? "border-red-200 bg-red-50 text-red-500"
@@ -272,9 +305,6 @@ export default function ProductDetailPage() {
                   }`}
                 >
                   <Heart size={20} className={liked ? "fill-red-500" : ""} />
-                </button>
-                <button className="p-4 border border-[#E8E2DB] text-[#1A1A1A] hover:border-[#C9A96E] transition">
-                  <Share2 size={20} />
                 </button>
               </div>
             </div>
@@ -299,17 +329,34 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            {/* Seller Info */}
+            {/* Seller Info — Jumia "Sold by · Official Store" trust card */}
             {product.store && (
               <div className="p-4 bg-white border border-[#E8E2DB]">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-[#9B9590] mb-1">{t('productPage.soldBy')}</p>
-                    <p className="text-sm font-medium text-[#1A1A1A]">{product.store.name}</p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {product.store.logo ? (
+                      <Image src={product.store.logo} alt="" width={40} height={40} className="size-10 rounded-full object-cover" />
+                    ) : (
+                      <div className="flex size-10 items-center justify-center rounded-full bg-[#1A1A1A] text-sm font-semibold text-white">
+                        {(product.store.name || "S").charAt(0)}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-xs text-[#9B9590] mb-0.5">{t('productPage.soldBy')}</p>
+                      <p className="flex items-center gap-1.5 text-sm font-medium text-[#1A1A1A] truncate">
+                        {product.store.name}
+                        {product.store.halalCertified && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[#C9A96E]/10 px-2 py-0.5 text-[10px] font-semibold text-[#A88B52]">
+                            <BadgeCheck size={11} />
+                            {t('product.halalCertified')}
+                          </span>
+                        )}
+                      </p>
+                    </div>
                   </div>
                   <Link
-                    href={`/store/${product.store.id}`}
-                    className="text-xs text-[#C9A96E] hover:text-[#A88B52] transition">{t('productPage.viewStore')}
+                    href={product.store.username ? `/shop/${product.store.username}` : `/store/${product.store.id}`}
+                    className="shrink-0 text-xs text-[#C9A96E] hover:text-[#A88B52] transition">{t('productPage.viewStore')}
                   </Link>
                 </div>
               </div>

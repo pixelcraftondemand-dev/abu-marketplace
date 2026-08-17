@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import StoreProvider from "@/app/StoreProvider";
 import CookieConsentBanner from "@/components/CookieConsent";
 import AbuChatBubble from "@/components/AbuChatBubble";
+import AddedToCartSheet from "@/components/AddedToCartSheet";
 import "./globals.css";
 import { cookies, headers } from 'next/headers'
 import { getPreferredLocaleFromAcceptLanguage, supportedLocales, defaultLocale } from '@/lib/utils/locale'
@@ -219,6 +220,7 @@ export default async function RootLayout({ children }) {
             {children}
             <CookieConsentBanner />
             <AbuChatBubble />
+            <AddedToCartSheet />
           </StoreProvider>
           </ClerkProvider>
         </NextIntlClientProvider>

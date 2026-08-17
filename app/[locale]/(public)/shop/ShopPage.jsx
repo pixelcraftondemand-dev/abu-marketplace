@@ -23,6 +23,7 @@ import {
 import Loading from "@/components/Loading";
 import { productDummyData } from "@/assets/assets";
 import { getProductRating } from "@/lib/productUtils";
+import SharedProductCard from "@/components/ProductCard";
 
 const sortOptions = [
   { labelKey: "shop.sortFeatured", value: "featured" },
@@ -355,14 +356,13 @@ function ShopPageContent() {
                 : "space-y-6"
             }
           >
-            {displayedProducts.map((product, i) => (
-              <ProductCard
-                key={product.id || i}
-                product={product}
-                viewMode={viewMode}
-                index={i}
-              />
-            ))}
+            {viewMode === "grid"
+              ? displayedProducts.map((product, i) => (
+                  <SharedProductCard key={product.id || i} product={product} />
+                ))
+              : displayedProducts.map((product, i) => (
+                  <ProductCard key={product.id || i} product={product} viewMode={viewMode} index={i} />
+                ))}
           </div>
         )}
       </div>

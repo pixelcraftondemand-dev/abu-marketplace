@@ -86,6 +86,8 @@
     "halalCertified": "Halal Certified",
     "freeDelivery": "Free delivery",
     "quickAdd": "Quick add to cart",
+    "buyNow": "Buy Now",
+    "onlyXLeft": "Only {count} left",
     "easyReturns": "Easy returns • Quality checked sellers",
     "yourPrice": "Your price",
     "save": "Save {percent}%",
@@ -93,7 +95,11 @@
     "outOfStock": "Out of stock",
     "addedToCart": "Added to cart",
     "addedToWishlist": "Added to wishlist",
-    "removedFromWishlist": "Removed from wishlist"
+    "removedFromWishlist": "Removed from wishlist",
+    "addedToCartTitle": "Added to cart",
+    "dismiss": "Dismiss",
+    "viewCart": "View cart",
+    "continueShopping": "Continue shopping"
   },
   "productDetails": {
     "verifiedSeller": "Verified seller",
@@ -125,7 +131,17 @@
     "quantity": "Quantity",
     "totalPrice": "Total Price",
     "remove": "Remove",
-    "empty": "Your cart is empty"
+    "empty": "Your cart is empty",
+    "freeDeliveryUnlocked": "You've unlocked FREE delivery!",
+    "freeDeliveryProgress": "Add",
+    "freeDeliveryCta": "Continue shopping",
+    "youSaved": "You're saving",
+    "savingsTitle": "Your savings",
+    "deliveryEstimate": "Delivery",
+    "shoppingBag": "Shopping bag",
+    "secureCheckout": "Secure checkout",
+    "freeDeliveryThreshold": "Free delivery on orders above",
+    "each": "each"
   },
   "checkout": {
     "paymentSummary": "Payment Summary",
@@ -239,7 +255,8 @@
     "loadFailedText": "Something went wrong while loading the product. Check your connection and try again.",
     "retry": "Retry",
     "addedToCart": "Added to cart",
-    "addedToWishlist": "Added to wishlist"
+    "addedToWishlist": "Added to wishlist",
+    "buyNow": "Buy Now"
   },
   "wallet": {
     "title": "My Wallet",

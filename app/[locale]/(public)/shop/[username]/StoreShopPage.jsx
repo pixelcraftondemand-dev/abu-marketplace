@@ -2,7 +2,7 @@
 import ProductCard from "@/components/ProductCard"
 import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
-import { MailIcon, MapPinIcon, RotateCcw } from "lucide-react"
+import { MailIcon, MapPinIcon, RotateCcw, BadgeCheck, Star, Package } from "lucide-react"
 import Loading from "@/components/Loading"
 import Image from "next/image"
 import axios from "axios"
@@ -29,6 +29,13 @@ export default function StoreShopPage() {
         }
         setLoading(false)
     }
+
+    // Jumia-style store stats: product count + average rating across reviews.
+    const productCount = products.length
+    const allRatings = products.flatMap((p) => Array.isArray(p.rating) ? p.rating : [])
+    const avgRating = allRatings.length
+        ? (allRatings.reduce((acc, r) => acc + (Number(r.rating) || 0), 0) / allRatings.length).toFixed(1)
+        : null
 
     useEffect(() => {
         fetchStoreData()
@@ -63,8 +70,12 @@ export default function StoreShopPage() {
                             height={200}
                         />
                         <div className="text-center md:text-left">
-                            <div className="flex flex-wrap items-center gap-3">
+                            <div className="flex flex-wrap items-center justify-center gap-3 md:justify-start">
                                 <h1 className="text-3xl font-semibold text-slate-800">{storeInfo.name}</h1>
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1A1A] px-3 py-1 text-xs font-semibold tracking-[0.14em] uppercase text-white">
+                                    <BadgeCheck size={13} />
+                                    Official Store
+                                </span>
                                 {storeInfo.halalCertified && (
                                     <span className="rounded-full bg-[#C9A96E] px-3 py-1 text-xs font-semibold tracking-[0.16em] uppercase text-white">
                                         Halal Certified
@@ -72,7 +83,20 @@ export default function StoreShopPage() {
                                 )}
                             </div>
                             <p className="text-sm text-slate-600 mt-2 max-w-lg">{storeInfo.description}</p>
-                            <div className="space-y-2 text-sm text-slate-500">
+                            {/* Jumia-style store stats row */}
+                            <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm md:justify-start">
+                                <span className="inline-flex items-center gap-1.5 text-slate-600">
+                                    <Package size={15} className="text-[#C9A96E]" />
+                                    {productCount} products
+                                </span>
+                                {avgRating && (
+                                    <span className="inline-flex items-center gap-1.5 text-slate-600">
+                                        <Star size={15} className="fill-amber-400 text-amber-400" />
+                                        {avgRating} ({allRatings.length})
+                                    </span>
+                                )}
+                            </div>
+                            <div className="space-y-2 text-sm text-slate-500 mt-3">
                                 <div className="flex items-center">
                                     <MapPinIcon className="w-4 h-4 text-gray-500 mr-2" />
                                     <span>{storeInfo.address}</span>
