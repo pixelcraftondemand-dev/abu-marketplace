@@ -246,6 +246,17 @@ async function handleOrderSucceeded(tx, meta, requestId) {
     where: { paymentId: payment.id, isPaid: false },
     data: { isPaid: true, paymentStatus: PAYMENT_STATES.SUCCEEDED },
   });
+
+  // Social proof: count units toward the products' lifetime sold tally. Safe
+  // to do here because this handler runs exactly once per payment (the atomic
+  // transition gate above) — never on retries or duplicate deliveries.
+  for (const orderItem of payment.orders.flatMap((o) => o.orderItems)) {
+    await prisma.product.update({
+      where: { id: orderItem.productId },
+      data: { soldCount: { increment: orderItem.quantity } },
+    });
+  }
+
   await prisma.user.update({ where: { id: payment.userId }, data: { cart: {} } });
 
   logPayment({

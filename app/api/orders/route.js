@@ -294,6 +294,17 @@ export async function POST(request) {
           });
         }
 
+        // Social proof: count units toward the products' lifetime sold tally.
+        // COD and WALLET orders are final the moment the transaction commits
+        // (no provider step), so the increment is safe here and rolls back
+        // with everything else on failure.
+        for (const [productId, qty] of requestedItems) {
+          await tx.product.update({
+            where: { id: productId },
+            data: { soldCount: { increment: qty } },
+          });
+        }
+
         for (const { storeId, sellerItems, total } of storeTotals) {
           const order = await tx.order.create({
             data: {

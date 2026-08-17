@@ -22,7 +22,7 @@ vi.mock("@/lib/prisma", () => {
     address: { findFirst: vi.fn() },
     coupon: { findUnique: vi.fn(), updateMany: vi.fn(() => ({ count: 1 })) },
     order: { findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
-    product: { findMany: vi.fn(), updateMany: vi.fn(() => ({ count: 1 })) },
+    product: { findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn(() => ({ count: 1 })) },
     payment: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
     user: { update: vi.fn() },
     wallet: { findUnique: vi.fn().mockResolvedValue({ id: "w_1", userId: "usr_1", balance: 100 }), updateMany: vi.fn(() => ({ count: 1 })) },

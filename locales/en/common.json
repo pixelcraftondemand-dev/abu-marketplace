@@ -102,6 +102,7 @@
     "quickAdd": "Quick add to cart",
     "buyNow": "Buy Now",
     "onlyXLeft": "Only {count} left",
+    "xSold": "{count} sold",
     "easyReturns": "Easy returns • Quality checked sellers",
     "yourPrice": "Your price",
     "save": "Save {percent}%",

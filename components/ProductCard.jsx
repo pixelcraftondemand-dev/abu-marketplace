@@ -11,6 +11,7 @@ import { getProductDiscount, getProductRating } from '@/lib/productUtils'
 import { emitAddedToCart } from '@/lib/cartEvents'
 import CurrencyAmount from '@/components/CurrencyAmount'
 import { useTranslation } from '@/lib/i18n'
+import { useFlashCountdown } from '@/lib/hooks/useFlashCountdown'
 
 const ProductCard = ({ product, showQuickAdd = true }) => {
     const selectedCurrency = useSelector((state) => state.preferences.selectedCurrency)
@@ -60,6 +61,15 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
     // Shein-style low-stock urgency: show "only X left" for tracked, scarce stock.
     const lowStock = product.stock != null && Number(product.stock) > 0 && Number(product.stock) <= 5
 
+    // Flash-deal products (>=15% off) get a live countdown chip — same clock
+    // as the homepage flash-sale banner.
+    const isFlashDeal = discount >= 15
+    const { formatted: flashCountdown } = useFlashCountdown()
+
+    // Social proof: "X sold" — real cumulative units from soldCount when
+    // present (dummy data has no soldCount, so fall back to review count).
+    const soldCount = product.soldCount != null ? Number(product.soldCount) : count
+
     return (
         <div className="group relative mx-auto w-full max-w-[220px] rounded-[28px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(15,23,42,0.15)]">
             <Link href={`/product/${product.id}`} className="block">
@@ -79,7 +89,15 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
                             {product.halalCertified ? t('product.halalCertified') : product.badge}
                         </span>
                     )}
-                    <span className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-semibold text-slate-700 shadow-sm">{t('product.freeDelivery')}</span>
+                    {isFlashDeal && (
+                        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-[#1A1A1A]/90 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm backdrop-blur-sm">
+                            <span className="animate-pulse">⚡</span>
+                            <span className="font-mono tabular-nums">{flashCountdown}</span>
+                        </span>
+                    )}
+                    {!isFlashDeal && (
+                        <span className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-semibold text-slate-700 shadow-sm">{t('product.freeDelivery')}</span>
+                    )}
                     <Image
                         width={500}
                         height={500}
@@ -125,6 +143,9 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
                                 {rating.toFixed(1)}
                                 {count > 0 && <span className="ml-1 text-slate-400">({count})</span>}
                             </span>
+                            {soldCount > 0 && (
+                                <span className="text-[11px] font-medium text-[#6B6560]">· {t('product.xSold', { count: soldCount })}</span>
+                            )}
                         </div>
                         <p className="mt-2 text-[12px] text-slate-500">{t('product.easyReturns')}</p>
                     </div>

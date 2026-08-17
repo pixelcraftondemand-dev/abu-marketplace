@@ -58,6 +58,7 @@ model Product {
   category    String
   inStock     Boolean  @default(true)
   stock       Int?     // null = unlimited; atomic decrement guards overselling
+  soldCount   Int      @default(0) // cumulative units sold; shown as social proof
   storeId     String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

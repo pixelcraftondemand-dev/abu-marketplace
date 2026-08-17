@@ -20,7 +20,7 @@ vi.mock("@/lib/prisma", () => ({
     webhookEvent: { create: vi.fn(), deleteMany: vi.fn() },
     payment: { findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn(() => ({ count: 1 })) },
     order: { findMany: vi.fn(), updateMany: vi.fn() },
-    product: { updateMany: vi.fn() },
+    product: { update: vi.fn(), updateMany: vi.fn() },
     user: { update: vi.fn() },
   },
 }));
@@ -186,6 +186,15 @@ describe("Flutterwave webhook POST", () => {
       where: { paymentId: "pay_1", isPaid: false },
       data: { isPaid: true, paymentStatus: "SUCCEEDED" },
     });
+    // Social proof: units from paid orders count toward each product's tally.
+    expect(prisma.product.update).toHaveBeenCalledWith({
+      where: { id: "prod_1" },
+      data: { soldCount: { increment: 1 } },
+    });
+    expect(prisma.product.update).toHaveBeenCalledWith({
+      where: { id: "prod_2" },
+      data: { soldCount: { increment: 1 } },
+    });
     expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: "usr_1" }, data: { cart: {} } });
     expect(sendOrderConfirmation).toHaveBeenCalledWith("usr_1", ["ord_1", "ord_2"]);
   });
@@ -197,6 +206,7 @@ describe("Flutterwave webhook POST", () => {
     expect(res.status).toBe(200);
     expect(prisma.payment.updateMany).not.toHaveBeenCalled();
     expect(prisma.order.updateMany).not.toHaveBeenCalled();
+    expect(prisma.product.update).not.toHaveBeenCalled();
     expect(sendOrderConfirmation).not.toHaveBeenCalled();
   });
 
