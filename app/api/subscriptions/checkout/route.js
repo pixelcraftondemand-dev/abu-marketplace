@@ -1,25 +1,29 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import Stripe from "stripe";
-import { getSessionFromRequest } from "@/lib/serverAuth";
+import { getVerifiedUserFromRequest } from "@/lib/serverAuth";
 import { premiumTiers } from "@/lib/pricingPlans";
 import { getSafeOrigin, subscriptionCheckoutRateLimiter } from "@/lib/security";
+import { initiatePayment } from "@/lib/services/flutterwave";
 
 const checkoutSchema = z.object({
   tierId: z.enum(["explorer", "plus", "pro"]).default("plus"),
 });
 
-const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY);
-
 export async function POST(request) {
   try {
-    const session = await getSessionFromRequest(request);
-    const userId = session?.user?.id;
+    // Membership checkout moves money — require a verified email server-side
+    // (Flutterwave needs the customer email; verification is the same gate
+    // used by orders and wallet top-ups).
+    const verifiedUser = await getVerifiedUserFromRequest();
+    const userId = verifiedUser?.id;
     if (!userId) {
       return NextResponse.json({ error: "not authorized" }, { status: 401 });
     }
+    if (!verifiedUser.email) {
+      return NextResponse.json({ error: "Unable to start checkout." }, { status: 403 });
+    }
 
-    // Each request creates a real Stripe checkout session — bound per user.
+    // Each request creates a real Flutterwave hosted payment — bound per user.
     const rl = await subscriptionCheckoutRateLimiter.check(userId);
     if (!rl.allowed) {
       return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429, headers: { "Retry-After": String(rl.retryAfter || 600) } });
@@ -40,35 +44,31 @@ export async function POST(request) {
       return NextResponse.json({ error: "The Explorer plan is free and does not require checkout." }, { status: 400 });
     }
 
-    const stripe = getStripe();
     const origin = getSafeOrigin(request);
-    const checkoutSession = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            unit_amount: tier.priceMonthly * 100,
-            product_data: {
-              name: `${tier.name} Membership`,
-              description: tier.description,
-            },
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: `${origin}/pricing?status=success&tier=${tier.id}`,
-      cancel_url: `${origin}/pricing?status=cancelled&tier=${tier.id}`,
-      metadata: {
+
+    // Membership purchase is a one-time payment (matches the previous Stripe
+    // flow — the charge.completed webhook grants the membership). tx_ref is a
+    // unique per-request reference; the webhook correlates via meta.
+    const txRef = `mem_${userId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const hosted = await initiatePayment({
+      txRef,
+      amount: tier.priceMonthly,
+      currency: "USD",
+      redirectUrl: `${origin}/pricing?status=success&tier=${tier.id}`,
+      customer: {
+        email: verifiedUser.email,
+        name: verifiedUser.name || undefined,
+      },
+      meta: {
         appId: "abu-marketplace",
         userId,
         tierId: tier.id,
         subscriptionType: "membership",
       },
+      customizations: { description: `${tier.name} Membership` },
     });
 
-    return NextResponse.json({ session: checkoutSession });
+    return NextResponse.json({ session: { url: hosted.link } });
   } catch (error) {
     console.error("[subscriptions/checkout]", error);
     return NextResponse.json({ error: "Unable to start checkout." }, { status: 400 });

@@ -24,47 +24,48 @@ function makePrisma(payment) {
   };
 }
 
-const stripe = {
-  paymentIntents: { retrieve: vi.fn() },
-  checkout: { sessions: { retrieve: vi.fn() } },
+const provider = {
+  verifyTransaction: vi.fn(),
+  verifyTransactionByRef: vi.fn(),
 };
 
 describe("reconcilePayment", () => {
   it("reports not_found for an unknown payment", async () => {
     const prisma = makePrisma(null);
-    const result = await reconcilePayment({ paymentId: "pay_x", prisma, stripe });
+    const result = await reconcilePayment({ paymentId: "pay_x", prisma, provider });
     expect(result.status).toBe("not_found");
   });
 
-  it("skips payments without a provider intent", async () => {
+  it("skips payments without a provider transaction", async () => {
     const prisma = makePrisma(makePayment({ providerPaymentIntentId: null }));
-    const result = await reconcilePayment({ paymentId: "pay_1", prisma, stripe });
+    const result = await reconcilePayment({ paymentId: "pay_1", prisma, provider });
     expect(result.status).toBe("skipped");
   });
 
   it("leaves terminal states untouched", async () => {
     const prisma = makePrisma(makePayment({ status: "SUCCEEDED" }));
-    const result = await reconcilePayment({ paymentId: "pay_1", prisma, stripe });
+    const result = await reconcilePayment({ paymentId: "pay_1", prisma, provider });
     expect(result.status).toBe("consistent");
-    expect(stripe.paymentIntents.retrieve).not.toHaveBeenCalled();
+    expect(provider.verifyTransaction).not.toHaveBeenCalled();
   });
 
   it("reports provider_unreachable when the provider call fails", async () => {
     const prisma = makePrisma(makePayment());
-    stripe.paymentIntents.retrieve.mockRejectedValue(new Error("timeout"));
-    const result = await reconcilePayment({ paymentId: "pay_1", prisma, stripe });
+    provider.verifyTransaction.mockRejectedValue(new Error("timeout"));
+    const result = await reconcilePayment({ paymentId: "pay_1", prisma, provider });
     expect(result.status).toBe("provider_unreachable");
   });
 
   it("recovers a PENDING payment the provider reports as succeeded (verified amount)", async () => {
     const prisma = makePrisma(makePayment({ status: "PENDING" }));
-    stripe.paymentIntents.retrieve.mockResolvedValue({
-      status: "succeeded",
-      currency: "usd",
-      amount_received: 2500,
+    provider.verifyTransaction.mockResolvedValue({
+      id: "pi_123",
+      status: "successful",
+      currency: "USD",
+      amount: 25,
     });
 
-    const result = await reconcilePayment({ paymentId: "pay_1", prisma, stripe });
+    const result = await reconcilePayment({ paymentId: "pay_1", prisma, provider });
     expect(result.status).toBe("reconciled");
     expect(result.newState).toBe("SUCCEEDED");
     expect(prisma.payment.updateMany).toHaveBeenCalledWith({
@@ -78,32 +79,35 @@ describe("reconcilePayment", () => {
 
   it("reports amount_mismatch instead of auto-recovering", async () => {
     const prisma = makePrisma(makePayment({ status: "PENDING" }));
-    stripe.paymentIntents.retrieve.mockResolvedValue({
-      status: "succeeded",
-      currency: "usd",
-      amount_received: 111,
+    provider.verifyTransaction.mockResolvedValue({
+      id: "pi_123",
+      status: "successful",
+      currency: "USD",
+      amount: 111,
     });
 
-    const result = await reconcilePayment({ paymentId: "pay_1", prisma, stripe });
+    const result = await reconcilePayment({ paymentId: "pay_1", prisma, provider });
     expect(result.status).toBe("amount_mismatch");
     expect(prisma.payment.updateMany).not.toHaveBeenCalled();
   });
 
-  it("resolves the payment intent from the session when it is missing (lost-webhook recovery)", async () => {
+  it("resolves the transaction by reference when it is missing (lost-webhook recovery)", async () => {
     const prisma = makePrisma(
       makePayment({ providerPaymentIntentId: null, providerSessionId: "cs_1" })
     );
-    stripe.checkout.sessions.retrieve.mockResolvedValue({ payment_intent: "pi_123" });
-    stripe.paymentIntents.retrieve.mockResolvedValue({
-      status: "succeeded",
-      currency: "usd",
-      amount_received: 2500,
+    provider.verifyTransactionByRef.mockResolvedValue({ id: "pi_123" });
+    provider.verifyTransaction.mockResolvedValue({
+      id: "pi_123",
+      status: "successful",
+      currency: "USD",
+      amount: 25,
     });
 
-    const result = await reconcilePayment({ paymentId: "pay_1", prisma, stripe });
+    const result = await reconcilePayment({ paymentId: "pay_1", prisma, provider });
     expect(result.status).toBe("reconciled");
     expect(result.newState).toBe("SUCCEEDED");
-    // The resolved intent is persisted for future reconciliation runs.
+    expect(provider.verifyTransactionByRef).toHaveBeenCalledWith("cs_1");
+    // The resolved transaction id is persisted for future reconciliation runs.
     expect(prisma.payment.update).toHaveBeenCalledWith({
       where: { id: "pay_1" },
       data: { providerPaymentIntentId: "pi_123" },
@@ -112,9 +116,9 @@ describe("reconcilePayment", () => {
 
   it("recovers a PROCESSING payment the provider reports as failed (releases stock)", async () => {
     const prisma = makePrisma(makePayment());
-    stripe.paymentIntents.retrieve.mockResolvedValue({ status: "requires_payment_method" });
+    provider.verifyTransaction.mockResolvedValue({ id: "pi_123", status: "requires_payment_method" });
 
-    const result = await reconcilePayment({ paymentId: "pay_1", prisma, stripe });
+    const result = await reconcilePayment({ paymentId: "pay_1", prisma, provider });
     expect(result.status).toBe("reconciled");
     expect(result.newState).toBe("FAILED");
     expect(prisma.product.updateMany).toHaveBeenCalledWith({

@@ -3,11 +3,9 @@ import authAdmin from "@/middlewares/authAdmin";
 import { adminActionRateLimiter } from "@/lib/security";
 import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
+import * as flutterwave from "@/lib/services/flutterwave";
 import { reconcilePayment, reconcileAllStuck } from "@/lib/services/paymentReconciliation";
 import { getRequestId } from "@/lib/paymentLog";
-
-const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY);
 
 /**
  * Admin payment reconciliation.
@@ -28,7 +26,7 @@ export async function GET(request) {
       return NextResponse.json({ error: "Not authorized." }, { status: 403 });
     }
 
-    // Reconciliation hits the Stripe API — bound it per admin.
+    // Reconciliation hits the Flutterwave API — bound it per admin.
     const rl = await adminActionRateLimiter.check(userId);
     if (!rl.allowed) {
       return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429, headers: { "Retry-After": String(rl.retryAfter || 600) } });
@@ -38,11 +36,9 @@ export async function GET(request) {
     const paymentId = searchParams.get("paymentId");
     const scope = searchParams.get("scope") || "stuck";
 
-    const stripe = getStripe();
-
     const results = paymentId
-      ? [await reconcilePayment({ paymentId, prisma, stripe })]
-      : await reconcileAllStuck({ prisma, stripe, take: 50 });
+      ? [await reconcilePayment({ paymentId, prisma, provider: flutterwave })]
+      : await reconcileAllStuck({ prisma, provider: flutterwave, take: 50 });
 
     const reconciled = results.filter((r) => r.status === "reconciled").length;
     const issues = results.filter((r) => r.status !== "ok" && r.status !== "consistent" && r.status !== "reconciled");

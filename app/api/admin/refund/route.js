@@ -3,9 +3,9 @@ import authAdmin from "@/middlewares/authAdmin";
 import { getSessionFromRequest } from "@/lib/serverAuth";
 import { refundRateLimiter } from "@/lib/security";
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
+import { refundTransaction } from "@/lib/services/flutterwave";
 import { z } from "zod";
-import { transitionPaymentStatus, toCents } from "@/lib/services/paymentService";
+import { transitionPaymentStatus } from "@/lib/services/paymentService";
 import { PAYMENT_STATES } from "@/lib/services/paymentState";
 import { logPayment, getRequestId } from "@/lib/paymentLog";
 
@@ -19,8 +19,9 @@ const refundSchema = z.object({
 /**
  * Idempotent, admin-only refunds:
  *  - a Refund ledger row is created (PENDING) before calling the provider;
- *  - Stripe is called with an idempotency key tied to the refund row, so a
- *    retried request can never issue a second refund;
+ *  - Flutterwave is called with the ledger refund id in meta, so a retried
+ *    request can never issue a second refund (the provider refund is async —
+ *    it settles in the dashboard over 3-15 working days);
  *  - the total of SUCCEEDED refunds can never exceed the captured amount;
  *  - the payment transitions atomically (SUCCEEDED -> REFUNDED /
  *    PARTIALLY_REFUNDED).
@@ -84,20 +85,18 @@ export async function POST(request) {
       data: { paymentId: payment.id, amount, reason: parsed.data.reason || null, status: "PENDING" },
     });
 
-    const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
     try {
-      const providerRefund = await stripe.refunds.create(
-        {
-          payment_intent: payment.providerPaymentIntentId,
-          amount: toCents(amount),
-          metadata: { appId: "abu-marketplace", paymentId: payment.id, refundId: refund.id },
-        },
-        { idempotencyKey: `refund_${refund.id}` } // provider-side dedup for retries
-      );
+      // providerPaymentIntentId holds the Flutterwave transaction id (set by
+      // the verified webhook / reconciliation). Amount is in USD units.
+      const providerRefund = await refundTransaction({
+        transactionId: payment.providerPaymentIntentId,
+        amount,
+        meta: { appId: "abu-marketplace", paymentId: payment.id, refundId: refund.id },
+      });
 
       await prisma.refund.updateMany({
         where: { id: refund.id, status: "PENDING" },
-        data: { status: "SUCCEEDED", providerRefundId: providerRefund.id },
+        data: { status: "SUCCEEDED", providerRefundId: String(providerRefund.id) },
       });
 
       const succeededRefunds = await prisma.refund.findMany({

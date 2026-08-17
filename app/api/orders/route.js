@@ -5,7 +5,7 @@ import { getSafeOrigin, isValidId, checkoutRateLimiter } from "@/lib/security";
 import { getSessionFromRequest, getVerifiedUserFromRequest } from "@/lib/serverAuth";
 import { PaymentMethod } from "@prisma/client";
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
+import { initiatePayment } from "@/lib/services/flutterwave";
 import { isValidCurrency } from "@/lib/utils/currency";
 import { isCashOnDeliveryAvailable } from "@/lib/paymentOptions";
 import { reserveStock, releaseStock, StockUnavailableError } from "@/lib/services/paymentService";
@@ -32,7 +32,7 @@ const checkoutSchema = z.object({
     )
     .min(1)
     .max(MAX_ORDER_ITEMS),
-  paymentMethod: z.enum(["COD", "STRIPE", "WALLET"]),
+  paymentMethod: z.enum(["COD", "FLUTTERWAVE", "WALLET"]),
   couponCode: z.string().trim().min(3).max(32).optional().nullable(),
   idempotencyKey: z.string().regex(IDEMPOTENCY_KEY_PATTERN).optional().nullable(),
   currency: z.string().max(8).optional().nullable(),
@@ -74,7 +74,7 @@ export async function POST(request) {
     }
 
     const { addressId, items, couponCode, paymentMethod, currency, country } = parsed;
-    const isStripe = paymentMethod === "STRIPE";
+    const isCard = paymentMethod === "FLUTTERWAVE";
 
     if (!isValidId(addressId)) {
       return NextResponse.json({ error: "Invalid address." }, { status: 422 });
@@ -110,7 +110,7 @@ export async function POST(request) {
         if (existing.status === PAYMENT_STATES.SUCCEEDED) {
           return NextResponse.json({ alreadyProcessed: true, paymentId: existing.id });
         }
-        if (existing.providerSessionUrl && isStripe) {
+        if (existing.providerSessionUrl && isCard) {
           return NextResponse.json({ session: { url: existing.providerSessionUrl }, paymentId: existing.id, reused: true });
         }
         return NextResponse.json(
@@ -118,7 +118,7 @@ export async function POST(request) {
           { status: 409 }
         );
       }
-    } else if (isStripe) {
+    } else if (isCard) {
       // Retry safety without a client key: if this user already has a live,
       // unexpired checkout session, return it instead of charging again.
       const recent = await prisma.payment.findFirst({
@@ -263,7 +263,7 @@ export async function POST(request) {
               userId,
               amount: fullAmount,
               currency: "USD",
-              status: isStripe ? PAYMENT_STATES.PENDING : PAYMENT_STATES.SUCCEEDED,
+              status: isCard ? PAYMENT_STATES.PENDING : PAYMENT_STATES.SUCCEEDED,
             },
           });
         }
@@ -307,7 +307,7 @@ export async function POST(request) {
               ...(payment
                 ? {
                     paymentId: payment.id,
-                    paymentStatus: isStripe ? PAYMENT_STATES.PENDING : PAYMENT_STATES.SUCCEEDED,
+                    paymentStatus: isCard ? PAYMENT_STATES.PENDING : PAYMENT_STATES.SUCCEEDED,
                   }
                 : {}),
               // Wallet payments settle instantly (pre-funded).
@@ -351,49 +351,42 @@ export async function POST(request) {
       throw error;
     }
 
-    if (isStripe) {
+    if (isCard) {
       // ── Create the provider checkout session (outside the DB transaction) ─────
-      const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
       const origin = getSafeOrigin(request);
       try {
-        const checkoutSession = await stripe.checkout.sessions.create(
-          {
-            payment_method_types: ["card"],
-            line_items: [
-              {
-                price_data: {
-                  currency: "usd",
-                  product_data: { name: "Order" },
-                  unit_amount: Math.round(fullAmount * 100),
-                },
-                quantity: 1,
-              },
-            ],
-            expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
-            mode: "payment",
-            success_url: `${origin}/loading?nextUrl=orders`,
-            cancel_url: `${origin}/cart`,
-            metadata: {
-              orderIds: orderIds.join(","),
-              userId,
-              appId: "abu-marketplace",
-              paymentId: payment.id,
-            },
+        // tx_ref must be unique — the Payment id is our canonical reference
+        // and is echoed back in the webhook/verify meta so we can correlate.
+        const txRef = payment.id;
+        const hosted = await initiatePayment({
+          txRef,
+          amount: fullAmount,
+          currency: "USD",
+          redirectUrl: `${origin}/loading?nextUrl=orders`,
+          customer: {
+            email: verifiedUser.email,
+            name: verifiedUser.name || undefined,
           },
-          { idempotencyKey: `checkout_${payment.id}` } // Stripe-side idempotency
-        );
+          meta: {
+            orderIds: orderIds.join(","),
+            userId,
+            appId: "abu-marketplace",
+            paymentId: payment.id,
+          },
+          customizations: { description: "ABU Marketplace order" },
+        });
 
         await prisma.payment.update({
           where: { id: payment.id },
           data: {
-            providerSessionId: checkoutSession.id,
-            providerSessionUrl: checkoutSession.url,
+            providerSessionId: txRef,
+            providerSessionUrl: hosted.link,
             status: PAYMENT_STATES.PROCESSING,
           },
         });
 
         logPayment({ event: "checkout.created", paymentId: payment.id, userId, amount: fullAmount, currency: "USD", requestId });
-        return NextResponse.json({ session: checkoutSession, paymentId: payment.id, idempotencyKey });
+        return NextResponse.json({ session: { url: hosted.link }, paymentId: payment.id, idempotencyKey });
       } catch (error) {
         // Session creation failed — release reserved inventory and mark the
         // attempt FAILED. Orders are kept (paymentStatus FAILED) for audit.
@@ -447,7 +440,7 @@ export async function GET(request) {
         userId,
         OR: [
           { paymentMethod: { in: [PaymentMethod.COD, PaymentMethod.WALLET] } },
-          { AND: [{ paymentMethod: PaymentMethod.STRIPE }, { isPaid: true }] },
+          { AND: [{ paymentMethod: PaymentMethod.FLUTTERWAVE }, { isPaid: true }] },
         ],
       },
       include: {

@@ -78,6 +78,7 @@ enum OrderStatus {
 enum PaymentMethod {
   COD
   STRIPE
+  FLUTTERWAVE
   WALLET
 }
 
@@ -333,7 +334,7 @@ model Refund {
 // Deduplication ledger for provider webhook events (replay protection).
 model WebhookEvent {
   id              String   @id @default(cuid())
-  provider        String   @default("stripe")
+  provider        String   @default("flutterwave")
   providerEventId String   @unique
   type            String
   processedAt     DateTime @default(now())

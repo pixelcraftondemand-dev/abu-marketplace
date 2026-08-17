@@ -4,7 +4,7 @@ import { z } from "zod";
 import { getSafeOrigin, walletTopupRateLimiter } from "@/lib/security";
 import { getVerifiedUserFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
+import { initiatePayment } from "@/lib/services/flutterwave";
 import { roundMoney } from "@/lib/services/walletService";
 import { PAYMENT_STATES } from "@/lib/services/paymentState";
 import { logPayment, getRequestId } from "@/lib/paymentLog";
@@ -20,8 +20,8 @@ const topupSchema = z.object({
 /**
  * Start a wallet top-up:
  *  1. Creates a Payment row (unique idempotencyKey) — same hardening as checkout.
- *  2. Creates a Stripe Checkout session with `walletTopup` metadata.
- *  3. The verified payment_intent.succeeded webhook credits the wallet exactly once.
+ *  2. Creates a Flutterwave hosted payment with `walletTopup` meta.
+ *  3. The verified charge.completed webhook credits the wallet exactly once.
  *
  * Retrying with the same idempotency key returns the existing session instead of
  * creating a second charge.
@@ -100,43 +100,34 @@ export async function POST(request) {
       throw error;
     }
 
-    // ── Create the Stripe checkout session ─────────────────────────────────────
-    const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+    // ── Create the Flutterwave hosted payment ──────────────────────────────────
     const origin = getSafeOrigin(request);
     try {
-      const checkoutSession = await stripe.checkout.sessions.create(
-        {
-          payment_method_types: ["card"],
-          line_items: [
-            {
-              price_data: {
-                currency: "usd",
-                product_data: { name: "Wallet Top-up" },
-                unit_amount: Math.round(amount * 100),
-              },
-              quantity: 1,
-            },
-          ],
-          expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
-          mode: "payment",
-          success_url: `${origin}/wallet?status=success`,
-          cancel_url: `${origin}/wallet?status=cancelled`,
-          metadata: { appId: "abu-marketplace", userId, paymentId: payment.id, walletTopup: "1" },
+      const txRef = payment.id;
+      const hosted = await initiatePayment({
+        txRef,
+        amount,
+        currency: "USD",
+        redirectUrl: `${origin}/wallet?status=success`,
+        customer: {
+          email: verifiedUser.email,
+          name: verifiedUser.name || undefined,
         },
-        { idempotencyKey: `topup_${payment.id}` }
-      );
+        meta: { appId: "abu-marketplace", userId, paymentId: payment.id, walletTopup: "1" },
+        customizations: { description: "ABU Marketplace wallet top-up" },
+      });
 
       await prisma.payment.update({
         where: { id: payment.id },
         data: {
-          providerSessionId: checkoutSession.id,
-          providerSessionUrl: checkoutSession.url,
+          providerSessionId: txRef,
+          providerSessionUrl: hosted.link,
           status: PAYMENT_STATES.PROCESSING,
         },
       });
 
       logPayment({ event: "wallet.topup_created", paymentId: payment.id, userId, amount, currency: "USD", requestId });
-      return NextResponse.json({ session: checkoutSession, paymentId: payment.id, idempotencyKey });
+      return NextResponse.json({ session: { url: hosted.link }, paymentId: payment.id, idempotencyKey });
     } catch (error) {
       await prisma.payment.update({ where: { id: payment.id }, data: { status: PAYMENT_STATES.FAILED } });
       logPayment({ event: "wallet.topup_session_failed", paymentId: payment.id, failureCategory: "provider_error", requestId });

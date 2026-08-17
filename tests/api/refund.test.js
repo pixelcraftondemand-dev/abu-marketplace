@@ -6,10 +6,10 @@ import { getSessionFromRequest } from "@/lib/serverAuth";
 import authAdmin from "@/middlewares/authAdmin";
 import { POST } from "@/app/api/admin/refund/route";
 
-const { mockRefundsCreate } = vi.hoisted(() => ({ mockRefundsCreate: vi.fn() }));
+const { mockRefundTransaction } = vi.hoisted(() => ({ mockRefundTransaction: vi.fn() }));
 
-vi.mock("stripe", () => ({
-  default: () => ({ refunds: { create: mockRefundsCreate } }),
+vi.mock("@/lib/services/flutterwave", () => ({
+  refundTransaction: mockRefundTransaction,
 }));
 
 vi.mock("@/lib/serverAuth", () => ({
@@ -89,9 +89,9 @@ describe("POST /api/admin/refund", () => {
     expect(prisma.refund.create).not.toHaveBeenCalled();
   });
 
-  it("issues a refund with provider idempotency and transitions the payment", async () => {
+  it("issues a refund with the ledger id in meta and transitions the payment", async () => {
     prisma.payment.findUnique.mockResolvedValue(paidPayment);
-    mockRefundsCreate.mockResolvedValueOnce({ id: "re_123", payment_intent: "pi_123" });
+    mockRefundTransaction.mockResolvedValueOnce({ id: "re_123", status: "completed" });
     prisma.refund.findMany.mockResolvedValue([{ amount: 50, status: "SUCCEEDED" }]);
 
     const res = await POST(buildRequest({ paymentId: "pay_1", amount: 50, reason: "Buyer changed mind" }));
@@ -108,10 +108,13 @@ describe("POST /api/admin/refund", () => {
         data: expect.objectContaining({ paymentId: "pay_1", amount: 50, status: "PENDING", reason: "Buyer changed mind" }),
       })
     );
-    // Provider called with the idempotency key tied to the refund row.
-    expect(mockRefundsCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ payment_intent: "pi_123", amount: 5000 }),
-      { idempotencyKey: "refund_ref_1" }
+    // Provider called with the Flutterwave transaction id + refund row in meta.
+    expect(mockRefundTransaction).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transactionId: "pi_123",
+        amount: 50,
+        meta: { appId: "abu-marketplace", paymentId: "pay_1", refundId: "ref_1" },
+      })
     );
     // Payment transitioned atomically SUCCEEDED -> PARTIALLY_REFUNDED.
     expect(prisma.payment.findUnique).toHaveBeenCalled();
@@ -123,7 +126,7 @@ describe("POST /api/admin/refund", () => {
 
   it("marks the payment REFUNDED when fully refunded", async () => {
     prisma.payment.findUnique.mockResolvedValue(paidPayment);
-    mockRefundsCreate.mockResolvedValueOnce({ id: "re_123", payment_intent: "pi_123" });
+    mockRefundTransaction.mockResolvedValueOnce({ id: "re_123", status: "completed" });
     prisma.refund.findMany.mockResolvedValue([{ amount: 100, status: "SUCCEEDED" }]);
 
     const res = await POST(buildRequest({ paymentId: "pay_1" })); // full refund (default)
@@ -133,7 +136,7 @@ describe("POST /api/admin/refund", () => {
 
   it("marks the refund FAILED and returns a safe message when the provider errors", async () => {
     prisma.payment.findUnique.mockResolvedValue(paidPayment);
-    mockRefundsCreate.mockRejectedValueOnce(new Error("stripe down"));
+    mockRefundTransaction.mockRejectedValueOnce(new Error("flutterwave down"));
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     try {

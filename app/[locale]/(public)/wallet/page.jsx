@@ -79,7 +79,7 @@ function WalletPageContent() {
     }
   }, [user, userLoaded]);
 
-  // Handle return from the Stripe checkout session.
+  // Handle return from the Flutterwave hosted payment.
   useEffect(() => {
     const status = searchParams.get("status");
     if (status === "success") {

@@ -144,6 +144,29 @@ jobs:
       - name: Run production build
         run: npm run build
 
+  flutterwave-guard:
+    name: Flutterwave live-mode guard (self-test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # No npm ci needed — scripts/check-flutterwave-live.mjs is dependency-free.
+    # Self-tests the guard so a future edit can't silently weaken it: test keys
+    # in production MUST trip, live keys MUST pass. The real enforcement runs
+    # at runtime via instrumentation.ts (throws on server start in prod).
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify guard rejects test keys and accepts live keys
+        run: |
+          set -euo pipefail
+          if NODE_ENV=production FLW_SECRET_KEY=FLWSECK_TEST_dummy node scripts/check-flutterwave-live.mjs >/dev/null 2>&1; then
+            echo "::error::Flutterwave guard accepted a test key in production — scripts/check-flutterwave-live.mjs is broken."
+            exit 1
+          fi
+          NODE_ENV=production FLW_SECRET_KEY=FLWSECK_live_dummy node scripts/check-flutterwave-live.mjs
+          echo "Flutterwave live-mode guard self-test passed."
+
   workflow-lint:
     name: Workflow lint (actionlint)
     runs-on: ubuntu-latest

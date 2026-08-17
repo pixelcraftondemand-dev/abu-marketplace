@@ -5,13 +5,11 @@ import { checkoutRateLimiter } from "@/lib/security";
 import { getSessionFromRequest, getVerifiedUserFromRequest } from "@/lib/serverAuth";
 import { GET, POST } from "@/app/api/orders/route";
 
-// checkout.sessions.create is a Stripe network call we never want to make in tests.
-const { mockCreateSession } = vi.hoisted(() => ({ mockCreateSession: vi.fn() }));
+// initiatePayment is a Flutterwave network call we never want to make in tests.
+const { mockInitiatePayment } = vi.hoisted(() => ({ mockInitiatePayment: vi.fn() }));
 
-vi.mock("stripe", () => ({
-  default: () => ({
-    checkout: { sessions: { create: mockCreateSession } },
-  }),
+vi.mock("@/lib/services/flutterwave", () => ({
+  initiatePayment: mockInitiatePayment,
 }));
 
 vi.mock("@/lib/serverAuth", () => ({
@@ -66,7 +64,7 @@ describe("orders POST", () => {
     vi.resetAllMocks();
     checkoutRateLimiter._clear();
     getSessionFromRequest.mockResolvedValue({ user: { id: "usr_1" } });
-    getVerifiedUserFromRequest.mockResolvedValue({ id: "usr_1", emailVerified: true });
+    getVerifiedUserFromRequest.mockResolvedValue({ id: "usr_1", emailVerified: true, email: "buyer@example.com", name: "Buyer" });
     prisma.$transaction.mockImplementation(async (fn) => fn(prisma));
     // Wallet mocks (resetAllMocks wipes factory defaults).
     prisma.wallet.findUnique.mockResolvedValue({ id: "w_1", userId: "usr_1", balance: 100 });
@@ -256,18 +254,18 @@ describe("orders POST", () => {
     });
   });
 
-  it("creates a Stripe checkout session and a Payment for STRIPE payments", async () => {
+  it("creates a Flutterwave hosted payment and a Payment for FLUTTERWAVE payments", async () => {
     prisma.address.findFirst.mockResolvedValue({ id: "addr_123" });
     prisma.product.findMany.mockResolvedValue([productRow]);
     prisma.order.create.mockResolvedValueOnce({ id: "o1" });
     prisma.payment.create.mockResolvedValueOnce({ id: "pay_1" });
-    mockCreateSession.mockResolvedValueOnce({ id: "cs_123", url: "https://checkout.stripe.com/x" });
+    mockInitiatePayment.mockResolvedValueOnce({ link: "https://checkout.flutterwave.com/v3/hosted/pay/x" });
 
-    const res = await POST(buildRequest({ ...validBody, paymentMethod: "STRIPE" }));
+    const res = await POST(buildRequest({ ...validBody, paymentMethod: "FLUTTERWAVE" }));
 
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.session).toEqual({ id: "cs_123", url: "https://checkout.stripe.com/x" });
+    expect(json.session).toEqual({ url: "https://checkout.flutterwave.com/v3/hosted/pay/x" });
     expect(json.paymentId).toBe("pay_1");
     expect(typeof json.idempotencyKey).toBe("string");
 
@@ -282,20 +280,27 @@ describe("orders POST", () => {
       })
     );
 
-    expect(mockCreateSession).toHaveBeenCalledWith(
+    // tx_ref = payment id; amount in USD units (not cents); meta correlates the webhook.
+    expect(mockInitiatePayment).toHaveBeenCalledWith(
       expect.objectContaining({
-        payment_method_types: ["card"],
-        mode: "payment",
-        metadata: { orderIds: "o1", userId: "usr_1", appId: "abu-marketplace", paymentId: "pay_1" },
-        success_url: `${ORIGIN}/loading?nextUrl=orders`,
-        cancel_url: `${ORIGIN}/cart`,
-      }),
-      { idempotencyKey: "checkout_pay_1" }
+        txRef: "pay_1",
+        amount: 25,
+        currency: "USD",
+        redirectUrl: `${ORIGIN}/loading?nextUrl=orders`,
+        customer: { email: "buyer@example.com", name: "Buyer" },
+        meta: { orderIds: "o1", userId: "usr_1", appId: "abu-marketplace", paymentId: "pay_1" },
+      })
     );
-    const sessionArg = mockCreateSession.mock.calls[0][0];
-    // (10 x 2) + 5 delivery = 25 -> unit_amount in cents.
-    expect(sessionArg.line_items[0].price_data.unit_amount).toBe(2500);
-    // Cart is NOT cleared before Stripe confirms payment.
+    // Payment updated with the provider link and marked PROCESSING.
+    expect(prisma.payment.update).toHaveBeenCalledWith({
+      where: { id: "pay_1" },
+      data: {
+        providerSessionId: "pay_1",
+        providerSessionUrl: "https://checkout.flutterwave.com/v3/hosted/pay/x",
+        status: "PROCESSING",
+      },
+    });
+    // Cart is NOT cleared before Flutterwave confirms payment.
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
@@ -331,7 +336,7 @@ describe("orders POST", () => {
     prisma.address.findFirst.mockResolvedValue({ id: "addr_123" });
     prisma.product.findMany.mockResolvedValue([productRow]);
 
-    for (const paymentMethod of ["COD", "STRIPE", "WALLET"]) {
+    for (const paymentMethod of ["COD", "FLUTTERWAVE", "WALLET"]) {
       const res = await POST(buildRequest({ ...validBody, paymentMethod }));
       expect(res.status).toBe(403);
       expect((await res.json()).error).toContain("verify your email");
@@ -404,8 +409,8 @@ describe("orders POST", () => {
         }),
       })
     );
-    // No Stripe session for wallet payments.
-    expect(mockCreateSession).not.toHaveBeenCalled();
+    // No Flutterwave hosted payment for wallet payments.
+    expect(mockInitiatePayment).not.toHaveBeenCalled();
     // Cart cleared after successful wallet checkout.
     expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: "usr_1" }, data: { cart: {} } });
   });
@@ -469,7 +474,7 @@ describe("orders POST", () => {
     prisma.product.findMany.mockResolvedValue([productRow]);
     prisma.order.create.mockResolvedValueOnce({ id: "o1" });
 
-    const res = await POST(buildRequest({ ...validBody, currency: "SLE" }));
+    const res = await POST(buildRequest({ ...validBody, currency: "SLL" }));
     expect(res.status).toBe(200);
     expect(prisma.order.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ total: 25 }) })
@@ -481,13 +486,13 @@ describe("orders POST", () => {
       id: "pay_1",
       userId: "usr_1",
       status: "PROCESSING",
-      providerSessionUrl: "https://checkout.stripe.com/original",
+      providerSessionUrl: "https://checkout.flutterwave.com/v3/hosted/pay/original",
     });
     const res = await POST(
-      buildRequest({ ...validBody, paymentMethod: "STRIPE", idempotencyKey: "key_12345678" })
+      buildRequest({ ...validBody, paymentMethod: "FLUTTERWAVE", idempotencyKey: "key_12345678" })
     );
     expect(res.status).toBe(200);
-    expect((await res.json()).session.url).toBe("https://checkout.stripe.com/original");
+    expect((await res.json()).session.url).toBe("https://checkout.flutterwave.com/v3/hosted/pay/original");
     expect(prisma.payment.create).not.toHaveBeenCalled();
     expect(prisma.order.create).not.toHaveBeenCalled();
   });
@@ -500,7 +505,7 @@ describe("orders POST", () => {
       providerSessionUrl: null,
     });
     const res = await POST(
-      buildRequest({ ...validBody, paymentMethod: "STRIPE", idempotencyKey: "key_12345678" })
+      buildRequest({ ...validBody, paymentMethod: "FLUTTERWAVE", idempotencyKey: "key_12345678" })
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ alreadyProcessed: true, paymentId: "pay_1" });
@@ -511,10 +516,10 @@ describe("orders POST", () => {
       id: "pay_1",
       userId: "usr_other",
       status: "PROCESSING",
-      providerSessionUrl: "https://checkout.stripe.com/original",
+      providerSessionUrl: "https://checkout.flutterwave.com/v3/hosted/pay/original",
     });
     const res = await POST(
-      buildRequest({ ...validBody, paymentMethod: "STRIPE", idempotencyKey: "key_12345678" })
+      buildRequest({ ...validBody, paymentMethod: "FLUTTERWAVE", idempotencyKey: "key_12345678" })
     );
     expect(res.status).toBe(403);
     expect((await res.json()).error).toBe("Idempotency key is already in use.");
@@ -525,28 +530,28 @@ describe("orders POST", () => {
     prisma.product.findMany.mockResolvedValue([productRow]);
     prisma.payment.findUnique
       .mockResolvedValueOnce(null) // idempotency pre-check
-      .mockResolvedValueOnce({ id: "pay_win", userId: "usr_1", status: "PROCESSING", providerSessionUrl: "https://checkout.stripe.com/win" });
+      .mockResolvedValueOnce({ id: "pay_win", userId: "usr_1", status: "PROCESSING", providerSessionUrl: "https://checkout.flutterwave.com/v3/hosted/pay/win" });
     prisma.payment.create.mockRejectedValueOnce({ code: "P2002" }); // unique constraint
 
     const res = await POST(
-      buildRequest({ ...validBody, paymentMethod: "STRIPE", idempotencyKey: "key_12345678" })
+      buildRequest({ ...validBody, paymentMethod: "FLUTTERWAVE", idempotencyKey: "key_12345678" })
     );
     expect(res.status).toBe(200);
-    expect((await res.json()).session.url).toBe("https://checkout.stripe.com/win");
+    expect((await res.json()).session.url).toBe("https://checkout.flutterwave.com/v3/hosted/pay/win");
     expect(prisma.order.create).not.toHaveBeenCalled();
   });
 
   it("reuses an unexpired in-flight session when no key is sent (retry safety)", async () => {
     prisma.payment.findFirst.mockResolvedValue({
       id: "pay_1",
-      providerSessionUrl: "https://checkout.stripe.com/reuse",
+      providerSessionUrl: "https://checkout.flutterwave.com/v3/hosted/pay/reuse",
       createdAt: new Date(),
     });
-    const res = await POST(buildRequest({ ...validBody, paymentMethod: "STRIPE" }));
+    const res = await POST(buildRequest({ ...validBody, paymentMethod: "FLUTTERWAVE" }));
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.reused).toBe(true);
-    expect(json.session.url).toBe("https://checkout.stripe.com/reuse");
+    expect(json.session.url).toBe("https://checkout.flutterwave.com/v3/hosted/pay/reuse");
     expect(prisma.payment.create).not.toHaveBeenCalled();
   });
 
@@ -558,11 +563,11 @@ describe("orders POST", () => {
     prisma.order.findMany.mockResolvedValue([
       { orderItems: [{ productId: "prod_1", quantity: 2 }] },
     ]);
-    mockCreateSession.mockRejectedValueOnce(new Error("stripe down"));
+    mockInitiatePayment.mockRejectedValueOnce(new Error("flutterwave down"));
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     try {
-      const res = await POST(buildRequest({ ...validBody, paymentMethod: "STRIPE" }));
+      const res = await POST(buildRequest({ ...validBody, paymentMethod: "FLUTTERWAVE" }));
       expect(res.status).toBe(502);
       expect((await res.json()).error).toBe("Unable to start payment. Please try again.");
       // Inventory released back.

@@ -5,12 +5,10 @@ import { walletTopupRateLimiter } from "@/lib/security";
 import { getVerifiedUserFromRequest } from "@/lib/serverAuth";
 import { POST } from "@/app/api/wallet/topup/route";
 
-const { mockCreateSession } = vi.hoisted(() => ({ mockCreateSession: vi.fn() }));
+const { mockInitiatePayment } = vi.hoisted(() => ({ mockInitiatePayment: vi.fn() }));
 
-vi.mock("stripe", () => ({
-  default: () => ({
-    checkout: { sessions: { create: mockCreateSession } },
-  }),
+vi.mock("@/lib/services/flutterwave", () => ({
+  initiatePayment: mockInitiatePayment,
 }));
 
 vi.mock("@/lib/serverAuth", () => ({
@@ -31,7 +29,7 @@ function buildRequest(body) {
   });
 }
 
-const verifiedUser = { id: "usr_1", emailVerified: true };
+const verifiedUser = { id: "usr_1", emailVerified: true, email: "buyer@example.com", name: "Buyer" };
 
 describe("POST /api/wallet/topup", () => {
   beforeEach(() => {
@@ -52,7 +50,7 @@ describe("POST /api/wallet/topup", () => {
     const res = await POST(buildRequest({ amount: 25 }));
     expect(res.status).toBe(403);
     expect(prisma.payment.create).not.toHaveBeenCalled();
-    expect(mockCreateSession).not.toHaveBeenCalled();
+    expect(mockInitiatePayment).not.toHaveBeenCalled();
   });
 
   it("returns 422 for invalid amounts", async () => {
@@ -63,16 +61,17 @@ describe("POST /api/wallet/topup", () => {
     }
   });
 
-  it("creates a payment and Stripe session with walletTopup metadata", async () => {
+  it("creates a payment and Flutterwave hosted payment with walletTopup meta", async () => {
     prisma.payment.create.mockResolvedValue({ id: "pay_1" });
     prisma.payment.update.mockResolvedValue({});
-    mockCreateSession.mockResolvedValue({ id: "cs_1", url: "https://checkout.stripe.com/x" });
+    mockInitiatePayment.mockResolvedValue({ link: "https://checkout.flutterwave.com/v3/hosted/pay/x" });
 
     const res = await POST(buildRequest({ amount: 25, idempotencyKey: "key_12345678" }));
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.paymentId).toBe("pay_1");
     expect(json.idempotencyKey).toBe("key_12345678");
+    expect(json.session).toEqual({ url: "https://checkout.flutterwave.com/v3/hosted/pay/x" });
 
     expect(prisma.payment.create).toHaveBeenCalledWith({
       data: {
@@ -83,17 +82,19 @@ describe("POST /api/wallet/topup", () => {
         status: "PENDING",
       },
     });
-    expect(mockCreateSession).toHaveBeenCalledWith(
+    expect(mockInitiatePayment).toHaveBeenCalledWith(
       expect.objectContaining({
-        mode: "payment",
-        metadata: { appId: "abu-marketplace", userId: "usr_1", paymentId: "pay_1", walletTopup: "1" },
-        success_url: "http://localhost:3000/wallet?status=success",
-      }),
-      { idempotencyKey: "topup_pay_1" }
+        txRef: "pay_1",
+        amount: 25,
+        currency: "USD",
+        redirectUrl: "http://localhost:3000/wallet?status=success",
+        customer: { email: "buyer@example.com", name: "Buyer" },
+        meta: { appId: "abu-marketplace", userId: "usr_1", paymentId: "pay_1", walletTopup: "1" },
+      })
     );
     expect(prisma.payment.update).toHaveBeenCalledWith({
       where: { id: "pay_1" },
-      data: expect.objectContaining({ providerSessionId: "cs_1", status: "PROCESSING" }),
+      data: expect.objectContaining({ providerSessionId: "pay_1", status: "PROCESSING" }),
     });
   });
 
@@ -102,13 +103,13 @@ describe("POST /api/wallet/topup", () => {
       id: "pay_1",
       userId: "usr_1",
       status: "PROCESSING",
-      providerSessionUrl: "https://checkout.stripe.com/original",
+      providerSessionUrl: "https://checkout.flutterwave.com/v3/hosted/pay/original",
     });
     const res = await POST(buildRequest({ amount: 25, idempotencyKey: "key_12345678" }));
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.reused).toBe(true);
-    expect(json.session.url).toBe("https://checkout.stripe.com/original");
+    expect(json.session.url).toBe("https://checkout.flutterwave.com/v3/hosted/pay/original");
     expect(prisma.payment.create).not.toHaveBeenCalled();
   });
 
@@ -129,7 +130,7 @@ describe("POST /api/wallet/topup", () => {
       id: "pay_1",
       userId: "usr_other",
       status: "PROCESSING",
-      providerSessionUrl: "https://checkout.stripe.com/original",
+      providerSessionUrl: "https://checkout.flutterwave.com/v3/hosted/pay/original",
     });
     const res = await POST(buildRequest({ amount: 25, idempotencyKey: "key_12345678" }));
     expect(res.status).toBe(403);
@@ -141,18 +142,18 @@ describe("POST /api/wallet/topup", () => {
       id: "pay_win",
       userId: "usr_1",
       status: "PROCESSING",
-      providerSessionUrl: "https://checkout.stripe.com/win",
+      providerSessionUrl: "https://checkout.flutterwave.com/v3/hosted/pay/win",
     });
     const res = await POST(buildRequest({ amount: 25, idempotencyKey: "key_12345678" }));
     expect(res.status).toBe(200);
-    expect((await res.json()).session.url).toBe("https://checkout.stripe.com/win");
-    expect(mockCreateSession).not.toHaveBeenCalled();
+    expect((await res.json()).session.url).toBe("https://checkout.flutterwave.com/v3/hosted/pay/win");
+    expect(mockInitiatePayment).not.toHaveBeenCalled();
   });
 
-  it("marks the payment FAILED and returns 502 when Stripe cannot create the session", async () => {
+  it("marks the payment FAILED and returns 502 when Flutterwave cannot create the payment", async () => {
     prisma.payment.create.mockResolvedValue({ id: "pay_1" });
     prisma.payment.update.mockResolvedValue({});
-    mockCreateSession.mockRejectedValue(new Error("stripe down"));
+    mockInitiatePayment.mockRejectedValue(new Error("flutterwave down"));
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     try {
@@ -170,7 +171,7 @@ describe("POST /api/wallet/topup", () => {
   it("rate limits top-ups per user", async () => {
     prisma.payment.create.mockResolvedValue({ id: "pay_1" });
     prisma.payment.update.mockResolvedValue({});
-    mockCreateSession.mockResolvedValue({ id: "cs_1", url: "https://checkout.stripe.com/x" });
+    mockInitiatePayment.mockResolvedValue({ link: "https://checkout.flutterwave.com/v3/hosted/pay/x" });
 
     let last = 0;
     for (let i = 0; i < 11; i++) {
