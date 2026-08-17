@@ -46,9 +46,9 @@ export async function POST(request) {
 
     const origin = getSafeOrigin(request);
 
-    // Membership purchase is a one-time payment (matches the previous Stripe
-    // flow — the charge.completed webhook grants the membership). tx_ref is a
-    // unique per-request reference; the webhook correlates via meta.
+    // Membership purchase is a one-time payment — the verified
+    // charge.completed webhook grants the membership. tx_ref is a unique
+    // per-request reference; the webhook correlates via meta.
     const txRef = `mem_${userId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const hosted = await initiatePayment({
       txRef,
