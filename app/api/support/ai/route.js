@@ -7,6 +7,66 @@ import { supportAIRateLimiter, hashAccessToken } from "@/lib/security";
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_HISTORY = 20;
 
+/**
+ * Build the system prompt for ABU.
+ *
+ * When a signed-in shopper's account context was loaded, ABU gets a compact
+ * summary of their real orders, wallet balance, and membership so it can
+ * answer "track my order", "what's my balance", etc. from facts. Guests get
+ * the generic prompt (with a nudge to sign in for account-specific help).
+ */
+function buildSystemPrompt(accountContext) {
+  const base =
+    'You are ABU, a friendly and professional customer support assistant for ABU Marketplace. ' +
+    'Always be concise, helpful, and polite. Identify yourself as "ABU" when helpful, and offer ' +
+    'next steps (actions, links, or how to contact human support) when a customer asks for help ' +
+    'beyond your scope.';
+
+  if (!accountContext || !accountContext.orders) {
+    return (
+      base +
+      ' The customer is browsing as a guest (not signed in), so you do not have access to their ' +
+      'account. If they ask about an order or wallet balance, explain they need to sign in first.'
+    );
+  }
+
+  const { orders, wallet } = accountContext;
+  const lines = [];
+
+  if (orders.length > 0) {
+    lines.push("The customer's recent orders (newest first):");
+    for (const order of orders) {
+      const items = order.orderItems
+        .map((item) => `${item.product?.name || "item"} x${item.quantity}`)
+        .join(", ");
+      const placed = order.createdAt ? new Date(order.createdAt).toISOString().slice(0, 10) : "recently";
+      lines.push(
+        `- Order ${order.id.slice(-6)} (${placed}): ${order.status}, payment ${order.paymentStatus}, ` +
+          `${order.isPaid ? "paid" : "not paid"}, $${Number(order.total).toFixed(2)} — ${items}`
+      );
+    }
+  } else {
+    lines.push("The customer has no orders yet.");
+  }
+
+  if (wallet) {
+    lines.push(`Wallet balance: $${Number(wallet.balance).toFixed(2)}`);
+  } else {
+    lines.push("The customer does not have a wallet balance recorded.");
+  }
+
+  return (
+    base +
+    ' The customer is signed in, and you have access to their real account data below. ' +
+    'Use it to answer order-status, payment, and wallet questions accurately. ' +
+    'If the data does not contain what they ask about, say you cannot see it and suggest ' +
+    'checking their account page or escalating to human support. Do not invent orders, ' +
+    'amounts, or statuses.' +
+    "\n\nAccount context:\n" +
+    lines.join("\n")
+  );
+}
+
 export async function POST(request) {
   try {
     const ip =
@@ -84,9 +144,42 @@ export async function POST(request) {
       data: { ticketId, sender: "user", content: message },
     });
 
+    // ── Signed-in user context ──────────────────────────────────────────────
+    // When the shopper is authenticated, pull their real account data so ABU
+    // answers from facts (their orders, wallet balance, membership) instead of
+    // generic advice. Best-effort: if the DB query fails, fall back to the
+    // generic prompt — the chat must never break because context lookup did.
+    let accountContext = null;
+    if (userId) {
+      try {
+        const [orders, wallet] = await Promise.all([
+          prisma.order.findMany({
+            where: { userId },
+            orderBy: { createdAt: "desc" },
+            take: 5,
+            select: {
+              id: true,
+              status: true,
+              paymentStatus: true,
+              isPaid: true,
+              total: true,
+              createdAt: true,
+              orderItems: {
+                select: { quantity: true, product: { select: { name: true } } },
+              },
+            },
+          }),
+          prisma.wallet.findUnique({ where: { userId }, select: { balance: true } }),
+        ]);
+        accountContext = { orders, wallet };
+      } catch (error) {
+        console.error("[POST /api/support/ai] account context fetch failed:", error);
+      }
+    }
+
     const openai = getOpenAI();
 
-    const systemPrompt = `You are ABU, a friendly and professional customer support assistant for ABU Marketplace. Always be concise, helpful, and polite. Identify yourself as "ABU" when helpful, and offer next steps (actions, links, or how to contact human support) when a customer asks for help beyond your scope.`;
+    const systemPrompt = buildSystemPrompt(accountContext);
 
     const sanitizedHistory = history
       .filter((h) => h && typeof h === "object" && typeof h.content === "string")

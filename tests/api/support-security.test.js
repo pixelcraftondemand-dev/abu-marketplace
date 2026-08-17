@@ -26,6 +26,8 @@ vi.mock("@/lib/prisma", () => ({
   default: {
     supportTicket: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     supportMessage: { create: vi.fn() },
+    order: { findMany: vi.fn() },
+    wallet: { findUnique: vi.fn() },
   },
 }));
 
@@ -49,6 +51,8 @@ describe("support endpoint security", () => {
     prisma.supportTicket.findUnique.mockResolvedValue(ticketRow);
     prisma.supportTicket.create.mockResolvedValue({ ...ticketRow, id: "t_new" });
     prisma.supportMessage.create.mockResolvedValue({});
+    prisma.order.findMany.mockResolvedValue([]);
+    prisma.wallet.findUnique.mockResolvedValue({ balance: 0 });
     vi.stubEnv("RESEND_API_KEY", "re_123");
     vi.stubEnv("SUPPORT_EMAIL_TO", "support@abumarketplace.shop");
   });
@@ -113,6 +117,51 @@ describe("support endpoint security", () => {
       );
       expect(res.status).toBe(403);
       expect(prisma.supportMessage.create).not.toHaveBeenCalled();
+    });
+
+    it("injects the signed-in user's real orders and wallet into the system prompt", async () => {
+      prisma.order.findMany.mockResolvedValue([
+        {
+          id: "ord_abc123",
+          status: "SHIPPED",
+          paymentStatus: "SUCCEEDED",
+          isPaid: true,
+          total: 45.5,
+          createdAt: new Date("2026-08-01T10:00:00Z"),
+          orderItems: [{ quantity: 2, product: { name: "Phone Case" } }],
+        },
+      ]);
+      prisma.wallet.findUnique.mockResolvedValue({ balance: 25 });
+
+      await aiPOST(buildRequest({ message: "where is my order?" }));
+
+      const { messages } = mockCreate.mock.calls[0][0];
+      const system = messages.find((m) => m.role === "system").content;
+      expect(system).toContain("Account context");
+      expect(system).toContain("SHIPPED");
+      expect(system).toContain("$45.50");
+      expect(system).toContain("Phone Case x2");
+      expect(system).toContain("Wallet balance: $25.00");
+    });
+
+    it("tells guests ABU has no account access instead of leaking nothing", async () => {
+      getSessionFromRequest.mockResolvedValue({ user: { id: null } });
+      await aiPOST(buildRequest({ message: "track my order" }));
+
+      const { messages } = mockCreate.mock.calls[0][0];
+      const system = messages.find((m) => m.role === "system").content;
+      expect(system).toContain("guest");
+      expect(system).toContain("sign in");
+      expect(system).not.toContain("Account context");
+    });
+
+    it("falls back to the generic prompt when the account context fetch fails", async () => {
+      prisma.order.findMany.mockRejectedValue(new Error("db down"));
+      const res = await aiPOST(buildRequest({ message: "hello" }));
+      expect(res.status).toBe(200);
+      const { messages } = mockCreate.mock.calls[0][0];
+      const system = messages.find((m) => m.role === "system").content;
+      expect(system).not.toContain("Account context");
     });
 
     it("rejects oversized messages and invalid history", async () => {
