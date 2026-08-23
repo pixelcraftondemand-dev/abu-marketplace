@@ -78,6 +78,7 @@ enum OrderStatus {
 enum PaymentMethod {
   COD
   STRIPE
+  MOBILE_MONEY
   WALLET
 }
 
@@ -293,6 +294,8 @@ model SupportMessage {
 model Payment {
   id                      String        @id @default(cuid())
   idempotencyKey          String        @unique
+  provider                String        @default("abu_pay")
+  providerMetadata        Json?
   userId                  String
   providerSessionId       String?       @unique
   providerSessionUrl      String?
