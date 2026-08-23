@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -18,28 +17,32 @@ model User {
   cart  Json
 
   // Relations
-  ratings       Rating[]
-  Address       Address[]
-  store         Store?
-  buyerOrders   Order[]   @relation("BuyerRelation")
-  emailVerified Boolean   @default(false)
-  membershipTier String?
-  membershipStatus String? @default("inactive")
+  ratings              Rating[]
+  Address              Address[]
+  store                Store?
+  buyerOrders          Order[]          @relation("BuyerRelation")
+  emailVerified        Boolean          @default(false)
+  membershipTier       String?
+  membershipStatus     String?          @default("inactive")
   membershipProviderId String?
-  membershipStartedAt DateTime?
-  membershipEndsAt DateTime?
+  membershipStartedAt  DateTime?
+  membershipEndsAt     DateTime?
   // Account-closure / AML retention markers. When an account is closed the
   // row is soft-deleted (never hard-deleted): deletedAt is set and
   // dataRetentionUntil marks deletedAt + 5 years, so orders, payments and
   // wallet history remain available for law-enforcement requests.
-  deletedAt         DateTime?
-  dataRetentionUntil DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  payments      Payment[]
-  wallet        Wallet?
+  deletedAt            DateTime?
+  dataRetentionUntil   DateTime?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  sessions             Session[]
+  deviceSessions       DeviceSession[]
+  accounts             Account[]
+  payments             Payment[]
+  wallet               Wallet?
+  pspTransactions      PspTransaction[]
+  disputes             Dispute[]
+  fraudEvents          FraudEvent[]
 
   @@index([deletedAt])
   @@map("user")
@@ -48,20 +51,20 @@ model User {
 // Required for creating a Product: name, description, mrp, price, images, category, storeId
 
 model Product {
-  id          String   @id @default(cuid())
-  name        String
-  description String
-  mrp         Float
-  price       Float
-  halalCertified Boolean @default(false)
-  images      Json
-  category    String
-  inStock     Boolean  @default(true)
-  stock       Int?     // null = unlimited; atomic decrement guards overselling
-  soldCount   Int      @default(0) // cumulative units sold; shown as social proof
-  storeId     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  name           String
+  description    String
+  mrp            Float
+  price          Float
+  halalCertified Boolean  @default(false)
+  images         Json
+  category       String
+  inStock        Boolean  @default(true)
+  stock          Int? // null = unlimited; atomic decrement guards overselling
+  soldCount      Int      @default(0) // cumulative units sold; shown as social proof
+  storeId        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relations
   store      Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -97,6 +100,266 @@ enum PaymentStatus {
   PARTIALLY_REFUNDED
 }
 
+// ─── PSP state machine ───────────────────────────────────────────────────────
+// Explicit states for the payment lifecycle as a licensed processor.
+// Every transition must go through assertValidPspTransition(); no other
+// code path may write to psp_status directly.
+//
+//   pending → authorized → captured → settled
+//                    ↘ failed
+//   captured → refund_pending → refunded
+//   captured → disputed → resolved (back to captured or refund_pending)
+enum PspStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  SETTLED
+  FAILED
+  REFUND_PENDING
+  REFUNDED
+  DISPUTED
+  RESOLVED
+}
+
+enum SettlementStatus {
+  PENDING
+  SENT
+  CONFIRMED
+  FAILED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED_FOR_BUYER
+  RESOLVED_FOR_SELLER
+  ESCALATED
+}
+
+enum MerchantVerificationStatus {
+  UNVERIFIED
+  PENDING_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+enum FraudAction {
+  ALLOW
+  FLAG
+  BLOCK
+  MANUAL_REVIEW
+}
+
+// ─── PSP Transaction ─────────────────────────────────────────────────────────
+// One row per payment lifecycle event as a licensed processor.
+// Extends the existing Payment model with explicit PSP states.
+// version column enables optimistic concurrency — every UPDATE must
+// include WHERE version = :expectedVersion.
+model PspTransaction {
+  id             String    @id @default(cuid())
+  paymentId      String    @unique // links to existing Payment model
+  merchantId     String // storeId = merchant for ABU marketplace
+  userId         String
+  amount         Float // authorized amount (never changes after creation)
+  capturedAmount Float // amount actually captured (<= amount)
+  settledAmount  Float // amount actually settled to merchant
+  currency       String    @default("USD")
+  pspStatus      PspStatus @default(PENDING)
+  version        Int       @default(1) // optimistic concurrency
+  idempotencyKey String    @unique
+  providerRef    String?   @unique // provider transaction reference
+  authorizedAt   DateTime?
+  capturedAt     DateTime?
+  settledAt      DateTime?
+  failedAt       DateTime?
+  failureReason  String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  payment           Payment          @relation(fields: [paymentId], references: [id])
+  merchant          Store            @relation(fields: [merchantId], references: [id])
+  user              User             @relation(fields: [userId], references: [id])
+  ledger            LedgerEntry[]
+  auditLogs         AuditLog[]
+  disputes          Dispute[]
+  settlementBatch   SettlementBatch? @relation(fields: [settlementBatchId], references: [id])
+  settlementBatchId String?
+
+  @@index([merchantId])
+  @@index([userId])
+  @@index([pspStatus])
+  @@index([createdAt])
+  @@map("psp_transaction")
+}
+
+// ─── Double-entry ledger ──────────────────────────────────────────────────────
+// Every money movement recorded as a paired entry (debit + credit, always
+// summing to zero). Accounts: customer_receivable, merchant_payable,
+// platform_revenue, network_fees.
+model LedgerEntry {
+  id               String   @id @default(cuid())
+  pspTransactionId String
+  account          String // customer_receivable | merchant_payable | platform_revenue | network_fees
+  debit            Float    @default(0)
+  credit           Float    @default(0)
+  description      String?
+  referenceType    String // "psp_transaction" | "settlement" | "refund" | "dispute"
+  referenceId      String
+  createdAt        DateTime @default(now())
+
+  pspTransaction    PspTransaction?  @relation(fields: [pspTransactionId], references: [id])
+  settlementBatch   SettlementBatch? @relation(fields: [settlementBatchId], references: [id])
+  settlementBatchId String?
+
+  @@index([pspTransactionId])
+  @@index([account])
+  @@index([referenceType, referenceId])
+  @@index([createdAt])
+  @@map("ledger_entry")
+}
+
+// ─── Append-only audit log ────────────────────────────────────────────────────
+// Every payment-state-changing action logged with old/new state.
+// No updates or deletes at the application level.
+model AuditLog {
+  id               String   @id @default(cuid())
+  pspTransactionId String?
+  actor            String // "system" | "webhook" | userId | "admin"
+  action           String // "authorize" | "capture" | "settle" | "fail" | "refund" | "dispute" | "resolve"
+  previousState    String?
+  newState         String?
+  metadata         Json? // additional context (amounts, provider refs, etc.)
+  ipAddress        String?
+  createdAt        DateTime @default(now())
+
+  pspTransaction PspTransaction? @relation(fields: [pspTransactionId], references: [id])
+  dispute        Dispute?        @relation(fields: [disputeId], references: [id])
+  disputeId      String?
+
+  @@index([pspTransactionId])
+  @@index([actor])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+// ─── Settlement batches ───────────────────────────────────────────────────────
+// Groups captured transactions per merchant for payout.
+model SettlementBatch {
+  id            String           @id @default(cuid())
+  merchantId    String
+  status        SettlementStatus @default(PENDING)
+  grossAmount   Float // total captured before fees
+  platformFee   Float // ABU marketplace fee
+  netAmount     Float // grossAmount - platformFee
+  currency      String           @default("USD")
+  payoutRef     String? // bank/mobile money reference
+  payoutAccount Json? // { type: "bank"|"mobile", ... }
+  scheduledAt   DateTime         @default(now())
+  sentAt        DateTime?
+  confirmedAt   DateTime?
+  failedAt      DateTime?
+  failureReason String?
+  retryCount    Int              @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  merchant     Store            @relation(fields: [merchantId], references: [id])
+  ledger       LedgerEntry[]
+  transactions PspTransaction[]
+
+  @@index([merchantId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("settlement_batch")
+}
+
+// ─── Disputes / chargebacks ───────────────────────────────────────────────────
+model Dispute {
+  id               String        @id @default(cuid())
+  pspTransactionId String
+  userId           String
+  reason           String
+  status           DisputeStatus @default(OPEN)
+  amount           Float // disputed amount
+  resolution       String? // buyer/seller/explanation
+  evidence         Json? // supporting documents/notes
+  openedAt         DateTime      @default(now())
+  resolvedAt       DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  pspTransaction PspTransaction @relation(fields: [pspTransactionId], references: [id])
+  user           User           @relation(fields: [userId], references: [id])
+  auditLogs      AuditLog[]
+
+  @@index([pspTransactionId])
+  @@index([userId])
+  @@index([status])
+  @@map("dispute")
+}
+
+// ─── Fraud events ─────────────────────────────────────────────────────────────
+// Logged per checkout attempt for risk scoring and BSL reporting.
+model FraudEvent {
+  id               String      @id @default(cuid())
+  userId           String
+  pspTransactionId String?
+  eventType        String // velocity | new_account_high_value | mismatch | ip_device
+  riskScore        Float       @default(0) // 0-100
+  action           FraudAction @default(ALLOW)
+  details          Json // { ip, deviceFingerprint, orderAmount, ... }
+  reviewedBy       String? // admin userId if manually reviewed
+  reviewNote       String?
+  createdAt        DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([eventType])
+  @@index([action])
+  @@index([createdAt])
+  @@map("fraud_event")
+}
+
+// ─── Merchant onboarding ──────────────────────────────────────────────────────
+// Extends Store with KYC and compliance fields for multi-merchant PSP.
+model MerchantProfile {
+  id                 String                     @id @default(cuid())
+  storeId            String                     @unique
+  verificationStatus MerchantVerificationStatus @default(UNVERIFIED)
+  riskTier           String                     @default("new") // new | standard | established
+  businessRegNumber  String?
+  beneficialOwners   Json? // [{ name, id, ownership % }]
+  bankAccount        Json? // { type, accountNumber, bank, ... }
+  mobileMoneyAccount Json? // { provider, number, ... }
+  dailyLimit         Float                      @default(1000) // USD
+  monthlyLimit       Float                      @default(25000) // USD
+  kycDocuments       Json? // uploaded doc references
+  verifiedAt         DateTime?
+  rejectedAt         DateTime?
+  rejectionReason    String?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id])
+
+  @@map("merchant_profile")
+}
+
+// ─── Idempotency keys (standalone) ───────────────────────────────────────────
+// Dedicated table for idempotency tracking across all endpoints.
+model IdempotencyKeyRecord {
+  key          String   @id
+  requestHash  String // SHA-256 of the request body
+  responseBody String? // cached response for replay
+  status       String   @default("pending") // pending | processed | conflict
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime // TTL for cleanup
+
+  @@index([expiresAt])
+  @@map("idempotency_key_record")
+}
+
 // Required for creating an Order: total, userId, storeId, addressId, isPaid, paymentMethod, isCouponUsed, coupon (JSON), orderItems (nested)
 
 model Order {
@@ -117,9 +380,9 @@ model Order {
   orderItems    OrderItem[]
 
   // Relations
-  user    User    @relation("BuyerRelation", fields: [userId], references: [id])
-  store   Store   @relation(fields: [storeId], references: [id])
-  address Address @relation(fields: [addressId], references: [id])
+  user    User     @relation("BuyerRelation", fields: [userId], references: [id])
+  store   Store    @relation(fields: [storeId], references: [id])
+  address Address  @relation(fields: [addressId], references: [id])
   payment Payment? @relation(fields: [paymentId], references: [id])
 
   @@index([userId, paymentId])
@@ -190,31 +453,34 @@ model Coupon {
   isPublic    Boolean
   expiresAt   DateTime
   maxUses     Int?
-  usageCount  Int       @default(0)
-  createdAt   DateTime  @default(now())
+  usageCount  Int      @default(0)
+  createdAt   DateTime @default(now())
 }
 
 // Required for creating a Store: userId, name, username, email, contact, logo, description, address (optional: , status, isActive)
 
 model Store {
-  id          String   @id @default(cuid())
-  userId      String   @unique
-  name        String
-  description String
-  username    String   @unique
-  address     String
-  status      String   @default("pending")
-  isActive    Boolean  @default(false)
-  logo        String
-  email       String
-  contact     String
-  halalCertified Boolean @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  name           String
+  description    String
+  username       String   @unique
+  address        String
+  status         String   @default("pending")
+  isActive       Boolean  @default(false)
+  logo           String
+  email          String
+  contact        String
+  halalCertified Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  Product Product[]
-  Order   Order[]
-  user    User      @relation(fields: [userId], references: [id])
+  Product           Product[]
+  Order             Order[]
+  user              User              @relation(fields: [userId], references: [id])
+  pspTransactions   PspTransaction[]
+  settlementBatches SettlementBatch[]
+  merchantProfile   MerchantProfile?
 }
 
 model Session {
@@ -267,15 +533,15 @@ model Verification {
 
 // Support tickets and messages for customer support
 model SupportTicket {
-  id             String    @id @default(cuid())
-  userId         String?
-  subject        String
-  status         String    @default("open")
-  accessTokenHash String?  // SHA-256 hash of the bearer token (raw token never stored)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id              String   @id @default(cuid())
+  userId          String?
+  subject         String
+  status          String   @default("open")
+  accessTokenHash String? // SHA-256 hash of the bearer token (raw token never stored)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  messages  SupportMessage[]
+  messages SupportMessage[]
 
   @@index([userId])
 }
@@ -283,7 +549,7 @@ model SupportTicket {
 model SupportMessage {
   id        String   @id @default(cuid())
   ticketId  String
-  sender    String   // 'user' | 'abu' | 'agent'
+  sender    String // 'user' | 'abu' | 'agent'
   content   String
   createdAt DateTime @default(now())
 
@@ -309,9 +575,10 @@ model Payment {
   createdAt               DateTime      @default(now())
   updatedAt               DateTime      @updatedAt
 
-  user    User     @relation(fields: [userId], references: [id])
-  orders  Order[]
-  refunds Refund[]
+  user           User            @relation(fields: [userId], references: [id])
+  orders         Order[]
+  refunds        Refund[]
+  pspTransaction PspTransaction?
 
   @@index([userId])
   @@index([status])
@@ -371,10 +638,10 @@ model WalletTransaction {
   id            String   @id @default(cuid())
   walletId      String
   userId        String
-  type          String   // TOPUP | PAYMENT
-  amount        Float    // positive = credit, negative = debit
+  type          String // TOPUP | PAYMENT
+  amount        Float // positive = credit, negative = debit
   balanceAfter  Float
-  referenceType String?  // "payment" (top-up) | "order" (checkout)
+  referenceType String? // "payment" (top-up) | "order" (checkout)
   referenceId   String?
   description   String?
   createdAt     DateTime @default(now())
@@ -401,4 +668,25 @@ model RateLimitEntry {
 
   @@index([windowStart])
   @@map("rate_limit_entry")
+}
+
+// ─── Device fingerprint tracking (session-hijack detection) ────────────────
+// One row per known device for a user. When a sign-in happens from an
+// unrecognized fingerprint the system sends an alert email to the account
+// owner. The lastSeenAt timestamp is updated on every match so stale
+// devices can be swept later.
+model DeviceSession {
+  id              String   @id @default(cuid())
+  userId          String
+  fingerprintHash String // SHA-256 prefix (16 hex chars) of the client fingerprint
+  deviceInfo      Json // { userAgent, platform, screen, timezone, language }
+  lastSeenAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fingerprintHash])
+  @@index([userId])
+  @@index([lastSeenAt])
+  @@map("device_session")
 }
