@@ -156,7 +156,7 @@ function WalletPageContent() {
   return (
     <div className="min-h-screen mx-6 my-10 text-slate-800">
       <div className="max-w-7xl mx-auto">
-        <PageTitle heading=ABU Pay text=Your balance, top-ups, and marketplace payments in one place. />
+        <PageTitle heading="ABU Pay" text="Your balance, top-ups, and marketplace payments in one place." />
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           {/* Balance card */}
