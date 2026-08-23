@@ -75,9 +75,9 @@ export default function Cart() {
 
                     <div className="w-full max-w-4xl">
                         {/* ── Free-delivery progress bar ── */}
-                        <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="mb-5 rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-surface)] p-4 shadow-sm">
                             <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                                <Truck size={16} className="shrink-0 text-[#C9A96E]" />
+                                <Truck size={16} className="shrink-0 text-[var(--accent)]" />
                                 {deliveryFree ? (
                                     <span className="flex items-center gap-1.5 text-green-700">
                                         <Sparkles size={15} />
@@ -86,7 +86,7 @@ export default function Cart() {
                                 ) : (
                                     <span>
                                         {t('cart.freeDeliveryProgress')} <CurrencyAmount amount={remainingForFree} />
-                                        <Link href="/shop" className="ml-2 text-xs font-semibold text-[#C9A96E] hover:text-[#A88B52]">
+                                        <Link href="/shop" className="ml-2 text-xs font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)]">
                                             {t('cart.freeDeliveryCta')} →
                                         </Link>
                                     </span>
@@ -94,7 +94,7 @@ export default function Cart() {
                             </div>
                             <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
                                 <div
-                                    className={`h-full rounded-full transition-all duration-500 ${deliveryFree ? 'bg-green-500' : 'bg-[#C9A96E]'}`}
+                                    className={`h-full rounded-full transition-all duration-500 ${deliveryFree ? 'bg-green-500' : 'bg-[var(--accent)]'}`}
                                     style={{ width: `${progressPct}%` }}
                                 />
                             </div>
@@ -117,20 +117,20 @@ export default function Cart() {
                         <div className="flex flex-col gap-4">
                             {
                                 cartArray.map((item, index) => (
-                                    <div key={index} className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                                    <div key={index} className="flex gap-4 rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-surface)] p-4 shadow-sm">
                                         <Link href={`/product/${item.id}`} className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
                                             <Image src={item.images?.[0] || item.image} className="h-full w-full object-contain p-2" alt={item.name} width={96} height={96} />
                                         </Link>
                                         <div className="flex min-w-0 flex-1 flex-col justify-between gap-2">
                                             <div className="flex items-start justify-between gap-3">
                                                 <div className="min-w-0">
-                                                    <Link href={`/product/${item.id}`} className="line-clamp-2 text-sm font-semibold text-slate-800 hover:text-[#C9A96E]">
+                                                    <Link href={`/product/${item.id}`} className="line-clamp-2 text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--accent)]">
                                                         {item.name}
                                                     </Link>
                                                     <p className="mt-0.5 text-xs text-slate-400">{item.category}</p>
                                                     {item.store?.name && (
                                                         <span className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-slate-500">
-                                                            <BadgeCheck size={12} className="text-[#C9A96E]" />
+                                                            <BadgeCheck size={12} className="text-[var(--accent)]" />
                                                             {item.store.name}
                                                         </span>
                                                     )}
@@ -168,7 +168,7 @@ export default function Cart() {
             <div className="text-center">
                 <ShoppingBag size={40} className="mx-auto mb-4 text-slate-300" />
                 <h1 className="text-2xl sm:text-4xl font-semibold">{t('cart.empty')}</h1>
-                <Link href="/shop" className="mt-6 inline-block rounded-full bg-[#C9A96E] px-8 py-3 text-sm font-medium text-white transition hover:bg-[#A88B52]">
+                <Link href="/shop" className="mt-6 inline-block rounded-full bg-[var(--accent)] px-8 py-3 text-sm font-medium text-white transition hover:bg-[var(--accent-hover)]">
                     {t('cart.freeDeliveryCta')}
                 </Link>
             </div>

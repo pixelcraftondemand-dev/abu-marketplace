@@ -1,48 +1,53 @@
 "use client";
 
-import Link from "next/link";
-import { SignIn } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
+import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import SignInModal from "@/components/SignInModal";
 import BrandLogo from "@/components/BrandLogo";
 
+/**
+ * /sign-in page — renders the same SignInModal inline so users who arrive
+ * via bookmark or shared link see the same passwordless experience.
+ * If already signed in, redirects home immediately.
+ */
 export default function SignInPage() {
+  const { isSignedIn, isLoaded } = useUser();
+  const router = useRouter();
+  const [open, setOpen] = useState(true);
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      router.replace("/");
+    }
+  }, [isLoaded, isSignedIn, router]);
+
+  // Show a loading state while Clerk hydrates
+  if (!isLoaded) {
+    return (
+      <main className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+        <BrandLogo
+          className="justify-center"
+          brandClassName="text-[#1A1A1A]"
+          taglineClassName="text-[#8f7d61]"
+          compact={false}
+        />
+      </main>
+    );
+  }
+
+  // Already signed in — redirect happened in useEffect, show nothing
+  if (isSignedIn) return null;
+
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-12 text-slate-900">
-      <div className="mx-auto w-full max-w-md">
-        <div className="mb-8 text-center">
-          <BrandLogo
-            className="justify-center"
-            brandClassName="text-slate-900"
-            taglineClassName="text-slate-500"
-            compact={false}
-          />
-          <h1 className="mt-8 text-3xl font-semibold tracking-tight">Welcome back</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Sign in to continue shopping on ABU Marketplace.
-          </p>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
-          <SignIn
-            path="/sign-in"
-            routing="path"
-            signUpUrl="/sign-up"
-            afterSignInUrl="/"
-            appearance={{
-              elements: {
-                headerTitle: "text-xl font-semibold",
-                headerSubtitle: "text-sm",
-              },
-            }}
-          />
-        </div>
-
-        <p className="mt-6 text-center text-sm text-slate-600">
-          New to ABU Marketplace?{" "}
-          <Link href="/sign-up" className="font-semibold text-amber-600 hover:text-amber-500">
-            Create an account
-          </Link>
-        </p>
-      </div>
+    <main className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+      <SignInModal
+        open={open}
+        onClose={() => {
+          // If they close the modal, send them home
+          router.push("/");
+        }}
+      />
     </main>
   );
 }

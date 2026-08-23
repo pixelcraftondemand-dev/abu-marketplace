@@ -33,7 +33,7 @@ const OrderSummary = ({ totalPrice, items }) => {
 
     useEffect(() => {
         if (!codEnabled && paymentMethod === 'COD') {
-            setPaymentMethod('FLUTTERWAVE');
+            setPaymentMethod('WALLET');
         }
     }, [codEnabled, paymentMethod]);
 
@@ -100,13 +100,9 @@ const OrderSummary = ({ totalPrice, items }) => {
             return
            }
 
-           if(paymentMethod === 'FLUTTERWAVE'){
-            window.location.href = data.session.url;
-           }else{
-            toast.success(data.message || t('checkout.orderPlaced'))
-            router.push('/orders')
-            dispatch(fetchCart({getToken}))
-           }
+           toast.success(data.message || t('checkout.orderPlaced'))
+           router.push('/orders')
+           dispatch(fetchCart({getToken}))
 
         } catch (error) {
             toast.error(error?.response?.data?.error || error.message)
@@ -123,10 +119,7 @@ const OrderSummary = ({ totalPrice, items }) => {
                 <input type="radio" id="COD" onChange={() => setPaymentMethod('COD')} checked={paymentMethod === 'COD'} className='accent-gray-500' disabled={!codEnabled} />
                 <label htmlFor="COD" className={`cursor-pointer ${!codEnabled ? 'text-slate-400' : ''}`}>{t('checkout.cod')}</label>
             </div>
-            <div className='flex gap-2 items-center mt-1'>
-                <input type="radio" id="FLUTTERWAVE" name='payment' onChange={() => setPaymentMethod('FLUTTERWAVE')} checked={paymentMethod === 'FLUTTERWAVE'} className='accent-gray-500' />
-                <label htmlFor="FLUTTERWAVE" className='cursor-pointer'>{t('checkout.flutterwavePayment')}</label>
-            </div>
+
             <div className='flex gap-2 items-center mt-1'>
                 <input type="radio" id="WALLET" name='payment' onChange={() => setPaymentMethod('WALLET')} checked={paymentMethod === 'WALLET'} className='accent-gray-500' disabled={walletLoading} />
                 <label htmlFor="WALLET" className='cursor-pointer'>

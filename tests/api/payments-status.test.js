@@ -25,7 +25,6 @@ const paymentRow = {
   status: "PROCESSING",
   amount: 25,
   currency: "USD",
-  providerSessionUrl: "https://checkout.flutterwave.com/v3/hosted/pay/x",
   createdAt: new Date(),
 };
 

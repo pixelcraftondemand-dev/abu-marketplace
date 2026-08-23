@@ -45,12 +45,12 @@ const categories = [
   { labelKey: "categories.halalCertified", value: "halal-certified" },
 ];
 
-function ShopPageContent() {
+function ShopPageContent({ initialProducts = [] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState(initialProducts);
+  const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState("grid"); // grid | list
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
@@ -70,7 +70,11 @@ function ShopPageContent() {
     setSearchTerm(searchQuery);
   }, [searchQuery]);
 
+  // Only fetch client-side on retry or when search params change after initial load
   useEffect(() => {
+    // Skip if we have server-rendered products and this is the initial render
+    if (initialProducts.length > 0 && retryCount === 0) return;
+
     const fetchProducts = async () => {
       try {
         setLoading(true);
@@ -83,8 +87,6 @@ function ShopPageContent() {
         const res = await axios.get(`/api/products?${params.toString()}`);
         setProducts(res.data.products || []);
       } catch (err) {
-        // Temporary API failure — show the inline retry panel instead of
-        // leaving the page empty with only a toast.
         setLoadError(true);
       } finally {
         setLoading(false);
@@ -115,7 +117,7 @@ function ShopPageContent() {
   if (loading) return <Loading />;
 
   return (
-    <main className="min-h-screen bg-[#FAF8F5]">
+    <main className="min-h-screen bg-[var(--bg-primary)]">
       {/* ─── Shop Header — Editorial Magazine Style ─── */}
       <div className="relative h-[40vh] min-h-[300px] overflow-hidden">
         <Image
@@ -124,7 +126,7 @@ function ShopPageContent() {
           fill
           className="object-cover"
         />
-        <div className="absolute inset-0 bg-[#1A1A1A]/40" />
+        <div className="absolute inset-0 bg-[var(--text-primary)]/40" />
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
             <p className="text-editorial text-white/70 mb-3">{t('shop.theCollection')}</p>
@@ -141,18 +143,18 @@ function ShopPageContent() {
       </div>
 
       {/* ─── Filter Bar — Amazon + Etsy Efficiency ─── */}
-      <div className="sticky top-[72px] lg:top-[88px] z-30 bg-white border-b border-[#E8E2DB]">
+      <div className="sticky top-[72px] lg:top-[88px] z-30 bg-[var(--bg-surface)] border-b border-[var(--border-primary)]">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
             {/* Left — Search and categories */}
             <div className="hidden lg:flex items-center gap-4">
-              <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 rounded-full border border-[#E8E2DB] bg-[#F5F0EB] px-4 py-2">
-                <Search size={16} className="text-[#9B9590]" />
+              <form onSubmit={handleSearchSubmit} className="flex items-center gap-2 rounded-full border border-[var(--border-primary)] bg-[var(--bg-muted)] px-4 py-2">
+                <Search size={16} className="text-[var(--text-tertiary)]" />
                 <input
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder={t("nav.searchPlaceholder")}
-                  className="w-72 bg-transparent text-sm text-[#1A1A1A] outline-none placeholder:text-[#9B9590]"
+                  className="w-72 bg-transparent text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
                 />
               </form>
 
@@ -163,8 +165,8 @@ function ShopPageContent() {
                     onClick={() => updateFilter("category", cat.value)}
                     className={`px-4 py-1.5 text-[13px] font-medium transition whitespace-nowrap ${
                       categoryFilter === cat.value || (!categoryFilter && !cat.value)
-                        ? "text-[#1A1A1A] border-b-2 border-[#C9A96E]"
-                        : "text-[#9B9590] hover:text-[#1A1A1A]"
+                        ? "text-[var(--text-primary)] border-b-2 border-[var(--accent)]"
+                        : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
                     }`}
                   >
                     {t(cat.labelKey)}
@@ -176,7 +178,7 @@ function ShopPageContent() {
             {/* Mobile Category Toggle */}
             <button
               onClick={() => setFilterOpen(!filterOpen)}
-              className="lg:hidden flex items-center gap-2 text-sm text-[#1A1A1A]"
+              className="lg:hidden flex items-center gap-2 text-sm text-[var(--text-primary)]"
             >
               <SlidersHorizontal size={16} />
               {t('shop.filters')}
@@ -185,7 +187,7 @@ function ShopPageContent() {
             {/* Right — Sort + View Toggle */}
             <div className="flex items-center gap-4">
               {/* Results count */}
-              <span className="hidden sm:block text-sm text-[#9B9590]">
+              <span className="hidden sm:block text-sm text-[var(--text-tertiary)]">
                 {t('shop.results', { count: loadError ? 0 : displayedProducts.length })}
               </span>
 
@@ -193,7 +195,7 @@ function ShopPageContent() {
               <div className="relative">
                 <button
                   onClick={() => setSortOpen(!sortOpen)}
-                  className="flex items-center gap-2 text-sm text-[#1A1A1A] hover:text-[#C9A96E] transition"
+                  className="flex items-center gap-2 text-sm text-[var(--text-primary)] hover:text-[var(--accent)] transition"
                 >
                   <ArrowUpDown size={14} />
                   <span className="hidden sm:inline">
@@ -202,7 +204,7 @@ function ShopPageContent() {
                   <ChevronDown size={12} className={`transition-transform ${sortOpen ? "rotate-180" : ""}`} />
                 </button>
                 {sortOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-[#E8E2DB] shadow-xl z-50">
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-[var(--bg-surface)] border border-[var(--border-primary)] shadow-xl z-50">
                     {sortOptions.map((option) => (
                       <button
                         key={option.value}
@@ -212,8 +214,8 @@ function ShopPageContent() {
                         }}
                         className={`w-full text-left px-4 py-3 text-sm transition ${
                           sortBy === option.value
-                            ? "bg-[#FAF8F5] text-[#C9A96E] font-medium"
-                            : "text-[#2D2D2D] hover:bg-[#FAF8F5]"
+                            ? "bg-[var(--bg-muted)] text-[var(--accent)] font-medium"
+                            : "text-[var(--text-primary)] hover:bg-[var(--bg-muted)]"
                         }`}
                       >
                         {t(option.labelKey)}
@@ -224,16 +226,16 @@ function ShopPageContent() {
               </div>
 
               {/* View Toggle */}
-              <div className="hidden sm:flex items-center border border-[#E8E2DB]">
+              <div className="hidden sm:flex items-center border border-[var(--border-primary)]">
                 <button
                   onClick={() => setViewMode("grid")}
-                  className={`p-2 transition ${viewMode === "grid" ? "bg-[#1A1A1A] text-white" : "text-[#9B9590] hover:text-[#1A1A1A]"}`}
+                  className={`p-2 transition ${viewMode === "grid" ? "bg-[var(--text-primary)] text-[var(--bg-primary)]" : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"}`}
                 >
                   <Grid3X3 size={16} />
                 </button>
                 <button
                   onClick={() => setViewMode("list")}
-                  className={`p-2 transition ${viewMode === "list" ? "bg-[#1A1A1A] text-white" : "text-[#9B9590] hover:text-[#1A1A1A]"}`}
+                  className={`p-2 transition ${viewMode === "list" ? "bg-[var(--text-primary)] text-[var(--bg-primary)]" : "text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"}`}
                 >
                   <LayoutList size={16} />
                 </button>
@@ -245,8 +247,8 @@ function ShopPageContent() {
         {/* Active Filters */}
         {!loadError && showFallbackProducts && (
           <div className="max-w-7xl mx-auto px-6 lg:px-8 pb-3">
-            <div className="rounded-3xl border border-[#E8E2DB] bg-[#FFF9EB] p-5 text-sm text-[#655a3f]">
-              <strong className="block font-semibold text-[#1A1A1A] mb-1">{t('shop.sampleProducts')}</strong>
+            <div className="rounded-3xl border border-[var(--border-primary)] bg-[var(--accent-brand-light)] p-5 text-sm text-[var(--text-secondary)]">
+              <strong className="block font-semibold text-[var(--text-primary)] mb-1">{t('shop.sampleProducts')}</strong>
               {t('shop.sampleProductsText')}
             </div>
           </div>
@@ -255,7 +257,7 @@ function ShopPageContent() {
           <div className="max-w-7xl mx-auto px-6 lg:px-8 pb-3">
             <div className="flex items-center gap-2 flex-wrap">
               {searchQuery && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#1A1A1A] text-white text-xs">
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs">
                   {t('shop.search', { query: searchQuery })}
                   <button onClick={() => updateFilter("search", "")}>
                     <X size={12} />
@@ -263,7 +265,7 @@ function ShopPageContent() {
                 </span>
               )}
               {categoryFilter && (
-                <span className="inline-flex items-center gap-1 px-3 py-1 bg-[#1A1A1A] text-white text-xs">
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-[var(--text-primary)] text-[var(--bg-primary)] text-xs">
                   {t(categories.find((c) => c.value === categoryFilter)?.labelKey || "")}
                   <button onClick={() => updateFilter("category", "")}>
                     <X size={12} />
@@ -272,7 +274,7 @@ function ShopPageContent() {
               )}
               <button
                 onClick={clearFilters}
-                className="text-xs text-[#9B9590] hover:text-[#C9A96E] transition underline"
+                className="text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition underline"
               >
                 {t('shop.clearAll')}
               </button>
@@ -283,17 +285,17 @@ function ShopPageContent() {
 
       {/* ─── Mobile Filter Panel ─── */}
       {filterOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 bg-white">
+        <div className="lg:hidden fixed inset-0 z-40 bg-[var(--bg-surface)]">
           <div className="p-6">
             <div className="flex items-center justify-between mb-8">
-              <h3 className="font-display text-2xl text-[#1A1A1A]">{t('shop.filters')}</h3>
+              <h3 className="font-display text-2xl text-[var(--text-primary)]">{t('shop.filters')}</h3>
               <button onClick={() => setFilterOpen(false)}>
                 <X size={24} />
               </button>
             </div>
             <div className="space-y-6">
               <div>
-                <p className="text-editorial text-[#9B9590] mb-3">{t('shop.categories')}</p>
+                <p className="text-editorial text-[var(--text-tertiary)] mb-3">{t('shop.categories')}</p>
                 <div className="space-y-2">
                   {categories.map((cat) => (
                     <button
@@ -304,8 +306,8 @@ function ShopPageContent() {
                       }}
                       className={`block w-full text-left py-2 text-sm ${
                         categoryFilter === cat.value
-                          ? "text-[#C9A96E] font-medium"
-                          : "text-[#2D2D2D]"
+                          ? "text-[var(--accent)] font-medium"
+                          : "text-[var(--text-primary)]"
                       }`}
                     >
                       {t(cat.labelKey)}
@@ -321,10 +323,10 @@ function ShopPageContent() {
       {/* ─── Product Grid — Etsy Discovery + Shopify Clean ─── */}
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
         {categoryFilter === "halal-certified" && (
-          <div className="mb-8 rounded-2xl border border-[#E8E2DB] bg-white/80 p-6 shadow-sm">
-            <p className="text-[10px] tracking-[0.24em] uppercase text-[#C9A96E] mb-2">{t('shop.featuredCollection')}</p>
-            <h2 className="font-display text-2xl text-[#1A1A1A] mb-2">{t('shop.halalCertifiedProducts')}</h2>
-            <p className="max-w-2xl text-sm text-[#6B6560]">
+          <div className="mb-8 rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-surface)]/80 p-6 shadow-sm">
+            <p className="text-[10px] tracking-[0.24em] uppercase text-[var(--accent)] mb-2">{t('shop.featuredCollection')}</p>
+            <h2 className="font-display text-2xl text-[var(--text-primary)] mb-2">{t('shop.halalCertifiedProducts')}</h2>
+            <p className="max-w-2xl text-sm text-[var(--text-secondary)]">
               {t('shop.halalCertifiedText')}
             </p>
           </div>
@@ -332,12 +334,12 @@ function ShopPageContent() {
 
         {loadError ? (
           <div className="text-center py-24">
-            <p className="font-display text-2xl text-[#1A1A1A] mb-2">{t('shop.failedToLoad')}</p>
-            <p className="text-[#9B9590] mb-8">{t('shop.retryText')}</p>
+            <p className="font-display text-2xl text-[var(--text-primary)] mb-2">{t('shop.failedToLoad')}</p>
+            <p className="text-[var(--text-tertiary)] mb-8">{t('shop.retryText')}</p>
             <button
               type="button"
               onClick={() => setRetryCount((count) => count + 1)}
-              className="inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#C9A96E]"
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--text-primary)] px-6 py-3 text-sm font-semibold text-[var(--bg-primary)] transition hover:bg-[var(--accent)]"
             >
               <RotateCcw size={16} />
               {t('shop.retry')}
@@ -345,8 +347,8 @@ function ShopPageContent() {
           </div>
         ) : displayedProducts.length === 0 ? (
           <div className="text-center py-24">
-            <p className="font-display text-2xl text-[#1A1A1A] mb-2">{t('shop.noProductsFound')}</p>
-            <p className="text-[#9B9590]">{t('shop.tryAdjusting')}</p>
+            <p className="font-display text-2xl text-[var(--text-primary)] mb-2">{t('shop.noProductsFound')}</p>
+            <p className="text-[var(--text-tertiary)]">{t('shop.tryAdjusting')}</p>
           </div>
         ) : (
           <div
@@ -378,9 +380,9 @@ function ProductCard({ product, viewMode, index }) {
     return (
       <Link
         href={`/product/${product.id}`}
-        className="group flex gap-6 p-4 bg-white border border-[#E8E2DB] hover:border-[#C9A96E]/30 transition-all duration-500"
+        className="group flex gap-6 p-4 bg-[var(--bg-surface)] border border-[var(--border-primary)] hover:border-[var(--accent)]/30 transition-all duration-500"
       >
-        <div className="relative w-40 h-48 shrink-0 overflow-hidden bg-[#F5F0EB]">
+        <div className="relative w-40 h-48 shrink-0 overflow-hidden bg-[var(--bg-muted)]">
           <Image
             src={product.image || "/placeholder.jpg"}
             alt={product.name}
@@ -389,21 +391,21 @@ function ProductCard({ product, viewMode, index }) {
           />
         </div>
         <div className="flex-1 py-2">
-          <p className="text-[10px] tracking-[0.15em] uppercase text-[#9B9590] mb-1">
+          <p className="text-[10px] tracking-[0.15em] uppercase text-[var(--text-tertiary)] mb-1">
             {product.category || "General"}
           </p>
-          <h3 className="font-display text-xl text-[#1A1A1A] group-hover:text-[#C9A96E] transition-colors mb-2">
+          <h3 className="font-display text-xl text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors mb-2">
             {product.name}
           </h3>
-          <p className="text-sm text-[#6B6560] line-clamp-2 mb-3">
+          <p className="text-sm text-[var(--text-secondary)] line-clamp-2 mb-3">
             {product.description}
           </p>
           <div className="flex items-center gap-4">
-            <span className="text-lg font-semibold text-[#1A1A1A]">
+            <span className="text-lg font-semibold text-[var(--text-primary)]">
               <CurrencyAmount amount={product.price} />
             </span>
             {product.originalPrice && (
-              <span className="text-sm text-[#9B9590] line-through">
+              <span className="text-sm text-[var(--text-tertiary)] line-through">
                 <CurrencyAmount amount={product.originalPrice} />
               </span>
             )}
@@ -419,7 +421,7 @@ function ProductCard({ product, viewMode, index }) {
       style={{ animationDelay: `${index * 50}ms` }}
     >
       <Link href={`/product/${product.id}`}>
-        <div className="relative aspect-[3/4] overflow-hidden bg-[#F5F0EB]">
+        <div className="relative aspect-[3/4] overflow-hidden bg-[var(--bg-muted)]">
           <Image
             src={product.images?.[0] || product.image || "/placeholder.jpg"}
             alt={product.name}
@@ -427,7 +429,7 @@ function ProductCard({ product, viewMode, index }) {
             className="object-cover product-discovery-img"
           />
           {product.badge && (
-            <span className="product-discovery-badge bg-[#C9A96E] text-white border-transparent">
+            <span className="product-discovery-badge bg-[var(--accent)] text-white border-transparent">
               {product.badge}
             </span>
           )}
@@ -437,29 +439,29 @@ function ProductCard({ product, viewMode, index }) {
               e.preventDefault();
               setLiked(!liked);
             }}
-            className="absolute top-3 right-3 w-9 h-9 bg-white/90 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-white"
+            className="absolute top-3 right-3 w-9 h-9 bg-[var(--bg-surface)]/90 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-[var(--bg-surface)]"
           >
             <Heart
               size={16}
-              className={liked ? "text-red-500 fill-red-500" : "text-[#1A1A1A]"}
+              className={liked ? "text-red-500 fill-red-500" : "text-[var(--text-primary)]"}
             />
           </button>
         </div>
         <div className="p-4">
-          <p className="text-[10px] tracking-[0.15em] uppercase text-[#9B9590] mb-1">
+          <p className="text-[10px] tracking-[0.15em] uppercase text-[var(--text-tertiary)] mb-1">
             {product.category || "General"}
           </p>
-          <h3 className="font-display text-[17px] text-[#1A1A1A] group-hover:text-[#C9A96E] transition-colors leading-snug">
+          <h3 className="font-display text-[17px] text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors leading-snug">
             {product.name}
           </h3>
           <div className="flex items-center justify-between mt-2">
-            <span className="text-sm font-semibold text-[#1A1A1A]">
+            <span className="text-sm font-semibold text-[var(--text-primary)]">
               <CurrencyAmount amount={product.price} />
             </span>
             {ratingCount > 0 && (
               <div className="flex items-center gap-1">
-                <Star size={12} className="text-[#C9A96E] fill-[#C9A96E]" />
-                <span className="text-xs text-[#6B6560]">{ratingValue}</span>
+                <Star size={12} className="text-[var(--accent)] fill-[var(--accent)]" />
+                <span className="text-xs text-[var(--text-secondary)]">{ratingValue}</span>
               </div>
             )}
           </div>
@@ -469,10 +471,10 @@ function ProductCard({ product, viewMode, index }) {
   );
 }
 
-export default function ShopPage() {
+export default function ShopPage({ initialProducts = [] }) {
   return (
     <Suspense fallback={<Loading />}>
-      <ShopPageContent />
+      <ShopPageContent initialProducts={initialProducts} />
     </Suspense>
   );
 }

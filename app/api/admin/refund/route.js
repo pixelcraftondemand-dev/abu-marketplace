@@ -3,7 +3,6 @@ import authAdmin from "@/middlewares/authAdmin";
 import { getSessionFromRequest } from "@/lib/serverAuth";
 import { refundRateLimiter } from "@/lib/security";
 import { NextResponse } from "next/server";
-import { refundTransaction } from "@/lib/services/flutterwave";
 import { z } from "zod";
 import { transitionPaymentStatus } from "@/lib/services/paymentService";
 import { PAYMENT_STATES } from "@/lib/services/paymentState";
@@ -86,17 +85,11 @@ export async function POST(request) {
     });
 
     try {
-      // providerPaymentIntentId holds the Flutterwave transaction id (set by
-      // the verified webhook / reconciliation). Amount is in USD units.
-      const providerRefund = await refundTransaction({
-        transactionId: payment.providerPaymentIntentId,
-        amount,
-        meta: { appId: "abu-marketplace", paymentId: payment.id, refundId: refund.id },
-      });
-
+      // Mark refund as succeeded (no external provider to call — wallet/COD refunds
+      // are internal ledger operations).
       await prisma.refund.updateMany({
         where: { id: refund.id, status: "PENDING" },
-        data: { status: "SUCCEEDED", providerRefundId: String(providerRefund.id) },
+        data: { status: "SUCCEEDED" },
       });
 
       const succeededRefunds = await prisma.refund.findMany({
@@ -117,14 +110,13 @@ export async function POST(request) {
         event: "refund.succeeded",
         refundId: refund.id,
         paymentId: payment.id,
-        providerRefundId: providerRefund.id,
         amount,
         currency: payment.currency,
         requestId,
       });
 
       return NextResponse.json({
-        refund: { id: refund.id, amount, status: "SUCCEEDED", providerRefundId: providerRefund.id },
+        refund: { id: refund.id, amount, status: "SUCCEEDED" },
         paymentStatus: next,
       });
     } catch (error) {

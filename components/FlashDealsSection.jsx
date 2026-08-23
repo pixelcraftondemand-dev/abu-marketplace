@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useSelector } from 'react-redux'
 import { productDummyData } from '@/assets/assets'
 import { useTranslation } from '@/lib/i18n'
+import { StaggerReveal, StaggerItem } from '@/components/ScrollReveal'
 
 const FlashDealsSection = () => {
     const { t } = useTranslation()
@@ -28,11 +29,13 @@ const FlashDealsSection = () => {
                         {t('flashDeals.shopAll')}
                     </Link>
                 </div>
-                <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:gap-6">
+                <StaggerReveal className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:gap-6">
                     {flashDeals.slice(0, 4).map((product) => (
-                        <ProductCard key={product.id} product={product} showQuickAdd />
+                        <StaggerItem key={product.id}>
+                            <ProductCard product={product} showQuickAdd />
+                        </StaggerItem>
                     ))}
-                </div>
+                </StaggerReveal>
             </div>
         </section>
     )

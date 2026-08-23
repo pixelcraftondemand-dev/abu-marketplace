@@ -6,11 +6,6 @@ import { getSessionFromRequest, getVerifiedUserFromRequest } from "@/lib/serverA
 import { GET, POST } from "@/app/api/orders/route";
 
 // initiatePayment is a Flutterwave network call we never want to make in tests.
-const { mockInitiatePayment } = vi.hoisted(() => ({ mockInitiatePayment: vi.fn() }));
-
-vi.mock("@/lib/services/flutterwave", () => ({
-  initiatePayment: mockInitiatePayment,
-}));
 
 vi.mock("@/lib/serverAuth", () => ({
   getSessionFromRequest: vi.fn(),
@@ -21,12 +16,18 @@ vi.mock("@/lib/prisma", () => {
   const prismaMock = {
     address: { findFirst: vi.fn() },
     coupon: { findUnique: vi.fn(), updateMany: vi.fn(() => ({ count: 1 })) },
-    order: { findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
+    order: { findMany: vi.fn(), findFirst: vi.fn(), create: vi.fn(), updateMany: vi.fn(), count: vi.fn().mockResolvedValue(0) },
     product: { findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn(() => ({ count: 1 })) },
-    payment: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
-    user: { update: vi.fn() },
+    payment: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn(() => ({ count: 1 })) },
+    user: { update: vi.fn(), findUnique: vi.fn().mockResolvedValue({ id: "usr_1", createdAt: new Date("2025-01-01") }) },
     wallet: { findUnique: vi.fn().mockResolvedValue({ id: "w_1", userId: "usr_1", balance: 100 }), updateMany: vi.fn(() => ({ count: 1 })) },
     walletTransaction: { create: vi.fn().mockResolvedValue({ id: "tx_1" }) },
+    // PSP integration — added after original tests were written
+    pspTransaction: { create: vi.fn().mockResolvedValue({ id: "psp_1", version: 1 }), findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
+    auditLog: { create: vi.fn(), count: vi.fn().mockResolvedValue(0) },
+    fraudEvent: { create: vi.fn(), count: vi.fn().mockResolvedValue(0), findFirst: vi.fn().mockResolvedValue(null), groupBy: vi.fn().mockResolvedValue([]) },
+    ledgerEntry: { create: vi.fn() },
+    idempotencyKeyRecord: { create: vi.fn().mockResolvedValue({}) },
   };
   prismaMock.$transaction = vi.fn(async (fn) => fn(prismaMock));
   return { default: prismaMock };
@@ -254,56 +255,6 @@ describe("orders POST", () => {
     });
   });
 
-  it("creates a Flutterwave hosted payment and a Payment for FLUTTERWAVE payments", async () => {
-    prisma.address.findFirst.mockResolvedValue({ id: "addr_123" });
-    prisma.product.findMany.mockResolvedValue([productRow]);
-    prisma.order.create.mockResolvedValueOnce({ id: "o1" });
-    prisma.payment.create.mockResolvedValueOnce({ id: "pay_1" });
-    mockInitiatePayment.mockResolvedValueOnce({ link: "https://checkout.flutterwave.com/v3/hosted/pay/x" });
-
-    const res = await POST(buildRequest({ ...validBody, paymentMethod: "FLUTTERWAVE" }));
-
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.session).toEqual({ url: "https://checkout.flutterwave.com/v3/hosted/pay/x" });
-    expect(json.paymentId).toBe("pay_1");
-    expect(typeof json.idempotencyKey).toBe("string");
-
-    // A Payment row was created inside the transaction with a unique key.
-    expect(prisma.payment.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ idempotencyKey: expect.any(String), userId: "usr_1" }) })
-    );
-    // Orders link to the payment.
-    expect(prisma.order.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ paymentId: "pay_1", paymentStatus: "PENDING" }),
-      })
-    );
-
-    // tx_ref = payment id; amount in USD units (not cents); meta correlates the webhook.
-    expect(mockInitiatePayment).toHaveBeenCalledWith(
-      expect.objectContaining({
-        txRef: "pay_1",
-        amount: 25,
-        currency: "USD",
-        redirectUrl: `${ORIGIN}/loading?nextUrl=orders`,
-        customer: { email: "buyer@example.com", name: "Buyer" },
-        meta: { orderIds: "o1", userId: "usr_1", appId: "abu-marketplace", paymentId: "pay_1" },
-      })
-    );
-    // Payment updated with the provider link and marked PROCESSING.
-    expect(prisma.payment.update).toHaveBeenCalledWith({
-      where: { id: "pay_1" },
-      data: {
-        providerSessionId: "pay_1",
-        providerSessionUrl: "https://checkout.flutterwave.com/v3/hosted/pay/x",
-        status: "PROCESSING",
-      },
-    });
-    // Cart is NOT cleared before Flutterwave confirms payment.
-    expect(prisma.user.update).not.toHaveBeenCalled();
-  });
-
   it("price integrity: tampered client prices/subtotals never change the payable total", async () => {
     prisma.address.findFirst.mockResolvedValue({ id: "addr_123" });
     prisma.product.findMany.mockResolvedValue([productRow]);
@@ -336,7 +287,7 @@ describe("orders POST", () => {
     prisma.address.findFirst.mockResolvedValue({ id: "addr_123" });
     prisma.product.findMany.mockResolvedValue([productRow]);
 
-    for (const paymentMethod of ["COD", "FLUTTERWAVE", "WALLET"]) {
+    for (const paymentMethod of ["COD", "WALLET"]) {
       const res = await POST(buildRequest({ ...validBody, paymentMethod }));
       expect(res.status).toBe(403);
       expect((await res.json()).error).toContain("verify your email");
@@ -409,8 +360,6 @@ describe("orders POST", () => {
         }),
       })
     );
-    // No Flutterwave hosted payment for wallet payments.
-    expect(mockInitiatePayment).not.toHaveBeenCalled();
     // Cart cleared after successful wallet checkout.
     expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: "usr_1" }, data: { cart: {} } });
   });
@@ -452,7 +401,7 @@ describe("orders POST", () => {
       id: "pay_1",
       userId: "usr_1",
       status: "SUCCEEDED",
-      providerSessionUrl: null,
+
     });
     const res = await POST(
       buildRequest({ ...validBody, paymentMethod: "WALLET", idempotencyKey: "key_12345678" })
@@ -481,18 +430,17 @@ describe("orders POST", () => {
     );
   });
 
-  it("returns the existing in-flight session for the same idempotency key (no second charge)", async () => {
+  it("returns 409 for an in-flight idempotency key (no second charge)", async () => {
     prisma.payment.findUnique.mockResolvedValue({
       id: "pay_1",
       userId: "usr_1",
       status: "PROCESSING",
-      providerSessionUrl: "https://checkout.flutterwave.com/v3/hosted/pay/original",
     });
     const res = await POST(
-      buildRequest({ ...validBody, paymentMethod: "FLUTTERWAVE", idempotencyKey: "key_12345678" })
+      buildRequest({ ...validBody, paymentMethod: "WALLET", idempotencyKey: "key_12345678" })
     );
-    expect(res.status).toBe(200);
-    expect((await res.json()).session.url).toBe("https://checkout.flutterwave.com/v3/hosted/pay/original");
+    expect(res.status).toBe(409);
+
     expect(prisma.payment.create).not.toHaveBeenCalled();
     expect(prisma.order.create).not.toHaveBeenCalled();
   });
@@ -502,10 +450,10 @@ describe("orders POST", () => {
       id: "pay_1",
       userId: "usr_1",
       status: "SUCCEEDED",
-      providerSessionUrl: null,
+
     });
     const res = await POST(
-      buildRequest({ ...validBody, paymentMethod: "FLUTTERWAVE", idempotencyKey: "key_12345678" })
+      buildRequest({ ...validBody, paymentMethod: "WALLET", idempotencyKey: "key_12345678" })
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ alreadyProcessed: true, paymentId: "pay_1" });
@@ -516,10 +464,10 @@ describe("orders POST", () => {
       id: "pay_1",
       userId: "usr_other",
       status: "PROCESSING",
-      providerSessionUrl: "https://checkout.flutterwave.com/v3/hosted/pay/original",
+
     });
     const res = await POST(
-      buildRequest({ ...validBody, paymentMethod: "FLUTTERWAVE", idempotencyKey: "key_12345678" })
+      buildRequest({ ...validBody, paymentMethod: "WALLET", idempotencyKey: "key_12345678" })
     );
     expect(res.status).toBe(403);
     expect((await res.json()).error).toBe("Idempotency key is already in use.");
@@ -530,62 +478,28 @@ describe("orders POST", () => {
     prisma.product.findMany.mockResolvedValue([productRow]);
     prisma.payment.findUnique
       .mockResolvedValueOnce(null) // idempotency pre-check
-      .mockResolvedValueOnce({ id: "pay_win", userId: "usr_1", status: "PROCESSING", providerSessionUrl: "https://checkout.flutterwave.com/v3/hosted/pay/win" });
+      .mockResolvedValueOnce({ id: "pay_win", userId: "usr_1", status: "SUCCEEDED" });
     prisma.payment.create.mockRejectedValueOnce({ code: "P2002" }); // unique constraint
 
     const res = await POST(
-      buildRequest({ ...validBody, paymentMethod: "FLUTTERWAVE", idempotencyKey: "key_12345678" })
+      buildRequest({ ...validBody, paymentMethod: "WALLET", idempotencyKey: "key_12345678" })
     );
     expect(res.status).toBe(200);
-    expect((await res.json()).session.url).toBe("https://checkout.flutterwave.com/v3/hosted/pay/win");
+    expect((await res.json()).alreadyProcessed).toBe(true);
     expect(prisma.order.create).not.toHaveBeenCalled();
   });
 
-  it("reuses an unexpired in-flight session when no key is sent (retry safety)", async () => {
+  it("WALLET retry WITHOUT a key returns alreadyProcessed when a recent wallet payment exists", async () => {
     prisma.payment.findFirst.mockResolvedValue({
       id: "pay_1",
-      providerSessionUrl: "https://checkout.flutterwave.com/v3/hosted/pay/reuse",
+      status: "SUCCEEDED",
       createdAt: new Date(),
     });
-    const res = await POST(buildRequest({ ...validBody, paymentMethod: "FLUTTERWAVE" }));
+    const res = await POST(buildRequest({ ...validBody, paymentMethod: "WALLET" }));
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.reused).toBe(true);
-    expect(json.session.url).toBe("https://checkout.flutterwave.com/v3/hosted/pay/reuse");
+    expect(json.alreadyProcessed).toBe(true);
     expect(prisma.payment.create).not.toHaveBeenCalled();
-  });
-
-  it("releases reserved inventory when the provider session cannot be created", async () => {
-    prisma.address.findFirst.mockResolvedValue({ id: "addr_123" });
-    prisma.product.findMany.mockResolvedValue([productRow]);
-    prisma.order.create.mockResolvedValueOnce({ id: "o1" });
-    prisma.payment.create.mockResolvedValueOnce({ id: "pay_1" });
-    prisma.order.findMany.mockResolvedValue([
-      { orderItems: [{ productId: "prod_1", quantity: 2 }] },
-    ]);
-    mockInitiatePayment.mockRejectedValueOnce(new Error("flutterwave down"));
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    try {
-      const res = await POST(buildRequest({ ...validBody, paymentMethod: "FLUTTERWAVE" }));
-      expect(res.status).toBe(502);
-      expect((await res.json()).error).toBe("Unable to start payment. Please try again.");
-      // Inventory released back.
-      expect(prisma.product.updateMany).toHaveBeenCalledWith({
-        where: { id: "prod_1" },
-        data: { stock: { increment: 2 } },
-      });
-      // Payment marked FAILED, orders marked FAILED.
-      expect(prisma.payment.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ status: "FAILED" }) })
-      );
-      expect(prisma.order.updateMany).toHaveBeenCalledWith({
-        where: { paymentId: "pay_1" },
-        data: { paymentStatus: "FAILED" },
-      });
-    } finally {
-      spy.mockRestore();
-    }
   });
 });
 

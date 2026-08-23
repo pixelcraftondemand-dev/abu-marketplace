@@ -7,6 +7,7 @@ import AbuChatBubble from "@/components/AbuChatBubble";
 import AddedToCartSheet from "@/components/AddedToCartSheet";
 import "./globals.css";
 import { cookies, headers } from 'next/headers'
+import { THEME_INIT_SCRIPT } from '@/components/ThemeToggle'
 import { getPreferredLocaleFromAcceptLanguage, supportedLocales, defaultLocale } from '@/lib/utils/locale'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@/locales/en/common.json'
@@ -134,6 +135,7 @@ export default async function RootLayout({ children }) {
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
         <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
         <meta name="format-detection" content="telephone=no" />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         {/* JSON-LD is a data block (application/ld+json), never executed, so it
             needs no CSP nonce — and giving it one would desync the server HTML
             (nonce from x-nonce) from client hydration (next/headers unavailable

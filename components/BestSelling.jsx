@@ -4,6 +4,7 @@ import { useTranslation } from '@/lib/i18n'
 import ProductCard from './ProductCard'
 import { useSelector } from 'react-redux'
 import { productDummyData } from '@/assets/assets'
+import { StaggerReveal, StaggerItem } from '@/components/ScrollReveal'
 
 const BestSelling = () => {
     const { t } = useTranslation()
@@ -24,11 +25,13 @@ const BestSelling = () => {
                 description={t('home.showingProducts', { count: bestSelling.length, total: sourceProducts.length })}
                 href='/shop'
             />
-            <div className='mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:gap-6'>
+            <StaggerReveal className='mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:gap-6'>
                 {bestSelling.map((product) => (
-                    <ProductCard key={product.id} product={product} />
+                    <StaggerItem key={product.id}>
+                        <ProductCard product={product} />
+                    </StaggerItem>
                 ))}
-            </div>
+            </StaggerReveal>
         </div>
     )
 }

@@ -51,7 +51,7 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="bg-[#1A1A1A] text-white">
+    <footer className="bg-[var(--bg-topbar)] text-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
         <div className="grid gap-10 xl:grid-cols-[1.35fr_repeat(4,1fr)]">
           <div>
@@ -67,11 +67,11 @@ export default function Footer() {
               {t("footer.description")}
             </p>
             <div className="space-y-2 text-sm text-white/40">
-              <a href="tel:+23232110054" className="flex items-center gap-2 hover:text-[#C9A96E] transition">
+              <a href="tel:+23232110054" className="flex items-center gap-2 hover:text-[var(--accent)] transition">
                 <Phone size={14} />
                 +232 32 110 054
               </a>
-              <a href="mailto:abumarketplace.shop@gmail.com" className="flex items-center gap-2 hover:text-[#C9A96E] transition">
+              <a href="mailto:abumarketplace.shop@gmail.com" className="flex items-center gap-2 hover:text-[var(--accent)] transition">
                 <Mail size={16} />
                 abumarketplace.shop@gmail.com
               </a>
@@ -90,7 +90,7 @@ export default function Footer() {
               <ul className="space-y-3 text-sm text-white/40">
                 {section.links.map((link) => (
                   <li key={link.href}>
-                    <Link href={link.href} className="hover:text-[#C9A96E] transition">
+                    <Link href={link.href} className="hover:text-[var(--accent)] transition">
                       {link.text}
                     </Link>
                   </li>
@@ -115,7 +115,7 @@ export default function Footer() {
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="uppercase tracking-wide hover:text-[#C9A96E] transition"
+                  className="uppercase tracking-wide hover:text-[var(--accent)] transition"
                 >
                   {social.label}
                 </a>

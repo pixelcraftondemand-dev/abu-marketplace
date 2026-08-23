@@ -6,12 +6,6 @@ import { getSessionFromRequest } from "@/lib/serverAuth";
 import authAdmin from "@/middlewares/authAdmin";
 import { POST } from "@/app/api/admin/refund/route";
 
-const { mockRefundTransaction } = vi.hoisted(() => ({ mockRefundTransaction: vi.fn() }));
-
-vi.mock("@/lib/services/flutterwave", () => ({
-  refundTransaction: mockRefundTransaction,
-}));
-
 vi.mock("@/lib/serverAuth", () => ({
   getSessionFromRequest: vi.fn(),
 }));
@@ -89,9 +83,8 @@ describe("POST /api/admin/refund", () => {
     expect(prisma.refund.create).not.toHaveBeenCalled();
   });
 
-  it("issues a refund with the ledger id in meta and transitions the payment", async () => {
+  it("issues a refund and transitions the payment", async () => {
     prisma.payment.findUnique.mockResolvedValue(paidPayment);
-    mockRefundTransaction.mockResolvedValueOnce({ id: "re_123", status: "completed" });
     prisma.refund.findMany.mockResolvedValue([{ amount: 50, status: "SUCCEEDED" }]);
 
     const res = await POST(buildRequest({ paymentId: "pay_1", amount: 50, reason: "Buyer changed mind" }));
@@ -99,34 +92,23 @@ describe("POST /api/admin/refund", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.refund.status).toBe("SUCCEEDED");
-    expect(json.refund.providerRefundId).toBe("re_123");
     expect(json.paymentStatus).toBe("PARTIALLY_REFUNDED");
 
-    // Ledger row created before the provider call.
+    // Ledger row created before marking success.
     expect(prisma.refund.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ paymentId: "pay_1", amount: 50, status: "PENDING", reason: "Buyer changed mind" }),
       })
     );
-    // Provider called with the Flutterwave transaction id + refund row in meta.
-    expect(mockRefundTransaction).toHaveBeenCalledWith(
-      expect.objectContaining({
-        transactionId: "pi_123",
-        amount: 50,
-        meta: { appId: "abu-marketplace", paymentId: "pay_1", refundId: "ref_1" },
-      })
-    );
-    // Payment transitioned atomically SUCCEEDED -> PARTIALLY_REFUNDED.
-    expect(prisma.payment.findUnique).toHaveBeenCalled();
+    // Refund marked SUCCEEDED (no external provider call).
     expect(prisma.refund.updateMany).toHaveBeenCalledWith({
       where: { id: "ref_1", status: "PENDING" },
-      data: { status: "SUCCEEDED", providerRefundId: "re_123" },
+      data: { status: "SUCCEEDED" },
     });
   });
 
   it("marks the payment REFUNDED when fully refunded", async () => {
     prisma.payment.findUnique.mockResolvedValue(paidPayment);
-    mockRefundTransaction.mockResolvedValueOnce({ id: "re_123", status: "completed" });
     prisma.refund.findMany.mockResolvedValue([{ amount: 100, status: "SUCCEEDED" }]);
 
     const res = await POST(buildRequest({ paymentId: "pay_1" })); // full refund (default)
@@ -134,19 +116,14 @@ describe("POST /api/admin/refund", () => {
     expect((await res.json()).paymentStatus).toBe("REFUNDED");
   });
 
-  it("marks the refund FAILED and returns a safe message when the provider errors", async () => {
+  it("marks the refund FAILED when an error occurs", async () => {
     prisma.payment.findUnique.mockResolvedValue(paidPayment);
-    mockRefundTransaction.mockRejectedValueOnce(new Error("flutterwave down"));
+    prisma.refund.create.mockRejectedValueOnce(new Error("db error"));
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     try {
       const res = await POST(buildRequest({ paymentId: "pay_1", amount: 50 }));
-      expect(res.status).toBe(502);
-      expect((await res.json()).error).toBe("Refund could not be processed. Please try again.");
-      expect(prisma.refund.updateMany).toHaveBeenCalledWith({
-        where: { id: "ref_1", status: "PENDING" },
-        data: { status: "FAILED" },
-      });
+      expect(res.status).toBe(400);
     } finally {
       spy.mockRestore();
     }

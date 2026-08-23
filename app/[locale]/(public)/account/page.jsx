@@ -5,6 +5,8 @@ import { useUser, useClerk, UserProfile } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { useDispatch } from 'react-redux';
+import { openSignInModal } from '@/lib/features/signInModalSlice';
 import axios from "axios";
 import {
   ArrowRight,
@@ -40,6 +42,7 @@ export default function AccountPage() {
   const { user, isLoaded: userLoaded } = useUser();
   const { signOut } = useClerk();
   const router = useRouter();
+  const dispatch = useDispatch();
   const [sellerStatus, setSellerStatus] = useState({
     checking: true,
     isSeller: false,
@@ -87,12 +90,12 @@ export default function AccountPage() {
           <p className="mt-3 text-sm leading-6 text-[#6A6053]">
             Sign in to view your orders, wallet, and account settings.
           </p>
-          <Link
-            href="/sign-in"
+          <button
+            onClick={() => dispatch(openSignInModal())}
             className="mt-6 inline-block rounded-full bg-[#1A1A1A] px-8 py-3 text-sm font-semibold text-white transition hover:bg-[#C9A96E]"
           >
             Sign in
-          </Link>
+          </button>
         </div>
       </div>
     );

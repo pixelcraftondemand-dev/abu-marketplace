@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, Hammer, HardHat, Paintbrush, ShieldCheck, Wrench, Zap } from "lucide-react";
 import { useTranslation } from "@/lib/i18n";
+import { StaggerReveal, StaggerItem } from "@/components/ScrollReveal";
 
 const tradeIcons = [
   { label: "Plumber", icon: Wrench },
@@ -31,18 +32,19 @@ export default function ForHireSection() {
             <p className="mt-5 max-w-xl text-base leading-relaxed text-white/70">{t("services.homeText")}</p>
 
             {/* Trade chips */}
-            <div className="mt-8 flex flex-wrap gap-2.5">
+            <StaggerReveal className="mt-8 flex flex-wrap gap-2.5" stagger={0.06}>
               {tradeIcons.map(({ label, icon: Icon }) => (
-                <Link
-                  key={label}
-                  href={`/services?trade=${encodeURIComponent(label)}`}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/85 transition hover:border-[#C9A96E] hover:text-[#C9A96E]"
-                >
-                  <Icon size={15} />
-                  {label}
-                </Link>
+                <StaggerItem key={label}>
+                  <Link
+                    href={`/services?trade=${encodeURIComponent(label)}`}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm text-white/85 transition hover:border-[#C9A96E] hover:text-[#C9A96E]"
+                  >
+                    <Icon size={15} />
+                    {label}
+                  </Link>
+                </StaggerItem>
               ))}
-            </div>
+            </StaggerReveal>
 
             <div className="mt-10 flex flex-wrap items-center gap-4">
               <Link

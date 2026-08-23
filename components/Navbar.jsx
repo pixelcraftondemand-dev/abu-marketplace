@@ -21,12 +21,14 @@ import {
 import { setCountry, setLanguage, setCurrency, setPreferences } from '@/lib/features/preferencesSlice'
 import BrandLogo from "@/components/BrandLogo";
 import CurrencyAmount from "@/components/CurrencyAmount";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import useWalletBalance from "@/lib/hooks/useWalletBalance";
 import { useTranslation } from "@/lib/i18n";
 import { getStoreLinkTarget } from "@/lib/storeNavigation";
 import { FREE_DELIVERY_THRESHOLD } from "@/lib/paymentOptions";
 import { africanCountries, westAfricanCurrencyOptions } from '@/lib/utils/currency'
 import { languageToLocale, buildLocalizedPath, stripLocaleFromPath } from '@/lib/utils/locale'
+import { openSignInModal } from '@/lib/features/signInModalSlice'
 
 const navLinkDefs = [
   { href: "/", labelKey: "nav.home" },
@@ -71,16 +73,23 @@ export default function Navbar() {
   const [shopDropdownOpen, setShopDropdownOpen] = useState(false);
   const [searchSuggestionsOpen, setSearchSuggestionsOpen] = useState(false);
   const [storeHref, setStoreHref] = useState("/sign-in");
+  const [storeLabelKey, setStoreLabelKey] = useState("nav.signIn");
   const [now, setNow] = useState(() => Date.now());
 
   const dispatch = useDispatch();
   const { t } = useTranslation();
+
+  const handleOpenSignIn = (e) => {
+    e.preventDefault();
+    dispatch(openSignInModal());
+  };
   useEffect(() => {
     const resolveStoreHref = async () => {
       if (!isLoaded) return;
 
       if (!user) {
         setStoreHref("/sign-in");
+        setStoreLabelKey("nav.signIn");
         return;
       }
 
@@ -93,8 +102,10 @@ export default function Navbar() {
             storeUsername: data.storeInfo?.username || null,
           })
         );
+        setStoreLabelKey(data.isSeller ? "nav.myStore" : "nav.openStore");
       } catch (error) {
         setStoreHref("/create-store");
+        setStoreLabelKey("nav.openStore");
       }
     };
 
@@ -103,7 +114,7 @@ export default function Navbar() {
 
   const navLinks = navLinkDefs.map(({ href, labelKey }) => ({
     href: href === "/store" ? storeHref : href,
-    label: t(labelKey),
+    label: href === "/store" ? t(storeLabelKey) : t(labelKey),
   }));
   const shopCategories = shopCategoryDefs.map(({ href, labelKey }) => ({ href, label: t(labelKey) }));
   const shopMenuGroups = [
@@ -237,16 +248,15 @@ export default function Navbar() {
   return (
     <>
       {/* ─── Top Bar — Trust signals (Amazon-style efficiency) ─── */}
-      <div className={`hidden lg:block transition-all duration-500 ${scrolled ? "opacity-0 h-0 overflow-hidden" : "opacity-100"}`}>
-        <div className="bg-[#111111] text-white/80 text-[11px] tracking-[0.3em] uppercase">
+      <div className={`hidden lg:block transition-all duration-500 ${scrolled ? "opacity-0 h-0 overflow-hidden" : "opacity-100"}`}>          <div className="bg-[var(--bg-topbar)] text-white/80 text-[11px] tracking-[0.3em] uppercase">
           <div className="max-w-7xl mx-auto px-8 py-2.5 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-6 min-w-0">
               <span className="flex min-w-0 items-center gap-1.5">
-                <span className="w-1 h-1 rounded-full bg-[#C9A96E]" />
+                <span className="w-1 h-1 rounded-full bg-[var(--accent)]" />
                 <span className="truncate">{t("nav.freeDelivery")} <CurrencyAmount amount={FREE_DELIVERY_THRESHOLD} /></span>
               </span>
               <span className="flex min-w-0 items-center gap-1.5">
-                <span className="w-1 h-1 rounded-full bg-[#C9A96E]" />
+                <span className="w-1 h-1 rounded-full bg-[var(--accent)]" />
                 <span className="truncate">{t("nav.authenticityGuaranteed")}</span>
               </span>
             </div>
@@ -312,8 +322,8 @@ export default function Navbar() {
       <nav
         className={`sticky top-0 z-50 transition-all duration-500 ${
           scrolled
-            ? "bg-[#fdfaf4]/95 backdrop-blur-xl shadow-[0_1px_0_0_rgba(232,226,219,1)]"
-            : "bg-[#f7efe5]"
+            ? "bg-[var(--bg-primary)]/95 backdrop-blur-xl shadow-[var(--shadow-nav)]"
+            : "bg-[var(--bg-primary)]"
         }`}
       >
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
@@ -321,7 +331,7 @@ export default function Navbar() {
             {/* Mobile Menu Toggle */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 -ml-2 text-[#1A1A1A] hover:text-[#C9A96E] transition"
+              className="lg:hidden p-2 -ml-2 text-[var(--text-primary)] hover:text-[var(--accent)] transition"
               aria-label={mobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={mobileMenuOpen}
               aria-controls="mobile-navigation"
@@ -330,7 +340,7 @@ export default function Navbar() {
             </button>
 
             {/* Logo — Magazine style */}
-            <BrandLogo className="group" brandClassName="text-[#1A1A1A]" taglineClassName="text-[#8f7d61]" compact={false} />
+            <BrandLogo className="group" brandClassName="text-[var(--text-primary)]" taglineClassName="text-[var(--text-secondary)]" compact={false} />
 
             {/* Desktop Navigation — Clean editorial */}
             <div className="hidden lg:flex items-center gap-8">
@@ -345,8 +355,8 @@ export default function Navbar() {
                       <button
                         className={`flex items-center gap-1 text-[13px] font-medium tracking-wide uppercase transition-colors pb-1 ${
                           isActive(link.href)
-                            ? "text-[#1A1A1A]"
-                            : "text-[#6B6560] hover:text-[#1A1A1A]"
+                            ? "text-[var(--text-primary)]"
+                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}
                       >
                         {link.label}
@@ -360,11 +370,11 @@ export default function Navbar() {
                             : "opacity-0 -translate-y-2 pointer-events-none"
                         }`}
                       >
-                        <div className="rounded-2xl border border-slate-200/70 bg-white p-5 shadow-lg shadow-slate-200/40 min-w-[360px]">
+                        <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-surface)] p-5 shadow-lg min-w-[360px]">
                           <div className="grid gap-4 sm:grid-cols-2">
                             {shopMenuGroups.map((group) => (
                               <div key={group.title}>
-                                <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500 mb-3 font-semibold">
+                                <p className="text-[10px] uppercase tracking-[0.3em] text-[var(--text-tertiary)] mb-3 font-semibold">
                                   {group.title}
                                 </p>
                                 <div className="space-y-1">
@@ -372,7 +382,7 @@ export default function Navbar() {
                                     <Link
                                       key={item.href}
                                       href={item.href}
-                                      className="block rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 hover:text-[#1A1A1A]"
+                                      className="block rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] transition hover:bg-[var(--bg-muted)]"
                                     >
                                       {item.label}
                                     </Link>
@@ -385,16 +395,27 @@ export default function Navbar() {
                       </div>
                     </div>
                   ) : (
-                    <Link
-                      href={link.href}
-                      className={`text-[13px] font-medium tracking-wide uppercase transition-colors pb-1 border-b-2 ${
-                        isActive(link.href)
-                          ? "text-[#1A1A1A] border-[#C9A96E]"
-                          : "text-[#6B6560] border-transparent hover:text-[#1A1A1A] hover:border-[#E8E2DB]"
-                      }`}
-                    >
-                      {link.label}
-                    </Link>
+                    link.href === "/sign-in" ? (
+                      <button
+                        onClick={handleOpenSignIn}
+                        className={`text-[13px] font-medium tracking-wide uppercase transition-colors pb-1 border-b-2 ${
+                          "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-primary)]"
+                        }`}
+                      >
+                        {link.label}
+                      </button>
+                    ) : (
+                      <Link
+                        href={link.href}
+                        className={`text-[13px] font-medium tracking-wide uppercase transition-colors pb-1 border-b-2 ${
+                          isActive(link.href)
+                            ? "text-[var(--text-primary)] border-[var(--accent)]"
+                            : "text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-primary)]"
+                        }`}
+                      >
+                        {link.label}
+                      </Link>
+                    )
                   )}
                 </div>
               ))}
@@ -405,7 +426,7 @@ export default function Navbar() {
               {/* Search Toggle (Mobile) */}
               <button
                 onClick={() => setSearchFocused(!searchFocused)}
-                className="lg:hidden p-2 text-[#1A1A1A] hover:text-[#C9A96E] transition"
+                className="lg:hidden p-2 text-[var(--text-primary)] hover:text-[var(--accent)] transition"
                 aria-label={searchFocused ? "Close search" : "Open search"}
                 aria-expanded={searchFocused}
                 aria-controls="mobile-search"
@@ -417,13 +438,13 @@ export default function Navbar() {
               <div className="hidden lg:block relative">
                 <form
                   onSubmit={handleSearch}
-                  className={`flex items-center transition-all duration-300 rounded-full bg-white ${
+                  className={`flex items-center transition-all duration-300 rounded-full bg-[var(--bg-surface)] ${
                     searchFocused
-                      ? "w-80 ring-2 ring-[#C9A96E]"
-                      : "w-64 ring-1 ring-[#E8E2DB]"
+                      ? "w-80 ring-2 ring-[var(--accent)]"
+                      : "w-64 ring-1 ring-[var(--border-primary)]"
                   }`}
                 >
-                  <Search size={16} className="text-[#9B9590] shrink-0 ml-4" />
+                  <Search size={16} className="text-[var(--text-tertiary)] shrink-0 ml-4" />
                   <input
                     type="text"
                     placeholder={t("nav.searchPlaceholder")}
@@ -437,17 +458,17 @@ export default function Navbar() {
                       setSearchSuggestionsOpen(true);
                     }}
                     onBlur={() => setTimeout(() => setSearchSuggestionsOpen(false), 150)}
-                    className="w-full py-2.5 px-3 bg-transparent outline-none text-sm text-[#1A1A1A] placeholder:text-[#9B9590]"
+                    className="w-full py-2.5 px-3 bg-transparent outline-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
                   />
                   {search && (
-                    <button type="button" onClick={() => setSearch("")} className="text-[#9B9590] hover:text-[#1A1A1A] pr-3">
+                    <button type="button" onClick={() => setSearch("")} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] pr-3">
                       <X size={14} />
                     </button>
                   )}
                 </form>
 
                 {searchSuggestionsOpen && (
-                  <div className="absolute left-0 right-0 top-full mt-1 rounded-2xl border border-slate-200/80 bg-white shadow-xl shadow-slate-200/30 z-20">
+                  <div className="absolute left-0 right-0 top-full mt-1 rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-surface)] shadow-xl z-20">
                     <div className="grid gap-1 p-3 sm:grid-cols-2">
                       {filteredSearchSuggestions.length > 0 ? (
                         filteredSearchSuggestions.map((item) => (
@@ -455,13 +476,13 @@ export default function Navbar() {
                             key={item}
                             type="button"
                             onMouseDown={() => handleSuggestionClick(item)}
-                            className="text-left rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                            className="text-left rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-muted)]"
                           >
                             {item}
                           </button>
                         ))
                       ) : (
-                        <div className="col-span-full rounded-xl px-3 py-3 text-sm text-slate-500">
+                        <div className="col-span-full rounded-xl px-3 py-3 text-sm text-[var(--text-tertiary)]">
                           {t("nav.noSuggestions")}
                         </div>
                       )}
@@ -474,7 +495,7 @@ export default function Navbar() {
               {isLoaded && user && (
                 <Link
                   href="/wallet"
-                  className="hidden md:flex relative items-center gap-1.5 px-3 py-2 text-[#1A1A1A] hover:text-[#C9A96E] transition group"
+                  className="hidden md:flex relative items-center gap-1.5 px-3 py-2 text-[var(--text-primary)] hover:text-[var(--accent)] transition group"
                   title={t("wallet.balance")}
                 >
                   <Wallet size={19} strokeWidth={1.5} />
@@ -488,14 +509,17 @@ export default function Navbar() {
                 </Link>
               )}
 
+              {/* Theme Toggle */}
+              <ThemeToggle className="hidden lg:flex" />
+
               {/* Wishlist */}
               <Link
                 href="/wishlist"
-                className="relative p-3 text-[#1A1A1A] hover:text-[#C9A96E] transition"
+                className="relative p-3 text-[var(--text-primary)] hover:text-[var(--accent)] transition"
               >
                 <Heart size={20} strokeWidth={1.5} />
                 {wishlistCount > 0 && (
-                  <span className="absolute top-1.5 right-1 flex items-center justify-center min-w-[16px] h-[16px] px-1 text-[9px] font-bold text-white bg-[#C9A96E]">
+                  <span className="absolute top-1.5 right-1 flex items-center justify-center min-w-[16px] h-[16px] px-1 text-[9px] font-bold text-white bg-[var(--accent)]">
                     {wishlistCount}
                   </span>
                 )}
@@ -504,11 +528,11 @@ export default function Navbar() {
               {/* Cart */}
               <Link
                 href="/cart"
-                className="relative p-3 text-[#1A1A1A] hover:text-[#C9A96E] transition"
+                className="relative p-3 text-[var(--text-primary)] hover:text-[var(--accent)] transition"
               >
                 <ShoppingBag size={20} strokeWidth={1.5} />
                 {cartCount > 0 && (
-                  <span className="absolute top-1.5 right-1 flex items-center justify-center min-w-[16px] h-[16px] px-1 text-[9px] font-bold text-white bg-[#1A1A1A]">
+                  <span className="absolute top-1.5 right-1 flex items-center justify-center min-w-[16px] h-[16px] px-1 text-[9px] font-bold text-white bg-[var(--text-primary)]">
                     {cartCount}
                   </span>
                 )}
@@ -519,12 +543,12 @@ export default function Navbar() {
                 <div className="hidden lg:block ml-2">
                   {!user ? (
                     <div className="flex items-center gap-3">
-                      <Link
-                        href="/sign-in"
-                        className="text-[13px] font-medium text-[#6B6560] hover:text-[#1A1A1A] transition uppercase tracking-wide"
+                      <button
+                        onClick={handleOpenSignIn}
+                        className="text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition uppercase tracking-wide"
                       >
                         {t("nav.signIn")}
-                      </Link>
+                      </button>
                       <Link
                         href="/sign-up"
                         className="btn-gold text-[11px] py-2.5 px-5"
@@ -536,7 +560,7 @@ export default function Navbar() {
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => router.push("/account")}
-                        className="flex items-center gap-2 text-[13px] font-medium text-[#6B6560] hover:text-[#1A1A1A] transition"
+                        className="flex items-center gap-2 text-[13px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition"
                       >
                         {user.imageUrl ? (
                           <Image
@@ -567,8 +591,8 @@ export default function Navbar() {
               searchFocused ? "max-h-[280px] pb-4" : "max-h-0"
             }`}
           >
-            <form onSubmit={handleSearch} className="flex items-center border-b border-[#E8E2DB]">
-              <Search size={16} className="text-[#9B9590]" />
+            <form onSubmit={handleSearch} className="flex items-center border-b border-[var(--border-primary)]">
+              <Search size={16} className="text-[var(--text-tertiary)]" />
               <input
                 type="text"
                 placeholder={t("nav.searchPlaceholderMobile")}
@@ -577,25 +601,24 @@ export default function Navbar() {
                   setSearch(e.target.value);
                   setSearchSuggestionsOpen(true);
                 }}
-                className="w-full py-3 px-3 bg-transparent outline-none text-sm text-[#1A1A1A] placeholder:text-[#9B9590]"
+                className="w-full py-3 px-3 bg-transparent outline-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)]"
                 autoFocus={searchFocused}
               />
             </form>
             {searchSuggestionsOpen && (
-              <div className="mt-3 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-lg shadow-slate-200/30">
+              <div className="mt-3 rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-surface)] p-3 shadow-lg">
                 {filteredSearchSuggestions.length > 0 ? (
                   filteredSearchSuggestions.map((item) => (
                     <button
                       key={item}
                       type="button"
                       onMouseDown={() => handleSuggestionClick(item)}
-                      className="w-full text-left rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                      className="w-full text-left rounded-xl px-3 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-muted)]"
                     >
                       {item}
                     </button>
                   ))
-                ) : (
-                  <div className="rounded-xl px-3 py-3 text-sm text-slate-500">
+                ) : (                      <div className="rounded-xl px-3 py-3 text-sm text-[var(--text-tertiary)]">
                     {t("nav.noSuggestions")}
                   </div>
                 )}
@@ -616,7 +639,7 @@ export default function Navbar() {
         }`}
       >
         <div
-          className={`absolute inset-0 bg-[#FAF8F5] transition-opacity duration-500 ${
+          className={`absolute inset-0 bg-[var(--bg-primary)] transition-opacity duration-500 ${
             mobileMenuOpen ? "opacity-100" : "opacity-0"
           }`}
         >
@@ -630,8 +653,8 @@ export default function Navbar() {
                   onClick={handleNavLinkClick}
                   className={`block py-4 font-display text-4xl transition-all ${
                     isActive(link.href)
-                      ? "text-[#C9A96E]"
-                      : "text-[#1A1A1A] hover:text-[#C9A96E]"
+                      ? "text-[var(--accent)]"
+                      : "text-[var(--text-primary)] hover:text-[var(--accent)]"
                   }`}
                   style={{ animationDelay: `${i * 50}ms` }}
                 >
@@ -645,21 +668,21 @@ export default function Navbar() {
               <Link
                 href="/wallet"
                 onClick={handleNavLinkClick}
-                className="flex items-center justify-between py-4 border-t border-[#E8E2DB]"
+                className="flex items-center justify-between py-4 border-t border-[var(--border-primary)]"
               >
-                <span className="flex items-center gap-3 text-[#1A1A1A]">
+                <span className="flex items-center gap-3 text-[var(--text-primary)]">
                   <Wallet size={19} strokeWidth={1.5} />
                   <span className="font-medium">{t("wallet.balance")}</span>
                 </span>
-                <span className="font-semibold text-[#C9A96E]">
+                <span className="font-semibold text-[var(--accent)]">
                   <CurrencyAmount amount={walletBalance ?? 0} />
                 </span>
               </Link>
             )}
 
             {/* Mobile Categories */}
-            <div className="border-t border-[#E8E2DB] pt-6 mb-6">
-              <p className="text-[10px] tracking-[0.2em] uppercase text-[#9B9590] mb-4">
+            <div className="border-t border-[var(--border-primary)] pt-6 mb-6">
+              <p className="text-[10px] tracking-[0.2em] uppercase text-[var(--text-tertiary)] mb-4">
                 {t("nav.popularCategories")}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -668,7 +691,7 @@ export default function Navbar() {
                     key={cat.href}
                     href={cat.href}
                     onClick={handleNavLinkClick}
-                    className="px-4 py-2 bg-white border border-[#E8E2DB] text-sm text-[#2D2D2D] hover:border-[#C9A96E] hover:text-[#C9A96E] transition"
+                    className="px-4 py-2 bg-[var(--bg-surface)] border border-[var(--border-primary)] text-sm text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition"
                   >
                     {cat.label}
                   </Link>
@@ -683,17 +706,16 @@ export default function Navbar() {
                   <Link
                     href="/sign-up"
                     onClick={handleNavLinkClick}
-                    className="block w-full text-center py-4 bg-[#1A1A1A] text-white text-sm font-medium tracking-wide uppercase"
+                    className="block w-full text-center py-4 bg-[var(--text-primary)] text-[var(--bg-primary)] text-sm font-medium tracking-wide uppercase"
                   >
                     {t("nav.signUp")}
                   </Link>
-                  <Link
-                    href="/sign-in"
-                    onClick={handleNavLinkClick}
-                    className="block w-full text-center py-4 border border-[#1A1A1A] text-[#1A1A1A] text-sm font-medium tracking-wide uppercase"
+                  <button
+                    onClick={(e) => { handleNavLinkClick(); handleOpenSignIn(e); }}
+                    className="block w-full text-center py-4 border border-[var(--text-primary)] text-[var(--text-primary)] text-sm font-medium tracking-wide uppercase"
                   >
                     {t("nav.signIn")}
-                  </Link>
+                  </button>
                 </>
               ) : (
                 <button
@@ -702,7 +724,7 @@ export default function Navbar() {
                     handleNavLinkClick();
                     handleSignOut();
                   }}
-                  className="block w-full text-center py-4 border border-[#1A1A1A] text-[#1A1A1A] text-sm font-medium tracking-wide uppercase"
+                  className="block w-full text-center py-4 border border-[var(--text-primary)] text-[var(--text-primary)] text-sm font-medium tracking-wide uppercase"
                 >
                   {t("nav.signOut")}
                 </button>

@@ -4,6 +4,8 @@
     "shop": "Shop",
     "collections": "Collections",
     "store": "Store",
+    "myStore": "My Store",
+    "openStore": "Open Store",
     "about": "About",
     "country": "Country",
     "language": "Lang",
@@ -203,7 +205,7 @@
     "joinForExclusive": "Join for exclusive pricing, faster delivery, and member-only offers."
   },
   "shop": {
-    "theCollection": "The Collection",
+    "theCollection": "The Marketplace",
     "title": "Shop",
     "resultsFor": "Results for \"{query}\"",
     "filters": "Filters",

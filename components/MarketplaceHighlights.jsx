@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useTranslation } from "@/lib/i18n";
 import CurrencyAmount from "@/components/CurrencyAmount";
 import { FREE_DELIVERY_THRESHOLD } from "@/lib/paymentOptions";
+import { StaggerReveal, StaggerItem } from "@/components/ScrollReveal";
 
 const MarketplaceHighlights = () => {
     const { t } = useTranslation();
@@ -31,15 +32,17 @@ const MarketplaceHighlights = () => {
                     <p className="mt-4 max-w-2xl text-sm leading-7 text-[#6B6560]">
                         {t("highlights.body")}
                     </p>
-                    <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                    <StaggerReveal className="mt-8 grid gap-4 sm:grid-cols-2">
                         {highlights.map((item) => (
-                            <div key={item.title} className="rounded-3xl border border-[#E8E2DB] bg-white p-5 shadow-sm transition hover:border-[#C9A96E]/40 hover:shadow-md">
-                                <item.icon className="text-[#C9A96E]" size={22} />
-                                <h3 className="mt-3 font-semibold text-[#1A1A1A]">{item.title}</h3>
-                                <p className="mt-2 text-sm leading-6 text-[#6B6560]">{item.text}</p>
-                            </div>
+                            <StaggerItem key={item.title}>
+                                <div className="rounded-3xl border border-[#E8E2DB] bg-white p-5 shadow-sm transition hover:border-[#C9A96E]/40 hover:shadow-md">
+                                    <item.icon className="text-[#C9A96E]" size={22} />
+                                    <h3 className="mt-3 font-semibold text-[#1A1A1A]">{item.title}</h3>
+                                    <p className="mt-2 text-sm leading-6 text-[#6B6560]">{item.text}</p>
+                                </div>
+                            </StaggerItem>
                         ))}
-                    </div>
+                    </StaggerReveal>
                 </div>
 
                 <div className="grid gap-5">

@@ -15,7 +15,6 @@
     --secondary-foreground: 220 30% 15%;
     --muted: 30 20% 96%;
     --muted-foreground: 220 10% 45%;
-    --accent: 30 60% 50%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -36,6 +35,68 @@
     --luxury-text: #1A1A1A;
     --luxury-text-muted: #6B6560;
     --luxury-text-light: #9B9590;
+
+    /* ─── Theme tokens (light mode) ─── */
+    --bg-primary: #FAFAF8;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #FFFFFF;
+    --bg-muted: #F4F3F0;
+    --bg-topbar: #111111;
+    --shadow-nav: 0 1px 0 0 rgba(232,226,219,1);
+    --text-primary: #141414;
+    --text-secondary: #8A8A85;
+    --text-tertiary: #B0ADA8;
+    --text-inverse: #FFFFFF;
+    --accent: #C9A96E;
+    --accent-hover: #D4B87A;
+    --accent-brand: #2563EB;
+    --accent-brand-hover: #1D4ED8;
+    --accent-brand-light: #DBEAFE;
+    --border-primary: #E8E8E4;
+    --border-subtle: #F0F0EC;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
+    --shadow-lg: 0 12px 32px rgba(0,0,0,0.08);
+  }
+
+  /* ─── Dark Mode Tokens ─── */
+  .dark, .dark body {
+    --bg-primary: #121212;
+    --bg-surface: #1C1C1E;
+    --bg-elevated: #232326;
+    --bg-muted: #2C2C2E;
+    --bg-topbar: #000000;
+    --shadow-nav: 0 1px 0 0 rgba(255,255,255,0.06);
+    --text-primary: #F2F2F0;
+    --text-secondary: #A1A1A0;
+    --text-tertiary: #6E6E6D;
+    --text-inverse: #141414;
+    --accent: #D4B87A;
+    --accent-hover: #E0C88A;
+    --accent-brand: #60A5FA;
+    --accent-brand-hover: #93C5FD;
+    --accent-brand-light: rgba(96,165,250,0.15);
+    --border-primary: #2C2C2E;
+    --border-subtle: #1E1E1E;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+    --shadow-lg: 0 12px 32px rgba(0,0,0,0.4);
+    --luxury-gold: #D4B87A;
+    --luxury-gold-light: #E0C88A;
+    --luxury-gold-dark: #C9A96E;
+    --luxury-black: #F2F2F0;
+    --luxury-charcoal: #E0E0DE;
+    --luxury-cream: #121212;
+    --luxury-warm: #1C1C1E;
+    --luxury-stone: #2C2C2E;
+    --luxury-text: #F2F2F0;
+    --luxury-text-muted: #A1A1A0;
+    --luxury-text-light: #6E6E6D;
+  }
+
+  .dark body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
   }
 
   * {
@@ -222,7 +283,7 @@
     position: relative;
     overflow: hidden;
     border-radius: 0;
-    background: white;
+    background: var(--bg-surface);
     transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
@@ -269,12 +330,12 @@
     align-items: center;
     gap: 0.25rem;
     padding: 0.25rem 0.75rem;
-    background: white;
+    background: var(--bg-surface);
     border: 1px solid var(--luxury-stone);
     border-radius: 100px;
     font-size: 0.75rem;
     font-weight: 500;
-    color: var(--luxury-text);
+    color: var(--text-primary);
     transition: all 0.2s ease;
   }
 
@@ -319,7 +380,7 @@
     gap: 0.5rem;
     padding: 1rem 2.5rem;
     background: var(--luxury-black);
-    color: white;
+    color: var(--bg-primary);
     font-size: 0.8rem;
     font-weight: 500;
     letter-spacing: 0.05em;
@@ -369,7 +430,7 @@
 
   .btn-luxury-outline:hover {
     background: var(--luxury-black);
-    color: white;
+    color: var(--bg-primary);
   }
 
   .btn-gold {
@@ -379,7 +440,7 @@
     gap: 0.5rem;
     padding: 0.875rem 2rem;
     background: var(--luxury-gold);
-    color: white;
+    color: var(--text-inverse);
     font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 0.05em;
@@ -398,9 +459,9 @@
     display: inline-flex;
     align-items: center;
     padding: 0.75rem 1.5rem;
-    background: white;
+    background: var(--bg-surface);
     border: 1px solid var(--luxury-stone);
-    color: var(--luxury-text-muted);
+    color: var(--text-secondary);
     font-size: 0.8rem;
     font-weight: 500;
     transition: all 0.3s ease;
@@ -411,7 +472,7 @@
   .category-pill-luxury.active {
     background: var(--luxury-black);
     border-color: var(--luxury-black);
-    color: white;
+    color: var(--bg-primary);
   }
 
   /* ─── Divider ─── */
@@ -427,7 +488,7 @@
     justify-content: center;
     gap: 3rem;
     padding: 1.5rem;
-    background: white;
+    background: var(--bg-surface);
     border-top: 1px solid var(--luxury-stone);
     border-bottom: 1px solid var(--luxury-stone);
   }

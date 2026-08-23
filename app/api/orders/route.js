@@ -1,17 +1,23 @@
 import prisma from "@/lib/prisma";
 import crypto from "node:crypto";
 import { z } from "zod";
-import { getSafeOrigin, isValidId, checkoutRateLimiter } from "@/lib/security";
+import { isValidId, checkoutRateLimiter } from "@/lib/security";
 import { getSessionFromRequest, getVerifiedUserFromRequest } from "@/lib/serverAuth";
 import { PaymentMethod } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { initiatePayment } from "@/lib/services/flutterwave";
 import { isValidCurrency } from "@/lib/utils/currency";
 import { DELIVERY_FEE, FREE_DELIVERY_THRESHOLD, isCashOnDeliveryAvailable } from "@/lib/paymentOptions";
 import { reserveStock, releaseStock, StockUnavailableError } from "@/lib/services/paymentService";
 import { debitWallet, WalletInsufficientFundsError } from "@/lib/services/walletService";
 import { PAYMENT_STATES } from "@/lib/services/paymentState";
 import { logPayment, getRequestId } from "@/lib/paymentLog";
+// PSP integration imports
+import { PSP_STATES } from "@/lib/services/pspStateMachine";
+import { appendAuditLog } from "@/lib/services/auditLog";
+import { recordPaymentCapture } from "@/lib/services/ledger";
+import { evaluateCheckoutRisk } from "@/lib/services/fraudPrevention";
+import { validateCheckoutPrices } from "@/lib/services/priceGuard";
+import { validateAmount, validateQuantity, roundMoney } from "@/lib/services/money"
 
 const MAX_ORDER_ITEMS = 50;
 const MAX_ITEM_QUANTITY = 99;
@@ -31,7 +37,7 @@ const checkoutSchema = z.object({
     )
     .min(1)
     .max(MAX_ORDER_ITEMS),
-  paymentMethod: z.enum(["COD", "FLUTTERWAVE", "WALLET"]),
+  paymentMethod: z.enum(["COD", "WALLET"]),
   couponCode: z.string().trim().min(3).max(32).optional().nullable(),
   idempotencyKey: z.string().regex(IDEMPOTENCY_KEY_PATTERN).optional().nullable(),
   currency: z.string().max(8).optional().nullable(),
@@ -73,7 +79,23 @@ export async function POST(request) {
     }
 
     const { addressId, items, couponCode, paymentMethod, currency, country } = parsed;
-    const isCard = paymentMethod === "FLUTTERWAVE";
+
+    // ── PSP: Fraud prevention check ──────────────────────────────────────────
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const deviceFingerprint = request.headers.get("x-device-fingerprint") || null;
+    const riskResult = await evaluateCheckoutRisk(prisma, {
+      userId,
+      orderAmount: 0, // will be calculated after product fetch
+      ipAddress: ip,
+      deviceFingerprint,
+    });
+    if (riskResult.action === "BLOCK") {
+      logPayment({ event: "checkout.fraud_blocked", userId, riskScore: riskResult.riskScore, requestId });
+      return NextResponse.json(
+        { error: "Unable to process your order. Please contact support." },
+        { status: 403 }
+      );
+    }
 
     if (!isValidId(addressId)) {
       return NextResponse.json({ error: "Invalid address." }, { status: 422 });
@@ -109,28 +131,11 @@ export async function POST(request) {
         if (existing.status === PAYMENT_STATES.SUCCEEDED) {
           return NextResponse.json({ alreadyProcessed: true, paymentId: existing.id });
         }
-        if (existing.providerSessionUrl && isCard) {
-          return NextResponse.json({ session: { url: existing.providerSessionUrl }, paymentId: existing.id, reused: true });
-        }
+  
         return NextResponse.json(
           { error: "Checkout already in progress.", paymentId: existing.id },
           { status: 409 }
         );
-      }
-    } else if (isCard) {
-      // Retry safety without a client key: if this user already has a live,
-      // unexpired checkout session, return it instead of charging again.
-      const recent = await prisma.payment.findFirst({
-        where: {
-          userId,
-          status: { in: [PAYMENT_STATES.PENDING, PAYMENT_STATES.PROCESSING] },
-          providerSessionUrl: { not: null },
-        },
-        orderBy: { createdAt: "desc" },
-        select: { id: true, providerSessionUrl: true, createdAt: true },
-      });
-      if (recent && Date.now() - recent.createdAt.getTime() < SESSION_REUSE_WINDOW_MS) {
-        return NextResponse.json({ session: { url: recent.providerSessionUrl }, paymentId: recent.id, reused: true });
       }
     } else if (paymentMethod === "WALLET") {
       // Retry safety without a client key for wallet payments: a wallet
@@ -226,6 +231,25 @@ export async function POST(request) {
     }
 
     // Per-store totals from canonical prices only (client amounts are ignored).
+    // Use TOCTOU-safe price validation: server-side re-fetch guarantees we never
+    // trust stale client-side prices.
+    const validatedItems = await validateCheckoutPrices(prisma, items.map((item) => ({
+      id: item.id,
+      quantity: item.quantity,
+    })));
+
+    if (!validatedItems.valid) {
+      return NextResponse.json({ error: validatedItems.message || "Invalid checkout items." }, { status: 422 });
+    }
+
+    if (validatedItems.priceChanged) {
+      logPayment({ event: "checkout.price_changed", userId, requestId });
+      return NextResponse.json(
+        { error: "Prices have changed since you added items to cart. Please review your order.", priceChanged: true },
+        { status: 409 }
+      );
+    }
+
     const storeTotals = [];
     let subtotal = 0;
     for (const [storeId, sellerItems] of ordersByStore.entries()) {
@@ -233,7 +257,7 @@ export async function POST(request) {
       if (couponCode) {
         total -= (total * coupon.discount) / 100;
       }
-      total = parseFloat(total.toFixed(2));
+      total = roundMoney(total);
       subtotal += total;
       storeTotals.push({ storeId, sellerItems, total });
     }
@@ -241,14 +265,20 @@ export async function POST(request) {
     // matching the historical behavior), and is free at/above the threshold.
     const deliveryFee = subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_FEE;
     if (deliveryFee > 0 && storeTotals.length > 0) {
-      storeTotals[0].total = parseFloat((storeTotals[0].total + deliveryFee).toFixed(2));
+      storeTotals[0].total = roundMoney(storeTotals[0].total + deliveryFee);
     }
-    const fullAmount = parseFloat((subtotal + deliveryFee).toFixed(2));
+    const fullAmount = roundMoney(subtotal + deliveryFee);
 
-    // ── Atomic transaction: payment + orders + inventory + coupon usage ─────────
+    // Validate final amount server-side
+    if (!validateAmount(fullAmount)) {
+      return NextResponse.json({ error: "Invalid order total." }, { status: 422 });
+    }
+
+    // ── Atomic transaction: payment + orders + inventory + coupon usage + PSP ────
     // A single transaction means a failure (stock, coupon, DB) rolls everything
     // back — no partial orders, no phantom reservations, no double decrements.
     let payment = null;
+    let pspTransaction = null;
     let orderIds = [];
     try {
       await prisma.$transaction(async (tx) => {
@@ -263,7 +293,25 @@ export async function POST(request) {
               userId,
               amount: fullAmount,
               currency: "USD",
-              status: isCard ? PAYMENT_STATES.PENDING : PAYMENT_STATES.SUCCEEDED,
+              status: PAYMENT_STATES.SUCCEEDED,
+            },
+          });
+
+          // PSP transaction: create alongside the Payment record for the
+          // licensed processor lifecycle. This tracks the explicit PSP states
+          // (pending→authorized→captured→settled) separately from the payment.
+          const merchantId = storeTotals[0]?.storeId || "unknown";
+          pspTransaction = await tx.pspTransaction.create({
+            data: {
+              paymentId: payment.id,
+              merchantId,
+              userId,
+              amount: fullAmount,
+              capturedAmount: 0,
+              settledAmount: 0,
+              currency: "USD",
+              pspStatus: PSP_STATES.CAPTURED,
+              idempotencyKey: `psp_${idempotencyKey}`,
             },
           });
         }
@@ -318,7 +366,7 @@ export async function POST(request) {
               ...(payment
                 ? {
                     paymentId: payment.id,
-                    paymentStatus: isCard ? PAYMENT_STATES.PENDING : PAYMENT_STATES.SUCCEEDED,
+                    paymentStatus: PAYMENT_STATES.SUCCEEDED,
                   }
                 : {}),
               // Wallet payments settle instantly (pre-funded).
@@ -340,9 +388,6 @@ export async function POST(request) {
         // A concurrent request won this idempotency key. Return its outcome —
         // never create a second charge.
         const winner = await prisma.payment.findUnique({ where: { idempotencyKey } });
-        if (winner && winner.userId === userId && winner.providerSessionUrl) {
-          return NextResponse.json({ session: { url: winner.providerSessionUrl }, paymentId: winner.id, reused: true });
-        }
         if (winner && winner.status === PAYMENT_STATES.SUCCEEDED) {
           return NextResponse.json({ alreadyProcessed: true, paymentId: winner.id });
         }
@@ -362,60 +407,6 @@ export async function POST(request) {
       throw error;
     }
 
-    if (isCard) {
-      // ── Create the provider checkout session (outside the DB transaction) ─────
-      const origin = getSafeOrigin(request);
-      try {
-        // tx_ref must be unique — the Payment id is our canonical reference
-        // and is echoed back in the webhook/verify meta so we can correlate.
-        const txRef = payment.id;
-        const hosted = await initiatePayment({
-          txRef,
-          amount: fullAmount,
-          currency: "USD",
-          redirectUrl: `${origin}/loading?nextUrl=orders`,
-          customer: {
-            email: verifiedUser.email,
-            name: verifiedUser.name || undefined,
-          },
-          meta: {
-            orderIds: orderIds.join(","),
-            userId,
-            appId: "abu-marketplace",
-            paymentId: payment.id,
-          },
-          customizations: { description: "ABU Marketplace order" },
-        });
-
-        await prisma.payment.update({
-          where: { id: payment.id },
-          data: {
-            providerSessionId: txRef,
-            providerSessionUrl: hosted.link,
-            status: PAYMENT_STATES.PROCESSING,
-          },
-        });
-
-        logPayment({ event: "checkout.created", paymentId: payment.id, userId, amount: fullAmount, currency: "USD", requestId });
-        return NextResponse.json({ session: { url: hosted.link }, paymentId: payment.id, idempotencyKey });
-      } catch (error) {
-        // Session creation failed — release reserved inventory and mark the
-        // attempt FAILED. Orders are kept (paymentStatus FAILED) for audit.
-        logPayment({ event: "checkout.session_create_failed", paymentId: payment.id, failureCategory: "provider_error", requestId });
-        const orderRows = await prisma.order.findMany({
-          where: { paymentId: payment.id },
-          select: { orderItems: { select: { productId: true, quantity: true } } },
-        });
-        await releaseStock(
-          prisma,
-          orderRows.flatMap((o) => o.orderItems)
-        );
-        await prisma.payment.update({ where: { id: payment.id }, data: { status: PAYMENT_STATES.FAILED } });
-        await prisma.order.updateMany({ where: { paymentId: payment.id }, data: { paymentStatus: PAYMENT_STATES.FAILED } });
-        return NextResponse.json({ error: "Unable to start payment. Please try again." }, { status: 502 });
-      }
-    }
-
     // ── COD/WALLET: clear the cart and confirm ─────────────────────────────────
     await prisma.user.update({
       where: { id: userId },
@@ -423,6 +414,26 @@ export async function POST(request) {
     });
 
     if (paymentMethod === "WALLET") {
+      // PSP: Record capture in ledger for wallet payments (instant settlement)
+      if (pspTransaction) {
+        await recordPaymentCapture(prisma, {
+          pspTransactionId: pspTransaction.id,
+          amount: fullAmount,
+          description: "Wallet payment captured",
+          referenceType: "psp_transaction",
+          referenceId: pspTransaction.id,
+        });
+
+        await appendAuditLog(prisma, {
+          pspTransactionId: pspTransaction.id,
+          actor: userId,
+          action: "capture",
+          previousState: PSP_STATES.CAPTURED,
+          newState: PSP_STATES.CAPTURED,
+          metadata: { amount: fullAmount, currency: "USD", method: "WALLET" },
+        });
+      }
+
       logPayment({ event: "checkout.wallet_placed", paymentId: payment.id, userId, amount: fullAmount, currency: "USD", requestId });
       // Return the idempotency key so the client can retry safely after a
       // timeout — a retry with this key returns alreadyProcessed, never a
@@ -449,10 +460,7 @@ export async function GET(request) {
     const orders = await prisma.order.findMany({
       where: {
         userId,
-        OR: [
-          { paymentMethod: { in: [PaymentMethod.COD, PaymentMethod.WALLET] } },
-          { AND: [{ paymentMethod: PaymentMethod.FLUTTERWAVE }, { isPaid: true }] },
-        ],
+        paymentMethod: { in: [PaymentMethod.COD, PaymentMethod.WALLET] },
       },
       include: {
         orderItems: { include: { product: true } },

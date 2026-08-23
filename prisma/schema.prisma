@@ -81,9 +81,9 @@ enum OrderStatus {
 
 enum PaymentMethod {
   COD
-  // Retained for historical orders created before the Flutterwave migration
-  // (2026-08). The DB enum still contains it and old rows use it; removing it
-  // would break reading those orders. New checkouts only use COD/FLUTTERWAVE/WALLET.
+  // Retained for historical orders. The DB enum still contains it and old rows
+  // use it; removing it would break reading those orders. New checkouts only
+  // use COD/WALLET.
   STRIPE
   FLUTTERWAVE
   WALLET
@@ -689,4 +689,60 @@ model DeviceSession {
   @@index([userId])
   @@index([lastSeenAt])
   @@map("device_session")
+}
+
+// ─── Monitoring & alerting ───────────────────────────────────────────────────
+// Configurable alert thresholds. Each row defines a metric, its severity tier,
+// and the threshold that triggers an alert. Thresholds are stored here (not
+// hardcoded) so operators can tune them without a code deploy.
+model AlertConfig {
+  id        String   @id @default(cuid())
+  metric    String   @unique // e.g. "payment_success_rate", "refund_rate", "ledger_balance"
+  tier      String   // "critical" | "high" | "medium"
+  threshold Float    // the value that triggers the alert (meaning depends on metric)
+  operator  String   @default(">=") // ">=" | "<=" | "==" | "abs_diff>"
+  enabled   Boolean  @default(true)
+  windowMin Int      @default(5) // rolling window in minutes for evaluation
+  cooldownMin Int    @default(30) // min minutes between repeated alerts for same metric
+  metadata  Json?    // extra config (e.g. { failureReason: "declined" })
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("alert_config")
+}
+
+// Append-only log of every alert that fired. This is the audit trail that
+// proves the monitoring system actually catches things — not just that it
+// exists. Auditors (BSL) can query this table directly.
+model AlertLog {
+  id         String   @id @default(cuid())
+  metric     String   // matches AlertConfig.metric
+  tier       String   // "critical" | "high" | "medium"
+  threshold  Float    // the threshold that was breached
+  actualValue Float   // the actual value at time of firing
+  diff       Float?   // difference from threshold or baseline
+  message    String   // human-readable description
+  context    Json?    // additional data (dashboard link, related transaction IDs, etc.)
+  firedAt    DateTime @default(now())
+
+  @@index([metric])
+  @@index([tier])
+  @@index([firedAt])
+  @@map("alert_log")
+}
+
+// Periodic metric snapshots for dashboard display and baseline comparison.
+// Written by the monitoring cron jobs. Retained for 90 days, then swept.
+model MetricSnapshot {
+  id        String   @id @default(cuid())
+  metric    String   // same keys as AlertConfig.metric
+  value     Float    // computed metric value
+  metadata  Json?    // extra breakdown (e.g. { byReason: { declined: 5, timeout: 2 } })
+  windowStart DateTime
+  windowEnd   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([metric])
+  @@index([createdAt])
+  @@map("metric_snapshot")
 }

@@ -4,6 +4,8 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth, useUser } from "@clerk/nextjs";
+import { useDispatch } from 'react-redux';
+import { openSignInModal } from '@/lib/features/signInModalSlice';
 import axios from "axios";
 import toast from "react-hot-toast";
 import {
@@ -23,6 +25,7 @@ function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const { user, isLoaded: userLoaded } = useUser();
   const { getToken } = useAuth();
+  const dispatch = useDispatch();
 
   // entry | verifying | verified | already_verified | invalid | expired | error
   const [state, setState] = useState("entry");
@@ -302,10 +305,9 @@ function VerifyEmailContent() {
                 </button>
               ) : (
                 <p className="text-xs text-[#8C8071]">
-                  Signed out?{" "}
-                  <Link href="/sign-in" className="font-semibold text-[#C9A96E] hover:underline">
+                  Signed out?{" "}                  <button onClick={() => dispatch(openSignInModal())} className="font-semibold text-[#C9A96E] hover:underline">
                     Sign in
-                  </Link>{" "}
+                  </button>{ " "}
                   to request a new code.
                 </p>
               )}
@@ -394,10 +396,9 @@ function VerifyEmailContent() {
                 </button>
               ) : (
                 <p className="text-xs text-[#8C8071]">
-                  Signed out?{" "}
-                  <Link href="/sign-in" className="font-semibold text-[#C9A96E] hover:underline">
+                  Signed out?{" "}                  <button onClick={() => dispatch(openSignInModal())} className="font-semibold text-[#C9A96E] hover:underline">
                     Sign in
-                  </Link>{" "}
+                  </button>{ " "}
                   to resend the verification code.
                 </p>
               )}

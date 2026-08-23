@@ -3,7 +3,6 @@ import authAdmin from "@/middlewares/authAdmin";
 import { adminActionRateLimiter } from "@/lib/security";
 import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
-import * as flutterwave from "@/lib/services/flutterwave";
 import { reconcilePayment, reconcileAllStuck } from "@/lib/services/paymentReconciliation";
 import { getRequestId } from "@/lib/paymentLog";
 
@@ -37,8 +36,8 @@ export async function GET(request) {
     const scope = searchParams.get("scope") || "stuck";
 
     const results = paymentId
-      ? [await reconcilePayment({ paymentId, prisma, provider: flutterwave })]
-      : await reconcileAllStuck({ prisma, provider: flutterwave, take: 50 });
+      ? [await reconcilePayment({ paymentId, prisma })]
+      : await reconcileAllStuck({ prisma, take: 50 });
 
     const reconciled = results.filter((r) => r.status === "reconciled").length;
     const issues = results.filter((r) => r.status !== "ok" && r.status !== "consistent" && r.status !== "reconciled");

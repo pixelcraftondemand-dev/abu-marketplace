@@ -1,5 +1,7 @@
 'use client'
-import { StarIcon, Heart, ShoppingBag, Zap, BadgeCheck } from 'lucide-react'
+import { useState, useCallback } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
+import { StarIcon, Heart, ShoppingBag, Zap, BadgeCheck, Check } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -13,13 +15,26 @@ import CurrencyAmount from '@/components/CurrencyAmount'
 import { useTranslation } from '@/lib/i18n'
 import { useFlashCountdown } from '@/lib/hooks/useFlashCountdown'
 
+/**
+ * Signature product card — the element that defines the site's feel.
+ *
+ * Interactions:
+ *  - Card lifts on hover/tap with spring physics
+ *  - Image scales subtly with parallax feel
+ *  - Quick-add buttons reveal on hover (desktop) or always visible (mobile)
+ *  - "Add to cart" morphs into a confirmed ✓ state
+ *  - Wishlist heart fills with spring animation
+ *  - All respects prefers-reduced-motion
+ *
+ * Theme-aware via CSS custom properties — works in both light and dark mode.
+ */
 const ProductCard = ({ product, showQuickAdd = true }) => {
-    const selectedCurrency = useSelector((state) => state.preferences.selectedCurrency)
     const { t } = useTranslation()
     const dispatch = useDispatch()
     const router = useRouter()
     const wishlistItems = useSelector((state) => state.wishlist.items)
     const isWishlisted = wishlistItems.includes(product.id)
+    const prefersReducedMotion = useReducedMotion()
 
     const { rating, count } = getProductRating(product)
     const discount = getProductDiscount(product)
@@ -27,14 +42,17 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
         ? product.images
         : [product.image]
 
-    const handleWishlist = (e) => {
+    const [addedToCart, setAddedToCart] = useState(false)
+    const [isHovered, setIsHovered] = useState(false)
+
+    const handleWishlist = useCallback((e) => {
         e.preventDefault()
         e.stopPropagation()
         dispatch(toggleWishlist(product.id))
         toast.success(isWishlisted ? t('product.removedFromWishlist') : t('product.addedToWishlist'))
-    }
+    }, [dispatch, product.id, isWishlisted, t])
 
-    const handleQuickAdd = (e) => {
+    const handleQuickAdd = useCallback((e) => {
         e.preventDefault()
         e.stopPropagation()
         if (!product.inStock) {
@@ -43,10 +61,11 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
         }
         dispatch(addToCart({ productId: product.id }))
         emitAddedToCart(product)
-    }
+        setAddedToCart(true)
+        setTimeout(() => setAddedToCart(false), 2000)
+    }, [dispatch, product, t])
 
-    // Jumia-style "Buy Now": add to cart, then go straight to checkout.
-    const handleBuyNow = (e) => {
+    const handleBuyNow = useCallback((e) => {
         e.preventDefault()
         e.stopPropagation()
         if (!product.inStock) {
@@ -56,140 +75,198 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
         dispatch(addToCart({ productId: product.id }))
         emitAddedToCart(product)
         router.push('/cart')
-    }
+    }, [dispatch, product, router, t])
 
-    // Shein-style low-stock urgency: show "only X left" for tracked, scarce stock.
     const lowStock = product.stock != null && Number(product.stock) > 0 && Number(product.stock) <= 5
-
-    // Flash-deal products (>=15% off) get a live countdown chip — same clock
-    // as the homepage flash-sale banner.
     const isFlashDeal = discount >= 15
-    const { formatted: flashCountdown } = useFlashCountdown()
-
-    // Social proof: "X sold" — real cumulative units from soldCount when
-    // present (dummy data has no soldCount, so fall back to review count).
+    const { formatted: flashCountdown, mounted: flashMounted } = useFlashCountdown()
     const soldCount = product.soldCount != null ? Number(product.soldCount) : count
 
+    // Spring config — responsive to reduced motion preference
+    const spring = prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 24 }
+    const quickSpring = prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 30 }
+
     return (
-        <div className="group relative mx-auto w-full max-w-[220px] rounded-[28px] border border-slate-200/80 bg-white p-4 shadow-[0_18px_40px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_55px_rgba(15,23,42,0.15)]">
-            <Link href={`/product/${product.id}`} className="block">
-                <div className="relative aspect-[4/5] overflow-hidden rounded-[24px] bg-slate-100">
+        <motion.div
+            className="group relative mx-auto w-full max-w-[280px] overflow-hidden rounded-[20px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 sm:p-4 shadow-[var(--shadow-sm)] dark:shadow-none"
+            onHoverStart={() => setIsHovered(true)}
+            onHoverEnd={() => setIsHovered(false)}
+            whileHover={prefersReducedMotion ? {} : { y: -6, boxShadow: "var(--shadow-lg)" }}
+            whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
+            transition={spring}
+            layout
+        >
+            <Link href={`/product/${product.id}`} className="block overflow-hidden">
+                {/* Image Container */}
+                <div className="relative aspect-[4/5] overflow-hidden rounded-[16px] bg-[var(--bg-muted)]">
+                    {/* Badges */}
                     {discount > 0 && (
-                        <span className="absolute left-3 top-3 rounded-full bg-rose-500/95 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white shadow-sm">
+                        <span className="absolute left-2.5 top-2.5 sm:left-3 sm:top-3 rounded-full bg-rose-500 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-white shadow-sm z-10">
                             -{discount}%
                         </span>
                     )}
                     {lowStock && (
-                        <span className="absolute bottom-3 left-3 rounded-full bg-amber-500/95 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white shadow-sm">
+                        <span className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white shadow-sm z-10">
                             {t('product.onlyXLeft', { count: product.stock })}
                         </span>
                     )}
                     {(product.halalCertified || product.badge) && !lowStock && (
-                        <span className="absolute bottom-3 left-3 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm">
+                        <span className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 inline-flex items-center gap-1.5 rounded-full border border-[var(--border-primary)] bg-[var(--bg-surface)]/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)] shadow-sm backdrop-blur-sm z-10">
                             {product.halalCertified ? t('product.halalCertified') : product.badge}
                         </span>
                     )}
-                    {isFlashDeal && (
-                        <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-[#1A1A1A]/90 px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm backdrop-blur-sm">
+                    {isFlashDeal && flashMounted && (
+                        <span className="absolute right-2.5 top-2.5 sm:right-3 sm:top-3 inline-flex items-center gap-1 rounded-full bg-[var(--text-primary)]/90 px-2.5 py-1 text-[10px] font-semibold text-[var(--text-inverse)] shadow-sm backdrop-blur-sm z-10">
                             <span className="animate-pulse">⚡</span>
                             <span className="font-mono tabular-nums">{flashCountdown}</span>
                         </span>
                     )}
                     {!isFlashDeal && (
-                        <span className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-semibold text-slate-700 shadow-sm">{t('product.freeDelivery')}</span>
+                        <span className="absolute right-2.5 top-2.5 sm:right-3 sm:top-3 rounded-full bg-[var(--bg-surface)]/95 px-2.5 py-1 text-[10px] font-semibold text-[var(--text-secondary)] shadow-sm backdrop-blur-sm z-10">
+                            {t('product.freeDelivery')}
+                        </span>
                     )}
-                    <Image
-                        width={500}
-                        height={500}
-                        className="h-full w-full object-contain p-4 transition duration-300 group-hover:scale-105"
-                        src={images[0]}
-                        alt={product.name}
-                    />
+
+                    {/* Product Image — scales with spring on hover */}
+                    <motion.div
+                        className="w-full h-full"
+                        animate={isHovered && !prefersReducedMotion ? { scale: 1.05 } : { scale: 1 }}
+                        transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                    >
+                        <Image
+                            width={500}
+                            height={500}
+                            className="w-full h-full object-contain p-3 sm:p-4"
+                            src={images[0]}
+                            alt={product.name}
+                        />
+                    </motion.div>
+
+                    {/* Quick Add buttons — reveal on hover (desktop) / always on mobile */}
                     {showQuickAdd && (
-                        <div className="absolute bottom-3 right-3 flex gap-2">
-                            <button
+                        <motion.div
+                            className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 flex gap-2 z-10"
+                            initial={false}
+                            animate={isHovered || typeof window !== 'undefined' && window.innerWidth < 768
+                                ? { opacity: 1, y: 0 }
+                                : { opacity: 0, y: 8 }
+                            }
+                            transition={quickSpring}
+                        >
+                            <motion.button
                                 onClick={handleBuyNow}
-                                className="flex h-11 items-center gap-1.5 rounded-full bg-slate-900 px-4 text-[11px] font-semibold uppercase tracking-wider text-white shadow-2xl shadow-slate-900/10 transition hover:bg-slate-800"
+                                whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
+                                className="flex h-10 sm:h-11 items-center gap-1.5 rounded-full bg-[var(--text-primary)] px-3 sm:px-4 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-inverse)] shadow-lg transition-colors hover:bg-[var(--text-primary)]/90 min-h-[44px]"
                                 aria-label={t('product.buyNow')}
                             >
-                                <Zap size={15} />
-                                {t('product.buyNow')}
-                            </button>
-                            <button
+                                <Zap size={14} />
+                                <span className="hidden sm:inline">{t('product.buyNow')}</span>
+                            </motion.button>
+                            <motion.button
                                 onClick={handleQuickAdd}
-                                className="flex h-11 w-11 items-center justify-center rounded-full bg-[#C9A96E] text-white shadow-2xl shadow-slate-900/10 transition hover:bg-[#b18d45]"
-                                aria-label={t('product.quickAdd')}
+                                whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
+                                className="flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full bg-[var(--accent)] text-white shadow-lg transition-colors hover:bg-[var(--accent-hover)] min-h-[44px] min-w-[44px]"
+                                aria-label={addedToCart ? t('product.addedToCart') : t('product.quickAdd')}
                             >
-                                <ShoppingBag size={18} />
-                            </button>
-                        </div>
+                                <motion.div
+                                    key={addedToCart ? 'check' : 'bag'}
+                                    initial={prefersReducedMotion ? {} : { scale: 0, rotate: -90 }}
+                                    animate={{ scale: 1, rotate: 0 }}
+                                    transition={quickSpring}
+                                >
+                                    {addedToCart ? <Check size={18} strokeWidth={2.5} /> : <ShoppingBag size={18} />}
+                                </motion.div>
+                            </motion.button>
+                        </motion.div>
                     )}
                 </div>
-                <div className="mt-4 flex flex-col gap-3">
+
+                {/* Content */}
+                <div className="mt-3 sm:mt-4 flex flex-col gap-2 sm:gap-3 min-w-0">
                     <div className="min-w-0">
-                        <p className="line-clamp-2 text-sm font-semibold leading-snug text-slate-900">{product.name}</p>
-                        <div className="mt-2 flex items-center gap-2 text-[12px] text-slate-500">
+                        <p className="line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">
+                            {product.name}
+                        </p>
+                        <div className="mt-1.5 sm:mt-2 flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-[12px] text-[var(--text-secondary)]">
                             <div className="flex items-center gap-0.5">
                                 {Array(5).fill('').map((_, index) => (
                                     <StarIcon
                                         key={index}
-                                        size={14}
+                                        size={12}
                                         className="text-transparent"
-                                        fill={rating >= index + 1 ? '#F59E0B' : '#E2E8F0'}
+                                        fill={rating >= index + 1 ? '#F59E0B' : 'var(--border-primary)'}
                                     />
                                 ))}
                             </div>
-                            <span className="font-medium text-slate-600">
+                            <span className="font-medium text-[var(--text-primary)]">
                                 {rating.toFixed(1)}
-                                {count > 0 && <span className="ml-1 text-slate-400">({count})</span>}
+                                {count > 0 && <span className="ml-1 text-[var(--text-tertiary)]">({count})</span>}
                             </span>
                             {soldCount > 0 && (
-                                <span className="text-[11px] font-medium text-[#6B6560]">· {t('product.xSold', { count: soldCount })}</span>
+                                <span className="text-[10px] sm:text-[11px] font-medium text-[var(--text-secondary)]">· {t('product.xSold', { count: soldCount })}</span>
                             )}
                         </div>
-                        <p className="mt-2 text-[12px] text-slate-500">{t('product.easyReturns')}</p>
+                        <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-[12px] text-[var(--text-tertiary)]">{t('product.easyReturns')}</p>
                     </div>
-                    <div className="rounded-[22px] border border-slate-200 bg-slate-50 p-3">
-                        <div className="flex items-center justify-between gap-2">
-                            <div>
-                                <p className="text-xs uppercase tracking-[0.22em] text-slate-500">{t('product.yourPrice')}</p>
-                                <p className="mt-1 text-lg font-semibold text-slate-900"><CurrencyAmount amount={product.price} /></p>
+
+                    {/* Price block */}
+                    <div className="rounded-[14px] sm:rounded-[18px] border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-2.5 sm:p-3 min-w-0">
+                        <div className="flex items-center justify-between gap-2 min-w-0">
+                            <div className="min-w-0 flex-1">
+                                <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.15em] text-[var(--text-tertiary)]">{t('product.yourPrice')}</p>
+                                <p className="mt-0.5 text-sm sm:text-base lg:text-lg font-semibold text-[var(--text-primary)] tabular-nums truncate">
+                                    <CurrencyAmount amount={product.price} />
+                                </p>
                             </div>
                             {discount > 0 ? (
-                                <div className="text-right">
-                                    <p className="text-[11px] text-slate-400 line-through"><CurrencyAmount amount={product.mrp} /></p>
-                                    <p className="mt-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-700">{t('product.save', { percent: discount })}</p>
+                                <div className="text-right shrink-0">
+                                    <p className="text-[10px] sm:text-[11px] text-[var(--text-tertiary)] line-through tabular-nums truncate max-w-[80px]">
+                                        <CurrencyAmount amount={product.mrp} />
+                                    </p>
+                                    <p className="mt-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+                                        {t('product.save', { percent: discount })}
+                                    </p>
                                 </div>
                             ) : (
-                                <span className="rounded-full bg-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-600">{t('product.popular')}</span>
+                                <span className="shrink-0 rounded-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-2.5 py-0.5 text-[10px] sm:text-[11px] font-semibold text-[var(--text-secondary)]">
+                                    {t('product.popular')}
+                                </span>
                             )}
                         </div>
                     </div>
                 </div>
             </Link>
-            {/* Seller / Official Store badge — Jumia trust signal. Kept OUTSIDE
-                the product Link — a nested <a> inside <a> is invalid HTML and
-                breaks hydration. */}
+
+            {/* Seller badge — outside the Link to avoid nested <a> */}
             {product.store && (
                 <Link
                     href={`/shop/${product.store.username}`}
-                    className="mt-3 flex items-center gap-1.5 text-[11px] font-medium text-slate-500 transition hover:text-[#C9A96E]"
+                    className="mt-2.5 flex items-center gap-1.5 text-[10px] sm:text-[11px] font-medium text-[var(--text-secondary)] transition hover:text-[var(--accent)]"
                 >
-                    <BadgeCheck size={13} className="shrink-0 text-[#C9A96E]" />
-                    <span className="truncate">{product.store.name}</span>
+                    <BadgeCheck size={12} className="shrink-0 text-[var(--accent)]" />
+                    <span className="truncate min-w-0">{product.store.name}</span>
                 </Link>
             )}
-            <button
+
+            {/* Wishlist button — animated heart */}
+            <motion.button
                 onClick={handleWishlist}
-                className="absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm transition hover:scale-105"
+                whileTap={prefersReducedMotion ? {} : { scale: 0.8 }}
+                transition={quickSpring}
+                className="absolute right-3 top-3 sm:right-4 sm:top-4 z-10 flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-[var(--bg-surface)]/90 backdrop-blur-sm shadow-sm border border-[var(--border-subtle)] transition-colors hover:bg-[var(--bg-surface)] min-h-[44px] min-w-[44px]"
                 aria-label={isWishlisted ? t('product.removedFromWishlist') : t('product.addedToWishlist')}
             >
-                <Heart
-                    size={18}
-                    className={isWishlisted ? 'fill-rose-500 text-rose-500' : 'text-slate-400'}
-                />
-            </button>
-        </div>
+                <motion.div
+                    animate={isWishlisted ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+                    transition={quickSpring}
+                >
+                    <Heart
+                        size={16}
+                        className={isWishlisted ? 'fill-rose-500 text-rose-500' : 'text-[var(--text-tertiary)]'}
+                    />
+                </motion.div>
+            </motion.button>
+        </motion.div>
     )
 }
 

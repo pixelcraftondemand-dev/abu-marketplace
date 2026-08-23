@@ -4,6 +4,8 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth, useUser } from "@clerk/nextjs";
 import Link from "next/link";
+import { useDispatch } from 'react-redux';
+import { openSignInModal } from '@/lib/features/signInModalSlice';
 import axios from "axios";
 import toast from "react-hot-toast";
 import {
@@ -27,7 +29,7 @@ export default function WalletPage() {
     <Suspense
       fallback={
         <div className="min-h-[80vh] flex items-center justify-center">
-          <Loader2 className="animate-spin text-[#C9A96E]" size={28} />
+          <Loader2 className="animate-spin text-[var(--accent)]" size={28} />
         </div>
       }
     >
@@ -43,6 +45,7 @@ function WalletPageContent() {
   const { user, isLoaded: userLoaded } = useUser();
   const { getToken } = useAuth();
   const { balance, loading, refresh } = useWalletBalance();
+  const dispatch = useDispatch();
 
   const [selectedAmount, setSelectedAmount] = useState(50);
   const [customAmount, setCustomAmount] = useState("");
@@ -129,7 +132,7 @@ function WalletPageContent() {
   if (!userLoaded) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center">
-        <Loader2 className="animate-spin text-[#C9A96E]" size={28} />
+        <Loader2 className="animate-spin text-[var(--accent)]" size={28} />
       </div>
     );
   }
@@ -137,38 +140,38 @@ function WalletPageContent() {
   if (!user) {
     return (
       <div className="mx-6 flex min-h-[80vh] items-center justify-center">
-        <div className="max-w-lg rounded-[2rem] border border-[#E8DCC8] bg-white p-8 text-center shadow-sm">
-          <Wallet className="mx-auto text-[#C9A96E]" size={40} strokeWidth={1.5} />
-          <h1 className="mt-4 text-3xl font-semibold text-[#1A1A1A]">
+        <div className="max-w-lg rounded-[2rem] border border-[var(--border-primary)] bg-[var(--bg-surface)] p-8 text-center shadow-sm">
+          <Wallet className="mx-auto text-[var(--accent)]" size={40} strokeWidth={1.5} />
+          <h1 className="mt-4 text-3xl font-semibold text-[var(--text-primary)]">
             {t("wallet.signInRequired")}
           </h1>
-          <Link
-            href="/sign-in"
-            className="mt-6 inline-block rounded-full bg-[#1A1A1A] px-8 py-3 text-sm font-semibold text-white transition hover:bg-[#C9A96E]"
+          <button
+            onClick={() => dispatch(openSignInModal())}
+            className="mt-6 inline-block rounded-full bg-[var(--text-primary)] px-8 py-3 text-sm font-semibold text-[var(--bg-primary)] transition hover:bg-[var(--accent)]"
           >
             {t("nav.signIn")}
-          </Link>
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen mx-6 my-10 text-slate-800">
+    <div className="min-h-screen mx-6 my-10 text-[var(--text-primary)]">
       <div className="max-w-7xl mx-auto">
         <PageTitle heading={t("wallet.title")} text={t("wallet.subtitle")} />
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           {/* Balance card */}
-          <section className="relative overflow-hidden rounded-[2rem] bg-[#111111] p-8 text-white shadow-[0_25px_70px_rgba(17,17,17,0.25)]">
-            <div className="absolute -right-16 -top-16 size-56 rounded-full bg-[#C9A96E]/20 blur-3xl" />
+          <section className="relative overflow-hidden rounded-[2rem] bg-[var(--bg-topbar)] p-8 text-white shadow-[0_25px_70px_rgba(0,0,0,0.25)]">
+            <div className="absolute -right-16 -top-16 size-56 rounded-full bg-[var(--accent)]/20 blur-3xl" />
             <div className="relative">
-              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#C9A96E]">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--accent)]">
                 {t("wallet.balance")}
               </p>
               <p className="mt-4 text-5xl font-semibold tracking-tight tabular-nums">
                 {loading && balance == null ? (
-                  <Loader2 className="animate-spin text-[#C9A96E]" size={36} />
+                  <Loader2 className="animate-spin text-[var(--accent)]" size={36} />
                 ) : (
                   <CurrencyAmount amount={balance ?? 0} className="text-5xl" />
                 )}
@@ -185,11 +188,11 @@ function WalletPageContent() {
           </section>
 
           {/* Top-up card */}
-          <section className="rounded-[2rem] border border-[#E8DCC8] bg-white p-8 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#A2825F]">
+          <section className="rounded-[2rem] border border-[var(--border-primary)] bg-[var(--bg-surface)] p-8 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--accent)]">
               {t("wallet.addFunds")}
             </p>
-            <p className="mt-2 text-sm leading-6 text-[#6A6053]">
+            <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">
               {t("wallet.topUpHint")}
             </p>
             <form onSubmit={handleTopUp} className="mt-6 space-y-4">
@@ -204,15 +207,15 @@ function WalletPageContent() {
                     }}
                     className={`rounded-2xl border px-3 py-2.5 text-sm font-semibold transition ${
                       !customAmount && selectedAmount === amount
-                        ? "border-[#C9A96E] bg-[#F6E8C6] text-[#5D4B2C]"
-                        : "border-[#E4D8C6] text-[#4B4538] hover:border-[#C9A96E]"
+                        ? "border-[var(--accent)] bg-[var(--bg-muted)] text-[var(--text-primary)]"
+                        : "border-[var(--border-primary)] text-[var(--text-primary)] hover:border-[var(--accent)]"
                     }`}
                   >
                     <CurrencyAmount amount={amount} />
                   </button>
                 ))}
               </div>
-              <label className="block text-sm font-medium text-[#4B4538]">
+              <label className="block text-sm font-medium text-[var(--text-primary)]">
                 {t("checkout.subtotal")}
                 <input
                   type="number"
@@ -224,13 +227,13 @@ function WalletPageContent() {
                     if (e.target.value) setSelectedAmount(null);
                   }}
                   placeholder={formatPrice(50, "USD", "en-US")}
-                  className="mt-2 w-full rounded-2xl border border-[#E4D8C6] px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#F6E8C6]"
+                  className="mt-2 w-full rounded-2xl border border-[var(--border-primary)] px-4 py-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--bg-muted)]"
                 />
               </label>
               <button
                 type="submit"
                 disabled={topUpInProgress}
-                className="flex w-full items-center justify-center gap-2 rounded-full bg-[#1A1A1A] px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-[#C9A96E] disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-6 py-3.5 text-sm font-semibold text-[var(--bg-primary)] transition hover:bg-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {topUpInProgress ? (
                   <Loader2 className="animate-spin" size={18} />
@@ -239,7 +242,7 @@ function WalletPageContent() {
                 )}
                 {t("wallet.topUp")}
               </button>
-              <p className="text-center text-xs text-[#8C8071]">
+              <p className="text-center text-xs text-[var(--text-tertiary)]">
                 {t("wallet.minimum")}
               </p>
             </form>
@@ -247,17 +250,17 @@ function WalletPageContent() {
         </div>
 
         {/* Transaction history */}
-        <section className="mt-10 rounded-[2rem] border border-[#E8DCC8] bg-white p-8 shadow-sm">
-          <h2 className="text-xl font-semibold text-[#1A1A1A]">
+        <section className="mt-10 rounded-[2rem] border border-[var(--border-primary)] bg-[var(--bg-surface)] p-8 shadow-sm">
+          <h2 className="text-xl font-semibold text-[var(--text-primary)]">
             {t("wallet.transactions")}
           </h2>
           <div className="mt-6 space-y-1">
             {transactionsLoading ? (
               <div className="flex justify-center py-10">
-                <Loader2 className="animate-spin text-[#C9A96E]" size={24} />
+                <Loader2 className="animate-spin text-[var(--accent)]" size={24} />
               </div>
             ) : transactions.length === 0 ? (
-              <p className="py-10 text-center text-sm text-[#8C8071]">
+              <p className="py-10 text-center text-sm text-[var(--text-tertiary)]">
                 {t("wallet.noTransactions")}
               </p>
             ) : (
@@ -266,14 +269,14 @@ function WalletPageContent() {
                 return (
                   <div
                     key={tx.id}
-                    className="flex items-center justify-between gap-4 rounded-2xl px-4 py-3 transition hover:bg-[#FCF7EE]"
+                    className="flex items-center justify-between gap-4 rounded-2xl px-4 py-3 transition hover:bg-[var(--bg-muted)]"
                   >
                     <div className="flex items-center gap-3">
                       <span
                         className={`flex size-10 items-center justify-center rounded-full ${
                           isCredit
                             ? "bg-emerald-50 text-emerald-600"
-                            : "bg-[#F6E8C6] text-[#8A6A3A]"
+                            : "bg-[var(--bg-muted)] text-[var(--accent)]"
                         }`}
                       >
                         {isCredit ? (
@@ -283,12 +286,12 @@ function WalletPageContent() {
                         )}
                       </span>
                       <div>
-                        <p className="text-sm font-medium text-[#1A1A1A]">
+                        <p className="text-sm font-medium text-[var(--text-primary)]">
                           {tx.type === "TOPUP"
                             ? t("wallet.topup")
                             : t("wallet.payment")}
                         </p>
-                        <p className="text-xs text-[#8C8071]">
+                        <p className="text-xs text-[var(--text-tertiary)]">
                           {new Date(tx.createdAt).toLocaleString()}
                         </p>
                       </div>
@@ -296,13 +299,13 @@ function WalletPageContent() {
                     <div className="text-right">
                       <p
                         className={`text-sm font-semibold tabular-nums ${
-                          isCredit ? "text-emerald-600" : "text-[#1A1A1A]"
+                          isCredit ? "text-emerald-600" : "text-[var(--text-primary)]"
                         }`}
                       >
                         {isCredit ? "+" : ""}
                         <CurrencyAmount amount={Math.abs(tx.amount)} />
                       </p>
-                      <p className="text-xs text-[#8C8071]">
+                      <p className="text-xs text-[var(--text-tertiary)]">
                         {t("wallet.balance")}:{" "}
                         <CurrencyAmount amount={tx.balanceAfter} />
                       </p>
