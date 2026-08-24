@@ -79,7 +79,7 @@ function WalletPageContent() {
     }
   }, [user, userLoaded]);
 
-  // Handle return from the Stripe checkout session.
+  // Handle return from the ABU Pay checkout session (using the existing payment rails).
   useEffect(() => {
     const status = searchParams.get("status");
     if (status === "success") {
@@ -156,11 +156,11 @@ function WalletPageContent() {
   return (
     <div className="min-h-screen mx-6 my-10 text-slate-800">
       <div className="max-w-7xl mx-auto">
-        <PageTitle heading={t("wallet.title")} text={t("wallet.subtitle")} />
+        <PageTitle heading="ABU Pay" text="Your balance, top-ups, and marketplace payments in one place." />
 
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           {/* Balance card */}
-          <section className="relative overflow-hidden rounded-[2rem] bg-[#111111] p-8 text-white shadow-[0_25px_70px_rgba(17,17,17,0.25)]">
+          <section className="relative overflow-hidden rounded-[28px] bg-[#1d1d1f] p-8 text-white shadow-[0_25px_70px_rgba(17,17,17,0.25)]">
             <div className="absolute -right-16 -top-16 size-56 rounded-full bg-[#C9A96E]/20 blur-3xl" />
             <div className="relative">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#C9A96E]">
