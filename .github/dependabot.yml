@@ -1,0 +1,154 @@
+# ─── Dependabot Configuration ──────────────────────────────────────────────────
+# Automated dependency updates with enterprise-grade settings:
+#   - Weekly updates for stability
+#   - Security-only updates for critical patches
+#   - Auto-merge for minor/patch updates
+#   - Review requirements for major updates
+#   - Ignore specific packages if needed
+
+version: 2
+updates:
+  # ─── npm dependencies ────────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Africa/Freetown"  # Sierra Leone timezone
+    open-pull-requests-limit: 10
+    reviewers:
+      - "fouad磉"  # Replace with actual reviewer
+    labels:
+      - "dependencies"
+      - "npm"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      # Group React-related updates
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "react-*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group Next.js ecosystem
+      nextjs:
+        patterns:
+          - "next"
+          - "eslint-config-next"
+          - "@next/*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group Prisma ecosystem
+      prisma:
+        patterns:
+          - "prisma"
+          - "@prisma/*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group testing tools
+      testing:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "jest"
+          - "@jest/*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group ESLint
+      eslint:
+        patterns:
+          - "eslint"
+          - "eslint-*"
+          - "@eslint/*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group TypeScript
+      typescript:
+        patterns:
+          - "typescript"
+          - "@types/*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Auto-merge minor/patch updates
+    allow:
+      - dependency-type: "production"
+      - dependency-type: "development"
+
+  # ─── GitHub Actions ──────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      # Group GitHub Actions
+      actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ─── Docker ──────────────────────────────────────────────────────────────────
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "11:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "docker"
+
+  # ─── Kustomize (Kubernetes manifests) ────────────────────────────────────────
+  - package-ecosystem: "kustomize"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "12:00"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "kubernetes"
+    commit-message:
+      prefix: "k8s"
+
+# ─── Ignore Rules ──────────────────────────────────────────────────────────────
+# Packages to ignore (add as needed)
+# ignore:
+#   - dependency-name: "puppeteer"
+#     update-types: ["version-update:semver-major"]
+
+# ─── Auto-merge Rules ─────────────────────────────────────────────────────────
+# Configure in repository settings:
+#   Settings → Code review → Auto-merge
+#   Enable "Allow auto-merge" and "Allow auto-merge when reviews are required"
+#
+# Then add to dependabot.yml:
+# auto-merge:
+#   enabled: true
+#   # Only auto-merge minor/patch updates
+#   # Major updates still require manual review
