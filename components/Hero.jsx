@@ -1,75 +1,195 @@
 'use client'
-import { assets } from '@/assets/assets'
-import { ArrowRightIcon, ChevronRightIcon, Truck } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
-import React from 'react'
-import CategoriesMarquee from './CategoriesMarquee'
+import { assets } from '@/assets/assets'
 import CurrencyAmount from '@/components/CurrencyAmount'
 import { useTranslation } from '@/lib/i18n'
-import { FREE_DELIVERY_THRESHOLD } from '@/lib/paymentOptions'
+
+const slides = [
+  {
+    id: 1,
+    gradient: 'from-[#0A5FFF] via-[#1A6FFF] to-[#0848CC]',
+    overlayPattern: true,
+    headlineKey: 'hero.headline',
+    subKey: 'hero.startsFrom',
+    price: 4.9,
+    tags: ['hero.phones', 'hero.audio', 'hero.home'],
+    ctaKey: 'hero.shopNow',
+    ctaHref: '/shop',
+    image: assets.hero_model_img,
+  },
+  {
+    id: 2,
+    gradient: 'from-[#1A2B4C] via-[#1E3A5F] to-[#0D3B66]',
+    overlayPattern: true,
+    headlineKey: 'hero.bestProducts',
+    subKey: 'hero.startsFrom',
+    price: 9.9,
+    tags: ['categories.electronics', 'categories.fashion'],
+    ctaKey: 'hero.shopNow',
+    ctaHref: '/shop?sort=popular',
+    image: assets.hero_product_img1,
+  },
+  {
+    id: 3,
+    gradient: 'from-[#E8453C] via-[#EF5350] to-[#C62828]',
+    overlayPattern: true,
+    headlineKey: 'hero.discounts',
+    subKey: 'hero.startsFrom',
+    price: 2.9,
+    tags: ['categories.watches', 'categories.accessories'],
+    ctaKey: 'hero.shopNow',
+    ctaHref: '/shop?deals=flash',
+    image: assets.hero_product_img2,
+  },
+]
 
 const Hero = () => {
+  const { t } = useTranslation()
+  const [current, setCurrent] = useState(0)
+  const [isPaused, setIsPaused] = useState(false)
+  const [isTransitioning, setIsTransitioning] = useState(false)
 
-    const { t } = useTranslation()
+  const goTo = useCallback((index) => {
+    if (isTransitioning) return
+    setIsTransitioning(true)
+    setCurrent(index)
+    setTimeout(() => setIsTransitioning(false), 600)
+  }, [isTransitioning])
 
-    return (
-        <div className='mx-3 sm:mx-6'>
-            <div className='mx-auto my-4 flex max-w-7xl flex-col gap-4 xl:flex-row xl:gap-6'>
-                {/* Main feature — warm editorial panel on the brand cream/gold palette */}
-                <div className='group relative flex flex-1 flex-col overflow-hidden rounded-3xl bg-[var(--bg-surface)] dark:bg-[var(--bg-elevated)] md:min-h-[300px] lg:min-h-[360px]'>
-                    <div className='relative z-10 flex h-full flex-col justify-between p-5 sm:p-8 lg:p-10'>
-                        <div>
-                            <div className='inline-flex items-center gap-3 rounded-full bg-[var(--bg-surface)]/80 p-1 pr-4 text-xs text-[var(--text-primary)] shadow-sm ring-1 ring-[var(--border-primary)] sm:text-sm'>
-                                <span className='ml-1 rounded-full bg-[var(--accent)] px-3 py-1 text-xs font-semibold text-white'>{t('hero.news')}</span>
-                                <span className='flex items-center gap-1.5'>
-                                    <Truck size={14} className='text-[var(--accent)]' />
-                                    {t('hero.freeDelivery')} <CurrencyAmount amount={FREE_DELIVERY_THRESHOLD} />
-                                </span>
-                                <ChevronRightIcon className='transition-all group-hover:ml-1' size={16} />
-                            </div>
-                            <h2 className='my-3 max-w-md font-display text-3xl font-medium leading-tight text-[var(--text-primary)] sm:max-w-md sm:text-4xl lg:text-[2.75rem]'>
-                                {t('hero.headline')}
-                            </h2>
-                            <div className='mt-4 text-sm font-medium text-[var(--text-secondary)] sm:mt-6'>
-                                <p className='text-editorial text-[var(--accent)]'>{t('hero.startsFrom')}</p>
-                                <p className='mt-1 text-2xl font-semibold text-[var(--text-primary)] sm:text-3xl'><CurrencyAmount amount={4.9} /></p>
-                            </div>
-                        </div>
-                        <div className='mt-5 flex flex-wrap gap-2'>
-                            {['hero.phones','hero.audio','hero.home'].map((key) => (
-                                <span key={key} className='rounded-full border border-[var(--border-primary)] bg-[var(--bg-surface)]/80 px-3 py-1 text-xs font-medium text-[var(--text-secondary)]'>
-                                    {t(key)}
-                                </span>
-                            ))}
-                        </div>
-                        <Link href="/shop" className='btn-luxury mt-4 w-fit sm:mt-6'>
-                            <span className='flex items-center gap-2'>{t('hero.shopNow')} <ArrowRightIcon className='size-4' /></span>
-                        </Link>
-                    </div>
-                    <Image className='mt-4 w-full max-w-[180px] self-center object-contain sm:absolute sm:bottom-0 sm:right-4 sm:mt-0 sm:max-w-[240px] lg:max-w-[280px]' src={assets.hero_model_img} alt="Featured gadget offers" priority />
-                </div>
-                {/* Side cards — brand-tinted panels */}
-                <div className='flex w-full flex-col gap-3 text-sm text-slate-600 md:flex-row xl:max-w-[320px] xl:flex-col'>
-                    <Link href="/shop" className='group flex flex-1 items-center justify-between rounded-3xl bg-[var(--bg-muted)] p-4 ring-1 ring-[var(--border-primary)] transition hover:-translate-y-0.5 hover:shadow-lg sm:p-5'>
-                        <div>
-                            <p className='font-display max-w-36 text-2xl font-medium text-[var(--text-primary)] sm:text-3xl'>{t('hero.bestProducts')}</p>
-                            <p className='mt-3 flex items-center gap-1 text-[var(--text-secondary)]'>{t('hero.viewMore')} <ArrowRightIcon className='transition-all group-hover:ml-1' size={18} /> </p>
-                        </div>
-                        <Image className='w-24 sm:w-28' src={assets.hero_product_img1} alt="" />
-                    </Link>
-                    <Link href="/shop?deals=flash" className='group flex flex-1 items-center justify-between rounded-3xl bg-[var(--accent-brand-light)] p-4 ring-1 ring-[var(--border-primary)] transition hover:-translate-y-0.5 hover:shadow-lg sm:p-5'>
-                        <div>
-                            <p className='font-display max-w-36 text-2xl font-medium text-[var(--text-primary)] sm:text-3xl'>{t('hero.discounts')}</p>
-                            <p className='mt-3 flex items-center gap-1 text-[var(--text-secondary)]'>{t('hero.viewMore')} <ArrowRightIcon className='transition-all group-hover:ml-1' size={18} /> </p>
-                        </div>
-                        <Image className='w-24 sm:w-28' src={assets.hero_product_img2} alt="" />
-                    </Link>
-                </div>
-            </div>
-            <CategoriesMarquee />
+  const next = useCallback(() => goTo((current + 1) % slides.length), [current, goTo])
+  const prev = useCallback(() => goTo((current - 1 + slides.length) % slides.length), [current, goTo])
+
+  useEffect(() => {
+    if (isPaused) return
+    const timer = setInterval(next, 6000)
+    return () => clearInterval(timer)
+  }, [isPaused, next])
+
+  const slide = slides[current]
+
+  return (
+    <div
+      className="relative w-full overflow-hidden group/hero"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      {/* All slides layered for crossfade */}
+      {slides.map((s, i) => (
+        <div
+          key={s.id}
+          className={`absolute inset-0 bg-gradient-to-r ${s.gradient} transition-opacity duration-700 ease-in-out ${
+            i === current ? 'opacity-100 z-10' : 'opacity-0 z-0'
+          }`}
+        >
+          {/* Subtle dot pattern overlay for depth */}
+          <div className="absolute inset-0 opacity-[0.04]" style={{
+            backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
+            backgroundSize: '20px 20px'
+          }} />
+          {/* Bottom gradient fade */}
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/10 to-transparent" />
         </div>
-    )
+      ))}
+
+      {/* Content */}
+      <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-20">
+        <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
+          {/* Text content */}
+          <div className="flex-1 text-white text-center lg:text-left">
+            {/* Eyebrow */}
+            <div className="inline-flex items-center gap-1.5 bg-white/15 backdrop-blur-sm rounded-full px-3 py-1 mb-4">
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              <span className="text-[11px] font-medium tracking-wide uppercase text-white/90">ABU Marketplace</span>
+            </div>
+            
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-[1.1] tracking-tight">
+              {t(slide.headlineKey)}
+            </h1>
+            <p className="mt-3 text-sm text-white/60 font-medium">{t(slide.subKey)}</p>
+            <p className="mt-2 text-4xl sm:text-5xl font-bold tabular-nums tracking-tight">
+              <CurrencyAmount amount={slide.price} />
+            </p>
+            
+            <div className="mt-5 flex flex-wrap gap-2 justify-center lg:justify-start">
+              {slide.tags.map((key) => (
+                <span key={key} className="rounded-full bg-white/10 border border-white/15 px-3.5 py-1.5 text-xs font-medium text-white/90 backdrop-blur-sm hover:bg-white/20 transition-colors duration-200">
+                  {t(key)}
+                </span>
+              ))}
+            </div>
+            
+            <Link
+              href={slide.ctaHref}
+              className="mt-7 inline-flex items-center gap-2.5 bg-white text-[var(--text-primary)] px-8 py-3.5 rounded-lg text-sm font-semibold transition-all duration-200 hover:bg-white/90 hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 active:translate-y-0 active:shadow-md"
+            >
+              {t(slide.ctaKey)}
+              <ChevronRight size={16} className="transition-transform group-hover/hero:translate-x-0.5" />
+            </Link>
+          </div>
+
+          {/* Image */}
+          <div className="flex-shrink-0 w-56 sm:w-72 lg:w-96 relative">
+            {/* Glow behind image */}
+            <div className="absolute inset-0 bg-white/10 rounded-full blur-3xl scale-75" />
+            <Image
+              src={slide.image}
+              alt=""
+              className="relative w-full h-auto object-contain drop-shadow-2xl animate-float"
+              priority={current === 0}
+              width={400}
+              height={400}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation arrows — refined */}
+      <button
+        onClick={prev}
+        className="absolute left-4 top-1/2 -translate-y-1/2 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow-lg shadow-black/10 text-[var(--text-primary)] transition-all duration-200 hover:bg-white hover:shadow-xl hover:scale-110 opacity-0 group-hover/hero:opacity-100"
+        aria-label="Previous slide"
+      >
+        <ChevronLeft size={20} strokeWidth={2.5} />
+      </button>
+      <button
+        onClick={next}
+        className="absolute right-4 top-1/2 -translate-y-1/2 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 shadow-lg shadow-black/10 text-[var(--text-primary)] transition-all duration-200 hover:bg-white hover:shadow-xl hover:scale-110 opacity-0 group-hover/hero:opacity-100"
+        aria-label="Next slide"
+      >
+        <ChevronRight size={20} strokeWidth={2.5} />
+      </button>
+
+      {/* Progress bar + dot indicators */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3">
+        {slides.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => goTo(i)}
+            className={`relative h-2 rounded-full transition-all duration-500 overflow-hidden ${
+              i === current ? 'w-8 bg-white/40' : 'w-2 bg-white/30 hover:bg-white/50'
+            }`}
+            aria-label={`Go to slide ${i + 1}`}
+          >
+            {i === current && (
+              <div className="absolute inset-0 bg-white rounded-full origin-left" style={{
+                animation: 'slideProgress 6s linear forwards'
+              }} />
+            )}
+          </button>
+        ))}
+      </div>
+
+      <style jsx>{`
+        @keyframes slideProgress {
+          from { transform: scaleX(0); }
+          to { transform: scaleX(1); }
+        }
+      `}</style>
+    </div>
+  )
 }
 
 export default Hero

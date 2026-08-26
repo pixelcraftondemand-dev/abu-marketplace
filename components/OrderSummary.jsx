@@ -1,6 +1,6 @@
 "use client";
 
-import { PlusIcon, SquarePenIcon, XIcon } from 'lucide-react';
+import { PlusIcon, SquarePenIcon, XIcon, ShieldCheck, Lock, CreditCard, Banknote } from 'lucide-react';
 import React, { useEffect, useState } from 'react'
 import AddressModal from './AddressModal';
 import { useDispatch, useSelector } from 'react-redux';
@@ -15,12 +15,10 @@ import { useTranslation } from '@/lib/i18n'
 import { isCashOnDeliveryAvailable, isFreeDelivery } from '@/lib/paymentOptions'
 
 const OrderSummary = ({ totalPrice, items }) => {
-
     const { user } = useUser()
     const { getToken } = useAuth()
     const dispatch = useDispatch()
     const { t } = useTranslation()
-
     const router = useRouter();
 
     const addressList = useSelector(state => state.address.list);
@@ -37,8 +35,6 @@ const OrderSummary = ({ totalPrice, items }) => {
         }
     }, [codEnabled, paymentMethod]);
 
-    // Stable per-checkout idempotency key: a network timeout + retry reuses
-    // this key, so the backend can never create a second charge/debit.
     const [idempotencyKey] = useState(() =>
       typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
     );
@@ -50,9 +46,7 @@ const OrderSummary = ({ totalPrice, items }) => {
     const handleCouponCode = async (event) => {
         event.preventDefault();
         try {
-            if(!user){
-                return toast(t('checkout.loginToProceed'))
-            }
+            if(!user) return toast(t('checkout.loginToProceed'))
             const token = await getToken();
             const { data } = await axios.post('/api/coupon', {code: couponCodeInput}, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -62,20 +56,14 @@ const OrderSummary = ({ totalPrice, items }) => {
         } catch (error) {
             toast.error(error?.response?.data?.error || error.message)
         }
-        
     }
 
     const handlePlaceOrder = async (e) => {
         e.preventDefault();
         try {
-            if(!user){
-                return toast(t('checkout.loginToPlaceOrder'))
-            }
-            if(!selectedAddress){
-                return toast(t('checkout.selectAddressFirst'))
-            }
+            if(!user) return toast(t('checkout.loginToPlaceOrder'))
+            if(!selectedAddress) return toast(t('checkout.selectAddressFirst'))
             const token = await getToken();
-
             const orderData = {
                 addressId: selectedAddress.id,
                 items,
@@ -83,126 +71,173 @@ const OrderSummary = ({ totalPrice, items }) => {
                 idempotencyKey,
                 country: selectedCountry,
             }
+            if(coupon) orderData.couponCode = coupon.code
 
-            if(coupon){
-                orderData.couponCode = coupon.code
-            }
-           // create order
-           const {data} = await axios.post('/api/orders', orderData, {
-            headers: { Authorization: `Bearer ${token}` }
-           })
-
-           if(data.alreadyProcessed){
-            // Retry of a checkout that already succeeded — no duplicate charge.
-            toast.success(data.message || t('checkout.orderPlaced'))
-            router.push('/orders')
-            dispatch(fetchCart({getToken}))
-            return
+            const {data} = await axios.post('/api/orders', orderData, {
+                headers: { Authorization: `Bearer ${token}` }
+            })           if(data.alreadyProcessed){
+                toast.success(data.message || t('checkout.orderPlaced'))
+                router.push('/order-confirmation')
+                dispatch(fetchCart({getToken}))
+                return
            }
-
            toast.success(data.message || t('checkout.orderPlaced'))
-           router.push('/orders')
+           router.push('/order-confirmation')
            dispatch(fetchCart({getToken}))
-
         } catch (error) {
             toast.error(error?.response?.data?.error || error.message)
         }
-
-        
     }
 
     return (
-        <div className='w-full max-w-lg lg:max-w-[340px] bg-slate-50/30 border border-slate-200 text-slate-500 text-sm rounded-xl p-7'>
-            <h2 className='text-xl font-medium text-slate-600'>{t('checkout.paymentSummary')}</h2>
-            <p className='text-slate-400 text-xs my-4'>{t('checkout.paymentMethod')}</p>
-            <div className='flex gap-2 items-center'>
-                <input type="radio" id="COD" onChange={() => setPaymentMethod('COD')} checked={paymentMethod === 'COD'} className='accent-gray-500' disabled={!codEnabled} />
-                <label htmlFor="COD" className={`cursor-pointer ${!codEnabled ? 'text-slate-400' : ''}`}>{t('checkout.cod')}</label>
+        <div className='w-full max-w-lg lg:max-w-[360px] lg:sticky lg:top-6 self-start'>
+          <div className='bg-white border border-gray-100 rounded-2xl p-6 shadow-sm'>
+            {/* Header */}
+            <div className="flex items-center gap-2 mb-5">
+              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                <CreditCard size={16} className="text-[var(--color-primary)]" />
+              </div>
+              <h2 className='text-base font-bold text-gray-900'>{t('checkout.paymentSummary')}</h2>
+            </div>
+            
+            {/* Payment Method */}
+            <p className='text-gray-400 text-[10px] font-semibold mb-2.5 uppercase tracking-wider'>{t('checkout.paymentMethod')}</p>
+            <div className='space-y-2 mb-5'>
+                <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 ${paymentMethod === 'COD' ? 'border-[var(--color-primary)] bg-blue-50/50 shadow-sm shadow-blue-500/5' : 'border-gray-100 hover:border-gray-200'}`}>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${paymentMethod === 'COD' ? 'border-[var(--color-primary)]' : 'border-gray-300'}`}>
+                        {paymentMethod === 'COD' && <div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />}
+                    </div>
+                    <Banknote size={16} className={paymentMethod === 'COD' ? 'text-[var(--color-primary)]' : 'text-gray-400'} />
+                    <span className={`text-sm font-medium ${!codEnabled ? 'text-gray-400' : 'text-gray-700'}`}>{t('checkout.cod')}</span>
+                </label>
+                <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 ${paymentMethod === 'WALLET' ? 'border-[var(--color-primary)] bg-blue-50/50 shadow-sm shadow-blue-500/5' : 'border-gray-100 hover:border-gray-200'}`}>
+                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${paymentMethod === 'WALLET' ? 'border-[var(--color-primary)]' : 'border-gray-300'}`}>
+                        {paymentMethod === 'WALLET' && <div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />}
+                    </div>
+                    <CreditCard size={16} className={paymentMethod === 'WALLET' ? 'text-[var(--color-primary)]' : 'text-gray-400'} />
+                    <span className='text-sm font-medium text-gray-700'>
+                        {t('wallet.payWithWallet')}
+                        {!walletLoading && walletBalance != null && (
+                            <span className='ml-1.5 text-xs text-gray-400 font-normal'>(<CurrencyAmount amount={walletBalance} />)</span>
+                        )}
+                    </span>
+                </label>
+                {paymentMethod === 'WALLET' && !walletLoading && walletBalance != null && walletBalance < totalPrice && (
+                    <p className='text-xs text-red-500 font-medium ml-1 mt-1'>{t('wallet.balanceTooLow')}</p>
+                )}
             </div>
 
-            <div className='flex gap-2 items-center mt-1'>
-                <input type="radio" id="WALLET" name='payment' onChange={() => setPaymentMethod('WALLET')} checked={paymentMethod === 'WALLET'} className='accent-gray-500' disabled={walletLoading} />
-                <label htmlFor="WALLET" className='cursor-pointer'>
-                    {t('wallet.payWithWallet')}
-                    {!walletLoading && walletBalance != null && (
-                        <span className='ml-1.5 text-xs text-slate-400'>(<CurrencyAmount amount={walletBalance} />)</span>
-                    )}
-                </label>
-            </div>
-            {paymentMethod === 'WALLET' && !walletLoading && walletBalance != null && walletBalance < totalPrice && (
-                <p className='mt-1 text-xs text-red-500'>{t('wallet.balanceTooLow')}</p>
-            )}
-            <div className='my-4 py-4 border-y border-slate-200 text-slate-400'>
-                <p>{t('checkout.address')}</p>
-                {
-                    selectedAddress ? (
-                        <div className='flex gap-2 items-center'>
-                            <p>{selectedAddress.name}, {selectedAddress.city}, {selectedAddress.state}, {selectedAddress.zip}</p>
-                            <SquarePenIcon onClick={() => setSelectedAddress(null)} className='cursor-pointer' size={18} />
-                        </div>
-                    ) : (
-                        <div>
-                            {
-                                addressList.length > 0 && (
-                                    <select className='border border-slate-400 p-2 w-full my-3 outline-none rounded' onChange={(e) => setSelectedAddress(addressList[e.target.value])} >
-                                        <option value="">{t('checkout.selectAddress')}</option>
-                                        {
-                                            addressList.map((address, index) => (
-                                                <option key={index} value={index}>{address.name}, {address.city}, {address.state}, {address.zip}</option>
-                                            ))
-                                        }
-                                    </select>
-                                )
-                            }
-                            <button className='flex items-center gap-1 text-slate-600 mt-1' onClick={() => setShowAddressModal(true)} >{t('checkout.addAddress')} <PlusIcon size={18} /></button>
-                        </div>
-                    )
-                }
-            </div>
-            <div className='pb-4 border-b border-slate-200'>
-                <div className='flex justify-between'>
-                    <div className='flex flex-col gap-1 text-slate-400'>
-                        <p>{t('checkout.subtotal')}</p>
-                        <p>{t('checkout.delivery')}</p>
-                        {coupon && <p>{t('checkout.coupon')}</p>}
+            {/* Address */}
+            <div className='mb-5 pb-5 border-b border-gray-100'>
+                <p className='text-gray-400 text-[10px] font-semibold mb-2.5 uppercase tracking-wider'>{t('checkout.address')}</p>
+                {selectedAddress ? (
+                    <div className='flex items-start justify-between gap-3 p-3 bg-gray-50 rounded-xl'>
+                        <p className='text-sm text-gray-700 leading-relaxed'>{selectedAddress.name}, {selectedAddress.city}, {selectedAddress.state}, {selectedAddress.zip}</p>
+                        <button onClick={() => setSelectedAddress(null)} className='text-gray-400 hover:text-[var(--color-primary)] transition-colors shrink-0 p-1'>
+                            <SquarePenIcon size={14} />
+                        </button>
                     </div>
-                    <div className='flex flex-col gap-1 font-medium text-right'>
-                        <p><CurrencyAmount amount={totalPrice} /></p>
-                        <p>
-                            <Show when={(has) => has({ plan: 'plus' })} fallback={<span><CurrencyAmount amount={deliveryFree ? 0 : 5} /></span>}>
-                                {t('checkout.free')}
-                            </Show>
-                        </p>
-                        {coupon && <p>{`-`}<CurrencyAmount amount={(coupon.discount / 100 * totalPrice) * -1} /></p>}
+                ) : (
+                    <div>
+                        {addressList.length > 0 && (
+                            <select className='border border-gray-200 p-2.5 w-full my-2 outline-none rounded-xl text-sm bg-white focus:border-[var(--color-primary)] focus:ring-2 focus:ring-blue-500/10 transition-all' onChange={(e) => setSelectedAddress(addressList[e.target.value])}>
+                                <option value="">{t('checkout.selectAddress')}</option>
+                                {addressList.map((address, index) => (
+                                    <option key={index} value={index}>{address.name}, {address.city}, {address.state}, {address.zip}</option>
+                                ))}
+                            </select>
+                        )}
+                        <button className='flex items-center gap-1.5 text-sm text-[var(--color-primary)] font-semibold mt-1.5 hover:underline transition-colors' onClick={() => setShowAddressModal(true)}>
+                            <PlusIcon size={14} />
+                            {t('checkout.addAddress')}
+                        </button>
                     </div>
+                )}
+            </div>
+
+            {/* Totals */}
+            <div className='space-y-2.5 mb-5 pb-5 border-b border-gray-100'>
+                <div className='flex justify-between text-sm'>
+                    <span className='text-gray-500'>{t('checkout.subtotal')}</span>
+                    <span className='text-gray-800 font-semibold tabular-nums'><CurrencyAmount amount={totalPrice} /></span>
                 </div>
-                {
-                    !coupon ? (
-                        <form onSubmit={e => toast.promise(handleCouponCode(e), { loading: t('checkout.checkingCoupon') })} className='flex justify-center gap-3 mt-3'>
-                            <input onChange={(e) => setCouponCodeInput(e.target.value)} value={couponCodeInput} type="text" placeholder={t('checkout.couponCode')} className='border border-slate-400 p-1.5 rounded w-full outline-none' />
-                            <button className='bg-slate-600 text-white px-3 rounded hover:bg-slate-800 active:scale-95 transition-all'>{t('checkout.apply')}</button>
-                        </form>
-                    ) : (
-                        <div className='w-full flex items-center justify-center gap-2 text-xs mt-2'>
-                            <p>{t('checkout.code')} <span className='font-semibold ml-1'>{coupon.code.toUpperCase()}</span></p>
-                            <p>{coupon.description}</p>
-                            <XIcon size={18} onClick={() => setCoupon('')} className='hover:text-red-700 transition cursor-pointer' />
-                        </div>
-                    )
-                }
+                <div className='flex justify-between text-sm'>
+                    <span className='text-gray-500'>{t('checkout.delivery')}</span>
+                    <span className='text-gray-800 font-semibold'>
+                        <Show when={(has) => has({ plan: 'plus' })} fallback={<span className={deliveryFree ? 'text-green-600' : ''}>{deliveryFree ? 'Free' : <CurrencyAmount amount={5} />}</span>}>
+                            {t('checkout.free')}
+                        </Show>
+                    </span>
+                </div>
+                {coupon && (
+                    <div className='flex justify-between text-sm'>
+                        <span className='text-gray-500'>Coupon discount</span>
+                        <span className='text-green-600 font-semibold'>-<CurrencyAmount amount={(coupon.discount / 100 * totalPrice) * -1} /></span>
+                    </div>
+                )}
             </div>
-            <div className='flex justify-between py-4'>
-                <p>{t('checkout.total')}</p>
-                <p className='font-medium text-right'>
+
+            {/* Coupon */}
+            {!coupon ? (
+                <form onSubmit={e => toast.promise(handleCouponCode(e), { loading: t('checkout.checkingCoupon') })} className='flex gap-2 mb-5'>
+                    <input
+                        onChange={(e) => setCouponCodeInput(e.target.value)}
+                        value={couponCodeInput}
+                        type="text"
+                        placeholder={t('checkout.couponCode')}
+                        className='border border-gray-200 px-3 py-2.5 rounded-xl flex-1 outline-none text-sm bg-white focus:border-[var(--color-primary)] focus:ring-2 focus:ring-blue-500/10 transition-all'
+                    />
+                    <button className='bg-gray-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-800 transition-all duration-200 active:scale-95'>
+                        {t('checkout.apply')}
+                    </button>
+                </form>
+            ) : (
+                <div className='flex items-center justify-between text-xs mb-5 p-3 bg-green-50 rounded-xl border border-green-100'>
+                    <span className='text-green-700 font-medium'>✓ {t('checkout.code')} <span className='font-bold ml-1'>{coupon.code.toUpperCase()}</span> — {coupon.description}</span>
+                    <button onClick={() => setCoupon('')} className='text-gray-400 hover:text-red-500 transition-colors p-1'>
+                        <XIcon size={14} />
+                    </button>
+                </div>
+            )}
+
+            {/* Total */}
+            <div className='flex justify-between items-center mb-5'>
+                <span className='text-sm font-semibold text-gray-700'>{t('checkout.total')}</span>
+                <span className='text-xl font-bold text-gray-900 tabular-nums'>
                     <Show when={(has) => has({ plan: 'plus' })} fallback={<span><CurrencyAmount amount={coupon ? (totalPrice + (deliveryFree ? 0 : 5) - (coupon.discount / 100 * totalPrice)) : (totalPrice + (deliveryFree ? 0 : 5))} /></span>}>
                         <CurrencyAmount amount={coupon ? (totalPrice - (coupon.discount / 100 * totalPrice)) : totalPrice} />
                     </Show>
-                </p>
+                </span>
             </div>
-            <button onClick={e => toast.promise(handlePlaceOrder(e), { loading: t('checkout.placingOrder') })} disabled={paymentMethod === 'WALLET' && !walletLoading && walletBalance != null && walletBalance < totalPrice} className='w-full bg-slate-700 text-white py-2.5 rounded hover:bg-slate-900 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed'>{t('checkout.placeOrder')}</button>
 
-            {showAddressModal && <AddressModal setShowAddressModal={setShowAddressModal} />}
+            {/* Place Order Button */}
+            <button
+                onClick={e => toast.promise(handlePlaceOrder(e), { loading: t('checkout.placingOrder') })}
+                disabled={paymentMethod === 'WALLET' && !walletLoading && walletBalance != null && walletBalance < totalPrice}
+                className='w-full bg-[var(--color-primary)] text-white py-3.5 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/25 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:transform-none disabled:hover:shadow-none flex items-center justify-center gap-2'
+            >
+                <Lock size={14} />
+                {t('checkout.placeOrder')}
+            </button>
 
+            {/* Payment Trust */}
+            <div className="flex items-center justify-center gap-5 mt-4 pt-4 border-t border-gray-100">
+                <span className="text-[10px] text-gray-400 flex items-center gap-1 font-medium">
+                    <ShieldCheck size={12} className="text-green-500" />
+                    Secure
+                </span>
+                <span className="text-[10px] text-gray-400 flex items-center gap-1 font-medium">
+                    <Lock size={12} className="text-[var(--color-primary)]" />
+                    SSL Encrypted
+                </span>
+                <span className="text-[10px] text-gray-400 flex items-center gap-1 font-medium">
+                    <span className="text-green-500">✓</span>
+                    Safe Payment
+                </span>
+            </div>
+          </div>
+
+          {showAddressModal && <AddressModal setShowAddressModal={setShowAddressModal} />}
         </div>
     )
 }

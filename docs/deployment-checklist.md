@@ -114,7 +114,7 @@ limits or vice versa.
 | `checkoutRateLimiter` | `checkout` | 60 s | 15 | `POST /api/orders` (checkout) | userId |
 | `paymentStatusRateLimiter` | `payment-status` | 60 s | 30 | `GET /api/payments/status` | userId |
 | `refundRateLimiter` | `refund` | 60 s | 20 | `POST /api/admin/refund` | userId |
-| `webhookRateLimiter` | `webhook` | 60 s | 120 | `POST /api/flutterwave` (Flutterwave webhook) | hashIp |
+| `webhookRateLimiter` | `webhook` | 60 s | 120 | `POST /api/webhook/clerk` (Clerk webhook) | hashIp |
 | `walletTopupRateLimiter` | `wallet-topup` | 60 s | 10 | `POST /api/wallet/topup` | userId |
 | `ratingRateLimiter` | `rating` | 60 s | 15 | `POST /api/rating` | userId |
 | `verificationSendRateLimiter` | `verification-send` | 10 min | 3 | `POST /api/auth/send-verification` | userId |
@@ -147,7 +147,7 @@ limits or vice versa.
   the API tests never need a live database; the Postgres path is covered by
   `tests/lib/rateLimitStore.test.js` + the runtime hammer check below.
 - Placement discipline: the check runs **after authentication, before any
-  expensive work** — ImageKit uploads, OpenAI calls, Flutterwave hosted payment creation
+  expensive work** — ImageKit uploads, OpenAI calls, AMBER PAY wallet operations
   and external OER lookups are all blocked before cost is incurred.
 - 429 responses are uniform: `{ "error": "Too many requests. Please try
   again later." }` with a `Retry-After` header (seconds to window roll).
@@ -212,8 +212,9 @@ npx prisma migrate diff \
 | `CLERK_WEBHOOK_SECRET` | prod webhook secret | webhook verification |
 | `OPEN_EXCHANGE_RATES_APP_ID` | OER app id (or add `access_key` for exchangerate.host) | stale exchange rates |
 | `GOOGLE_TRANSLATE_API_KEY` | Google Cloud Translate key | `/api/translate` 503 |
-| `FLW_SECRET_KEY` | **live** Flutterwave secret key (`FLWSECK-...`) | checkout 502; app refuses to start on `FLWSECK_TEST-` in prod |
-| `FLW_WEBHOOK_SECRET_HASH` | secret hash from Settings → Webhooks | webhook rejects without a matching `verif-hash` header |
+| `AMBER_PAY_FEE_RATE` | `0.02` (2% platform fee) | AMBER PAY transaction fees |
+| `AMBER_PAY_AGENT_COMMISSION` | `0.02` (2% agent commission) | Agent earnings |
+| `AMBER_PAY_MERCHANT_FEE` | `0.05` (5% merchant fee) | Merchant settlement deductions |
 | `NEXT_PUBLIC_APP_URL` | `https://www.abumarketplace.shop` | safe origin/CORS |
 | `DATABASE_PROVIDER` | `postgresql` | (documentation of intent) |
 | `VERIFICATION_EMAIL_FROM`, `EMAIL_FROM`, `SUPPORT_EMAIL_FROM` | verified Resend domains | OTP/order emails |

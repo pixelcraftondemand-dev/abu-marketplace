@@ -1,7 +1,6 @@
 'use client'
 import { useState, useCallback } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
-import { StarIcon, Heart, ShoppingBag, Zap, BadgeCheck, Check } from 'lucide-react'
+import { StarIcon, Heart, ShoppingBag, Check, BadgeCheck } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -16,17 +15,8 @@ import { useTranslation } from '@/lib/i18n'
 import { useFlashCountdown } from '@/lib/hooks/useFlashCountdown'
 
 /**
- * Signature product card — the element that defines the site's feel.
- *
- * Interactions:
- *  - Card lifts on hover/tap with spring physics
- *  - Image scales subtly with parallax feel
- *  - Quick-add buttons reveal on hover (desktop) or always visible (mobile)
- *  - "Add to cart" morphs into a confirmed ✓ state
- *  - Wishlist heart fills with spring animation
- *  - All respects prefers-reduced-motion
- *
- * Theme-aware via CSS custom properties — works in both light and dark mode.
+ * Amazon-density product card — compact, price-dominant, trust-rich.
+ * Polished with smooth shadows, satisfying hover lifts, and micro-interactions.
  */
 const ProductCard = ({ product, showQuickAdd = true }) => {
     const { t } = useTranslation()
@@ -34,7 +24,6 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
     const router = useRouter()
     const wishlistItems = useSelector((state) => state.wishlist.items)
     const isWishlisted = wishlistItems.includes(product.id)
-    const prefersReducedMotion = useReducedMotion()
 
     const { rating, count } = getProductRating(product)
     const discount = getProductDiscount(product)
@@ -65,208 +54,137 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
         setTimeout(() => setAddedToCart(false), 2000)
     }, [dispatch, product, t])
 
-    const handleBuyNow = useCallback((e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        if (!product.inStock) {
-            toast.error(t('product.outOfStock'))
-            return
-        }
-        dispatch(addToCart({ productId: product.id }))
-        emitAddedToCart(product)
-        router.push('/cart')
-    }, [dispatch, product, router, t])
-
     const lowStock = product.stock != null && Number(product.stock) > 0 && Number(product.stock) <= 5
     const isFlashDeal = discount >= 15
     const { formatted: flashCountdown, mounted: flashMounted } = useFlashCountdown()
     const soldCount = product.soldCount != null ? Number(product.soldCount) : count
 
-    // Spring config — responsive to reduced motion preference
-    const spring = prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 24 }
-    const quickSpring = prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 500, damping: 30 }
-
     return (
-        <motion.div
-            className="group relative mx-auto w-full max-w-[280px] overflow-hidden rounded-[20px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-3 sm:p-4 shadow-[var(--shadow-sm)] dark:shadow-none"
-            onHoverStart={() => setIsHovered(true)}
-            onHoverEnd={() => setIsHovered(false)}
-            whileHover={prefersReducedMotion ? {} : { y: -6, boxShadow: "var(--shadow-lg)" }}
-            whileTap={prefersReducedMotion ? {} : { scale: 0.98 }}
-            transition={spring}
-            layout
+        <div
+            className="group relative flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden transition-all duration-300 ease-out hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.08),0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:border-gray-200 hover:-translate-y-0.5"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
         >
-            <Link href={`/product/${product.id}`} className="block overflow-hidden">
+            <Link href={`/product/${product.id}`} className="block">
                 {/* Image Container */}
-                <div className="relative aspect-[4/5] overflow-hidden rounded-[16px] bg-[var(--bg-muted)]">
-                    {/* Badges */}
+                <div className="relative aspect-square overflow-hidden bg-gray-50">
+                    {/* Discount badge */}
                     {discount > 0 && (
-                        <span className="absolute left-2.5 top-2.5 sm:left-3 sm:top-3 rounded-full bg-rose-500 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-white shadow-sm z-10">
+                        <span className="absolute left-2.5 top-2.5 z-10 rounded-md bg-[var(--sale-red)] px-2 py-0.5 text-[10px] font-bold text-white leading-none shadow-sm">
                             -{discount}%
                         </span>
                     )}
-                    {lowStock && (
-                        <span className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-white shadow-sm z-10">
-                            {t('product.onlyXLeft', { count: product.stock })}
-                        </span>
-                    )}
-                    {(product.halalCertified || product.badge) && !lowStock && (
-                        <span className="absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3 inline-flex items-center gap-1.5 rounded-full border border-[var(--border-primary)] bg-[var(--bg-surface)]/95 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)] shadow-sm backdrop-blur-sm z-10">
-                            {product.halalCertified ? t('product.halalCertified') : product.badge}
-                        </span>
-                    )}
+
+                    {/* Flash deal countdown */}
                     {isFlashDeal && flashMounted && (
-                        <span className="absolute right-2.5 top-2.5 sm:right-3 sm:top-3 inline-flex items-center gap-1 rounded-full bg-[var(--text-primary)]/90 px-2.5 py-1 text-[10px] font-semibold text-[var(--text-inverse)] shadow-sm backdrop-blur-sm z-10">
+                        <span className="absolute right-2.5 top-2.5 z-10 inline-flex items-center gap-1 rounded-md bg-gray-900/90 px-2 py-1 text-[9px] font-semibold text-white backdrop-blur-sm shadow-sm">
                             <span className="animate-pulse">⚡</span>
                             <span className="font-mono tabular-nums">{flashCountdown}</span>
                         </span>
                     )}
-                    {!isFlashDeal && (
-                        <span className="absolute right-2.5 top-2.5 sm:right-3 sm:top-3 rounded-full bg-[var(--bg-surface)]/95 px-2.5 py-1 text-[10px] font-semibold text-[var(--text-secondary)] shadow-sm backdrop-blur-sm z-10">
-                            {t('product.freeDelivery')}
-                        </span>
-                    )}
 
-                    {/* Product Image — scales with spring on hover */}
-                    <motion.div
-                        className="w-full h-full"
-                        animate={isHovered && !prefersReducedMotion ? { scale: 1.05 } : { scale: 1 }}
-                        transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                    {/* Product Image */}
+                    <Image
+                        width={400}
+                        height={400}
+                        className={`w-full h-full object-contain p-3 transition-transform duration-500 ease-out ${isHovered ? 'scale-110' : 'scale-100'}`}
+                        src={images[0]}
+                        alt={product.name}
+                    />
+
+                    {/* Wishlist heart */}
+                    <button
+                        onClick={handleWishlist}
+                        className={`absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 backdrop-blur-sm shadow-sm transition-all duration-300 ${
+                            isHovered || isWishlisted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'
+                        } hover:scale-110 active:scale-95`}
+                        aria-label={isWishlisted ? t('product.removedFromWishlist') : t('product.addedToWishlist')}
                     >
-                        <Image
-                            width={500}
-                            height={500}
-                            className="w-full h-full object-contain p-3 sm:p-4"
-                            src={images[0]}
-                            alt={product.name}
+                        <Heart
+                            size={14}
+                            className={`transition-colors duration-200 ${isWishlisted ? 'fill-rose-500 text-rose-500' : 'text-gray-400'}`}
                         />
-                    </motion.div>
-
-                    {/* Quick Add buttons — reveal on hover (desktop) / always on mobile */}
-                    {showQuickAdd && (
-                        <motion.div
-                            className="absolute bottom-2.5 right-2.5 sm:bottom-3 sm:right-3 flex gap-2 z-10"
-                            initial={false}
-                            animate={isHovered || typeof window !== 'undefined' && window.innerWidth < 768
-                                ? { opacity: 1, y: 0 }
-                                : { opacity: 0, y: 8 }
-                            }
-                            transition={quickSpring}
-                        >
-                            <motion.button
-                                onClick={handleBuyNow}
-                                whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
-                                className="flex h-10 sm:h-11 items-center gap-1.5 rounded-full bg-[var(--text-primary)] px-3 sm:px-4 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-inverse)] shadow-lg transition-colors hover:bg-[var(--text-primary)]/90 min-h-[44px]"
-                                aria-label={t('product.buyNow')}
-                            >
-                                <Zap size={14} />
-                                <span className="hidden sm:inline">{t('product.buyNow')}</span>
-                            </motion.button>
-                            <motion.button
-                                onClick={handleQuickAdd}
-                                whileTap={prefersReducedMotion ? {} : { scale: 0.92 }}
-                                className="flex h-10 sm:h-11 w-10 sm:w-11 items-center justify-center rounded-full bg-[var(--accent)] text-white shadow-lg transition-colors hover:bg-[var(--accent-hover)] min-h-[44px] min-w-[44px]"
-                                aria-label={addedToCart ? t('product.addedToCart') : t('product.quickAdd')}
-                            >
-                                <motion.div
-                                    key={addedToCart ? 'check' : 'bag'}
-                                    initial={prefersReducedMotion ? {} : { scale: 0, rotate: -90 }}
-                                    animate={{ scale: 1, rotate: 0 }}
-                                    transition={quickSpring}
-                                >
-                                    {addedToCart ? <Check size={18} strokeWidth={2.5} /> : <ShoppingBag size={18} />}
-                                </motion.div>
-                            </motion.button>
-                        </motion.div>
-                    )}
+                    </button>
                 </div>
 
                 {/* Content */}
-                <div className="mt-3 sm:mt-4 flex flex-col gap-2 sm:gap-3 min-w-0">
-                    <div className="min-w-0">
-                        <p className="line-clamp-2 text-sm font-semibold leading-snug text-[var(--text-primary)]">
-                            {product.name}
-                        </p>
-                        <div className="mt-1.5 sm:mt-2 flex items-center gap-1.5 sm:gap-2 text-[11px] sm:text-[12px] text-[var(--text-secondary)]">
-                            <div className="flex items-center gap-0.5">
-                                {Array(5).fill('').map((_, index) => (
-                                    <StarIcon
-                                        key={index}
-                                        size={12}
-                                        className="text-transparent"
-                                        fill={rating >= index + 1 ? '#F59E0B' : 'var(--border-primary)'}
-                                    />
-                                ))}
-                            </div>
-                            <span className="font-medium text-[var(--text-primary)]">
-                                {rating.toFixed(1)}
-                                {count > 0 && <span className="ml-1 text-[var(--text-tertiary)]">({count})</span>}
-                            </span>
-                            {soldCount > 0 && (
-                                <span className="text-[10px] sm:text-[11px] font-medium text-[var(--text-secondary)]">· {t('product.xSold', { count: soldCount })}</span>
-                            )}
+                <div className="p-3 flex flex-col gap-1 min-w-0">
+                    {/* Title */}
+                    <p className="line-clamp-2 text-[13px] leading-snug text-gray-800 font-medium group-hover:text-[var(--color-primary)] transition-colors duration-200">
+                        {product.name}
+                    </p>
+
+                    {/* Star rating + review count + sold count */}
+                    <div className="flex items-center gap-1 flex-wrap">
+                        <div className="flex items-center gap-0.5">
+                            {Array(5).fill('').map((_, index) => (
+                                <StarIcon
+                                    key={index}
+                                    size={11}
+                                    className="text-transparent"
+                                    fill={rating >= index + 1 ? '#F59E0B' : '#E5E7EB'}
+                                />
+                            ))}
                         </div>
-                        <p className="mt-1.5 sm:mt-2 text-[11px] sm:text-[12px] text-[var(--text-tertiary)]">{t('product.easyReturns')}</p>
+                        <span className="text-[11px] font-semibold text-gray-800">{rating.toFixed(1)}</span>
+                        <span className="text-[11px] text-gray-400">({count.toLocaleString()})</span>
+                        {soldCount > 0 && (
+                            <span className="text-[10px] text-gray-400">· {t('product.xSold', { count: soldCount })}</span>
+                        )}
                     </div>
 
                     {/* Price block */}
-                    <div className="rounded-[14px] sm:rounded-[18px] border border-[var(--border-subtle)] bg-[var(--bg-muted)] p-2.5 sm:p-3 min-w-0">
-                        <div className="flex items-center justify-between gap-2 min-w-0">
-                            <div className="min-w-0 flex-1">
-                                <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.15em] text-[var(--text-tertiary)]">{t('product.yourPrice')}</p>
-                                <p className="mt-0.5 text-sm sm:text-base lg:text-lg font-semibold text-[var(--text-primary)] tabular-nums truncate">
-                                    <CurrencyAmount amount={product.price} />
-                                </p>
-                            </div>
-                            {discount > 0 ? (
-                                <div className="text-right shrink-0">
-                                    <p className="text-[10px] sm:text-[11px] text-[var(--text-tertiary)] line-through tabular-nums truncate max-w-[80px]">
-                                        <CurrencyAmount amount={product.mrp} />
-                                    </p>
-                                    <p className="mt-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-amber-700 dark:text-amber-400">
-                                        {t('product.save', { percent: discount })}
-                                    </p>
-                                </div>
-                            ) : (
-                                <span className="shrink-0 rounded-full bg-[var(--bg-surface)] border border-[var(--border-subtle)] px-2.5 py-0.5 text-[10px] sm:text-[11px] font-semibold text-[var(--text-secondary)]">
-                                    {t('product.popular')}
-                                </span>
-                            )}
-                        </div>
+                    <div className="flex items-baseline gap-2 mt-0.5">
+                        <p className="text-lg font-bold text-gray-900 tabular-nums leading-tight">
+                            <CurrencyAmount amount={product.price} />
+                        </p>
+                        {discount > 0 && (
+                            <p className="text-[11px] text-gray-400 line-through tabular-nums">
+                                <CurrencyAmount amount={product.mrp} />
+                            </p>
+                        )}
                     </div>
+
+                    {/* Micro-trust line */}
+                    <p className={`text-[10px] leading-tight font-medium ${lowStock ? 'text-[var(--color-urgency)]' : 'text-green-600'}`}>
+                        {lowStock
+                            ? `⚠ ${t('product.onlyXLeft', { count: product.stock })}`
+                            : `✓ ${t('product.freeDelivery')}`
+                        }
+                    </p>
                 </div>
             </Link>
 
-            {/* Seller badge — outside the Link to avoid nested <a> */}
+            {/* Quick-add button */}
+            {showQuickAdd && (
+                <button
+                    onClick={handleQuickAdd}
+                    className={`absolute bottom-3 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full shadow-md transition-all duration-300 ease-out min-h-[36px] min-w-[36px] ${
+                        addedToCart
+                            ? 'bg-green-500 text-white scale-110'
+                            : 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/25'
+                    } ${isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
+                    aria-label={addedToCart ? t('product.addedToCart') : t('product.quickAdd')}
+                >
+                    {addedToCart ? (
+                        <Check size={16} strokeWidth={3} className="animate-[scale-in_0.2s_ease-out]" />
+                    ) : (
+                        <ShoppingBag size={14} />
+                    )}
+                </button>
+            )}
+
+            {/* Seller badge */}
             {product.store && (
                 <Link
                     href={`/shop/${product.store.username}`}
-                    className="mt-2.5 flex items-center gap-1.5 text-[10px] sm:text-[11px] font-medium text-[var(--text-secondary)] transition hover:text-[var(--accent)]"
+                    className="px-3 pb-2.5 flex items-center gap-1 text-[10px] font-medium text-gray-400 transition-colors duration-200 hover:text-[var(--color-primary)]"
                 >
-                    <BadgeCheck size={12} className="shrink-0 text-[var(--accent)]" />
+                    <BadgeCheck size={10} className="shrink-0 text-green-500" />
                     <span className="truncate min-w-0">{product.store.name}</span>
                 </Link>
             )}
-
-            {/* Wishlist button — animated heart */}
-            <motion.button
-                onClick={handleWishlist}
-                whileTap={prefersReducedMotion ? {} : { scale: 0.8 }}
-                transition={quickSpring}
-                className="absolute right-3 top-3 sm:right-4 sm:top-4 z-10 flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-[var(--bg-surface)]/90 backdrop-blur-sm shadow-sm border border-[var(--border-subtle)] transition-colors hover:bg-[var(--bg-surface)] min-h-[44px] min-w-[44px]"
-                aria-label={isWishlisted ? t('product.removedFromWishlist') : t('product.addedToWishlist')}
-            >
-                <motion.div
-                    animate={isWishlisted ? { scale: [1, 1.3, 1] } : { scale: 1 }}
-                    transition={quickSpring}
-                >
-                    <Heart
-                        size={16}
-                        className={isWishlisted ? 'fill-rose-500 text-rose-500' : 'text-[var(--text-tertiary)]'}
-                    />
-                </motion.div>
-            </motion.button>
-        </motion.div>
+        </div>
     )
 }
 

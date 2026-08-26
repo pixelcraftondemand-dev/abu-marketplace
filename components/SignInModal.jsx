@@ -313,12 +313,12 @@ export default function SignInModal({ open, onClose }) {
       {/* Modal */}
       <div
         ref={modalRef}
-        className="relative w-full max-w-[420px] bg-[var(--bg-surface)] rounded-3xl shadow-2xl overflow-hidden animate-scale-in"
+        className="relative w-full max-w-[420px] bg-white rounded-2xl shadow-2xl overflow-hidden animate-[scale-in_0.2s_ease-out]"
       >
         {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 rounded-full hover:bg-[var(--bg-muted)] transition-colors"
+          className="absolute top-4 right-4 z-10 p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-all duration-200"
           aria-label="Close sign-in"
         >
           <X size={18} className="text-[var(--text-tertiary)]" />
@@ -326,13 +326,13 @@ export default function SignInModal({ open, onClose }) {
 
         {/* Header */}
         <div className="px-8 pt-8 pb-2 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--text-primary)]">
-            <span className="text-lg font-bold text-[var(--bg-primary)] tracking-wider">ABU</span>
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gray-900">
+            <span className="text-lg font-bold text-white tracking-wider">ABU</span>
           </div>
-          <h2 className="text-xl font-semibold text-[var(--text-primary)] tracking-tight">
+          <h2 className="text-xl font-bold text-gray-900 tracking-tight">
             Sign in or create your account
           </h2>
-          <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
+          <p className="mt-1.5 text-sm text-gray-500">
             Enter your email — no password needed.
           </p>
         </div>
@@ -345,19 +345,19 @@ export default function SignInModal({ open, onClose }) {
               <button
                 onClick={handlePasskeySignIn}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-[var(--border-primary)] rounded-2xl text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-muted)] hover:border-[var(--text-tertiary)] transition-all disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 disabled:opacity-50"
               >
-                <KeyRound size={18} className="text-[var(--text-secondary)]" />
+                <KeyRound size={18} className="text-gray-400" />
                 Sign in with passkey
               </button>
 
               {/* Divider */}
               <div className="my-5 flex items-center gap-3">
-                <div className="flex-1 h-px bg-slate-200" />
-                <span className="text-[11px] font-medium text-[var(--text-tertiary)] uppercase tracking-widest">
+                <div className="flex-1 h-px bg-gray-200" />
+                <span className="text-[11px] font-medium text-gray-400 uppercase tracking-widest">
                   or sign in with email
                 </span>
-                <div className="flex-1 h-px bg-slate-200" />
+                <div className="flex-1 h-px bg-gray-200" />
               </div>
             </>
           )}
@@ -371,7 +371,7 @@ export default function SignInModal({ open, onClose }) {
               <div className="relative">
                 <Mail
                   size={16}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
                 />
                 <input
                   ref={emailInputRef}
@@ -383,7 +383,7 @@ export default function SignInModal({ open, onClose }) {
                   }}
                   placeholder="you@example.com"
                   autoComplete="email"
-                  className="w-full pl-11 pr-4 py-3.5 bg-[var(--bg-muted)] border border-[var(--border-primary)] rounded-2xl text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:border-[var(--accent)] transition-all"
+                  className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-300 transition-all duration-200"
                 />
               </div>
 
@@ -397,7 +397,7 @@ export default function SignInModal({ open, onClose }) {
               <button
                 type="submit"
                 disabled={!isValidEmail || loading}
-                className="mt-4 w-full flex items-center justify-center gap-2 py-3.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-sm font-medium tracking-wide hover:bg-[var(--accent)] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="mt-4 w-full flex items-center justify-center gap-2 py-3.5 bg-gray-900 text-white rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-gray-800 hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <Loader2 size={16} className="animate-spin" />
@@ -409,7 +409,7 @@ export default function SignInModal({ open, onClose }) {
                 )}
               </button>
 
-              <p className="mt-3 text-center text-xs text-[var(--text-tertiary)]">
+              <p className="mt-3 text-center text-xs text-gray-400">
                 We&apos;ll email you a 6-digit code. No password needed.
               </p>
             </form>
@@ -434,7 +434,7 @@ export default function SignInModal({ open, onClose }) {
                 value={code}
                 onChange={(e) => handleCodeChange(e.target.value)}
                 placeholder="000000"
-                className="w-full px-4 py-4 bg-[var(--bg-muted)] border border-[var(--border-primary)] rounded-2xl text-center text-2xl font-mono font-semibold tracking-[0.3em] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] placeholder:tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/40 focus:border-[var(--accent)] transition-all"
+                className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl text-center text-2xl font-mono font-semibold tracking-[0.3em] text-gray-800 placeholder:text-gray-300 placeholder:tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-300 transition-all duration-200"
                 maxLength={6}
               />
 
@@ -448,7 +448,7 @@ export default function SignInModal({ open, onClose }) {
               <button
                 type="submit"
                 disabled={!code.trim() || loading || code.length < 6}
-                className="mt-4 w-full flex items-center justify-center gap-2 py-3.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-sm font-medium tracking-wide hover:bg-[var(--accent)] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="mt-4 w-full flex items-center justify-center gap-2 py-3.5 bg-gray-900 text-white rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-gray-800 hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <Loader2 size={16} className="animate-spin" />
@@ -457,11 +457,11 @@ export default function SignInModal({ open, onClose }) {
                 )}
               </button>
 
-              <p className="mt-3 text-center text-xs text-[var(--text-tertiary)]">
+              <p className="mt-3 text-center text-xs text-gray-400">
                 {resendTimer > 0 ? (
                   <span>
                     Resend code in{" "}
-                    <span className="font-medium text-[var(--text-secondary)]">
+                    <span className="font-medium text-gray-600">
                       {resendTimer}s
                     </span>
                   </span>
@@ -469,7 +469,7 @@ export default function SignInModal({ open, onClose }) {
                   <button
                     type="button"
                     onClick={handleResend}
-                    className="text-[var(--accent)] hover:underline font-medium"
+                    className="text-[var(--color-primary)] hover:underline font-medium"
                   >
                     Resend code
                   </button>
@@ -483,7 +483,7 @@ export default function SignInModal({ open, onClose }) {
                   setError("");
                   setCode("");
                 }}
-                className="mt-2 w-full text-center text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
+                className="mt-2 w-full text-center text-xs text-gray-400 hover:text-gray-600 transition-colors"
               >
                 Use a different email
               </button>
@@ -493,36 +493,36 @@ export default function SignInModal({ open, onClose }) {
           {/* ─── Step: New device warning ─── */}
           {step === "newDeviceWarning" && (
             <div className="text-center">
-              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-50/20 border border-amber-300/30">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-amber-50 border border-amber-100">
                 <ShieldCheck size={24} className="text-amber-500" />
               </div>
-              <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
                 New device detected
               </h3>
-              <p className="text-sm text-[var(--text-secondary)] mb-4 leading-relaxed">
+              <p className="text-sm text-gray-500 mb-4 leading-relaxed">
                 We&apos;ve sent a security alert to your email. If this was you,
                 you&apos;re all set. If not, please change your password
                 immediately.
               </p>
               {newDeviceInfo && (
-                <div className="bg-[var(--bg-muted)] rounded-2xl p-4 text-left text-xs text-[var(--text-secondary)] space-y-1 mb-6">
+                <div className="bg-gray-50 rounded-xl p-4 text-left text-xs text-gray-500 space-y-1 mb-6 border border-gray-100">
                   <p>
-                    <span className="font-medium text-[var(--text-primary)]">Platform:</span>{" "}
+                    <span className="font-medium text-gray-700">Platform:</span>{" "}
                     {newDeviceInfo.platform}
                   </p>
                   <p>
-                    <span className="font-medium text-[var(--text-primary)]">Screen:</span>{" "}
+                    <span className="font-medium text-gray-700">Screen:</span>{" "}
                     {newDeviceInfo.screen}
                   </p>
                   <p>
-                    <span className="font-medium text-[var(--text-primary)]">Timezone:</span>{" "}
+                    <span className="font-medium text-gray-700">Timezone:</span>{" "}
                     {newDeviceInfo.timezone}
                   </p>
                 </div>
               )}
               <button
                 onClick={handleNewDeviceContinue}
-                className="w-full py-3.5 bg-[var(--text-primary)] text-[var(--bg-primary)] rounded-2xl text-sm font-medium tracking-wide hover:bg-[var(--accent)] transition-all"
+                className="w-full py-3.5 bg-gray-900 text-white rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-gray-800 hover:shadow-lg"
               >
                 Continue to ABU Marketplace
               </button>

@@ -15,15 +15,15 @@ const Title = ({ title, description, visibleButton = true, href = '', eyebrow })
     return (
         <div className='flex flex-col items-center text-center'>
             {eyebrow && (
-                <p className='text-editorial mb-3 text-[var(--accent)]'>{eyebrow}</p>
+                <p className='text-editorial mb-2 text-[var(--accent)]'>{eyebrow}</p>
             )}
-            <h2 className='font-display text-3xl font-medium text-[var(--text-primary)] sm:text-4xl'>{title}</h2>
+            <h2 className='font-display text-2xl font-bold text-[var(--text-primary)] sm:text-3xl'>{title}</h2>
             {description && (
-                <p className='mt-3 max-w-xl text-sm leading-relaxed text-[var(--text-secondary)]'>{description}</p>
+                <p className='mt-2 max-w-xl text-sm text-[var(--text-secondary)]'>{description}</p>
             )}
             {visibleButton && (
-                <Link href={href} className='group mt-5 inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.2em] text-[var(--text-secondary)] transition hover:text-[var(--accent)]'>
-                    <span className='border-b border-[var(--accent)]/40 pb-0.5'>{t('home.viewMore')}</span>
+                <Link href={href} className='group mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--accent)] transition hover:text-[var(--accent-hover)]'>
+                    <span>{t('home.viewMore')}</span>
                     <ArrowRight size={14} className='transition-transform group-hover:translate-x-1' />
                 </Link>
             )}

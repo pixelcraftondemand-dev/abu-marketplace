@@ -227,7 +227,7 @@ function VerifyEmailContent() {
 
   const states = {
     verifying: {
-      icon: <Loader2 className="animate-spin text-[#C9A96E]" size={44} strokeWidth={1.5} />,
+      icon: <Loader2 className="animate-spin text-[var(--color-primary)]" size={44} strokeWidth={1.5} />,
       title: "Verifying your code…",
       text: "Please wait a moment while we confirm your email address.",
     },
@@ -263,23 +263,23 @@ function VerifyEmailContent() {
   const isBusy = state === "verifying";
 
   return (
-    <div className="mx-6 flex min-h-[80vh] items-center justify-center">
-      <div className="w-full max-w-md rounded-[2rem] border border-[#E8DCC8] bg-white p-10 text-center shadow-[0_25px_70px_rgba(34,34,34,0.08)]">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-md bg-white rounded-2xl border border-gray-100 p-10 text-center shadow-sm">
         <BrandLogo
           className="justify-center"
-          brandClassName="text-[#1A1A1A]"
-          taglineClassName="text-[#8f7d61]"
+          brandClassName="text-gray-900"
+          taglineClassName="text-gray-500"
           compact
         />
 
         {isDone ? (
           <>
             <div className="mt-8 flex justify-center">{current.icon}</div>
-            <h1 className="mt-5 text-2xl font-semibold text-[#1A1A1A]">{current.title}</h1>
-            <p className="mt-3 text-sm leading-6 text-[#6A6053]">{current.text}</p>
+            <h1 className="mt-5 text-2xl font-bold text-gray-900 tracking-tight">{current.title}</h1>
+            <p className="mt-3 text-sm leading-6 text-gray-500">{current.text}</p>
             <Link
               href="/"
-              className="mt-8 inline-block rounded-full bg-[#1A1A1A] px-8 py-3 text-sm font-semibold text-white transition hover:bg-[#C9A96E]"
+              className="mt-8 inline-block bg-[var(--color-primary)] px-8 py-3.5 text-sm font-semibold text-white rounded-xl transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5"
             >
               Continue to ABU Marketplace
             </Link>
@@ -287,14 +287,14 @@ function VerifyEmailContent() {
         ) : state === "invalid" || state === "expired" || state === "error" ? (
           <>
             <div className="mt-8 flex justify-center">{current.icon}</div>
-            <h1 className="mt-5 text-2xl font-semibold text-[#1A1A1A]">{current.title}</h1>
-            <p className="mt-3 text-sm leading-6 text-[#6A6053]">{current.text}</p>
+            <h1 className="mt-5 text-2xl font-bold text-gray-900 tracking-tight">{current.title}</h1>
+            <p className="mt-3 text-sm leading-6 text-gray-500">{current.text}</p>
             <div className="mt-8 space-y-3">
               {userLoaded && user ? (
                 <button
                   onClick={handleResend}
                   disabled={resending || cooldown > 0}
-                  className="flex w-full items-center justify-center gap-2 rounded-full bg-[#1A1A1A] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#C9A96E] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex w-full items-center justify-center gap-2 bg-gray-900 px-6 py-3.5 text-sm font-semibold text-white rounded-xl transition-all duration-200 hover:bg-gray-800 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {resending ? (
                     <Loader2 className="animate-spin" size={16} />
@@ -304,8 +304,8 @@ function VerifyEmailContent() {
                   {cooldown > 0 ? `Resend code in ${cooldown}s` : "Request a new code"}
                 </button>
               ) : (
-                <p className="text-xs text-[#8C8071]">
-                  Signed out?{" "}                  <button onClick={() => dispatch(openSignInModal())} className="font-semibold text-[#C9A96E] hover:underline">
+                <p className="text-xs text-gray-400">
+                  Signed out?{" "}                  <button onClick={() => dispatch(openSignInModal())} className="font-semibold text-[var(--color-primary)] hover:underline">
                     Sign in
                   </button>{ " "}
                   to request a new code.
@@ -313,7 +313,7 @@ function VerifyEmailContent() {
               )}
               <Link
                 href="/"
-                className="block text-center text-sm font-medium text-[#6A6053] transition hover:text-[#1A1A1A]"
+                className="block text-center text-sm font-medium text-gray-500 transition hover:text-gray-800"
               >
                 Return home
               </Link>
@@ -322,10 +322,12 @@ function VerifyEmailContent() {
         ) : (
           <form onSubmit={handleSubmit} className="mt-8">
             <div className="flex justify-center">
-              <KeyRound className="text-[#C9A96E]" size={40} strokeWidth={1.5} />
+              <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center">
+                <KeyRound className="text-[var(--color-primary)]" size={24} strokeWidth={1.8} />
+              </div>
             </div>
-            <h1 className="mt-4 text-2xl font-semibold text-[#1A1A1A]">Enter your verification code</h1>
-            <p className="mt-3 text-sm leading-6 text-[#6A6053]">
+            <h1 className="mt-4 text-2xl font-bold text-gray-900 tracking-tight">Enter your verification code</h1>
+            <p className="mt-3 text-sm leading-6 text-gray-500">
               We sent a 6-digit code to your email. Enter it below to activate
               your ABU Marketplace account.
             </p>
@@ -347,8 +349,8 @@ function VerifyEmailContent() {
                   onChange={(e) => handleDigitChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   aria-label={`Digit ${index + 1}`}
-                  className={`h-14 w-11 sm:h-16 sm:w-13 rounded-2xl border text-center text-2xl font-semibold text-[#1A1A1A] outline-none transition focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/30 disabled:opacity-60 ${
-                    notice?.type === "error" ? "border-red-300" : "border-[#E8DCC8]"
+                  className={`h-14 w-11 sm:h-16 sm:w-13 rounded-xl border text-center text-2xl font-semibold text-gray-800 outline-none transition-all duration-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-500/10 disabled:opacity-60 ${
+                    notice?.type === "error" ? "border-red-300" : "border-gray-200"
                   }`}
                 />
               ))}
@@ -366,7 +368,7 @@ function VerifyEmailContent() {
             )}
 
             {isBusy && (
-              <p className="mt-4 flex items-center justify-center gap-2 text-sm text-[#8C8071]">
+              <p className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-400">
                 <Loader2 className="animate-spin" size={14} /> Verifying…
               </p>
             )}
@@ -374,7 +376,7 @@ function VerifyEmailContent() {
             <button
               type="submit"
               disabled={isBusy || code.length < 6}
-              className="mt-7 w-full rounded-full bg-[#1A1A1A] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#C9A96E] disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-7 w-full bg-gray-900 px-6 py-3.5 text-sm font-semibold text-white rounded-xl transition-all duration-200 hover:bg-gray-800 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
             >
               Verify email
             </button>
@@ -385,7 +387,7 @@ function VerifyEmailContent() {
                   type="button"
                   onClick={handleResend}
                   disabled={resending || cooldown > 0}
-                  className="flex w-full items-center justify-center gap-2 text-sm font-medium text-[#6A6053] transition hover:text-[#1A1A1A] disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex w-full items-center justify-center gap-2 text-sm font-medium text-gray-500 transition hover:text-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {resending ? (
                     <Loader2 className="animate-spin" size={14} />
@@ -395,8 +397,8 @@ function VerifyEmailContent() {
                   {cooldown > 0 ? `Resend code in ${cooldown}s` : "Didn't get the code? Resend it"}
                 </button>
               ) : (
-                <p className="text-xs text-[#8C8071]">
-                  Signed out?{" "}                  <button onClick={() => dispatch(openSignInModal())} className="font-semibold text-[#C9A96E] hover:underline">
+                <p className="text-xs text-gray-400">
+                  Signed out?{" "}                  <button onClick={() => dispatch(openSignInModal())} className="font-semibold text-[var(--color-primary)] hover:underline">
                     Sign in
                   </button>{ " "}
                   to resend the verification code.
@@ -404,7 +406,7 @@ function VerifyEmailContent() {
               )}
               <Link
                 href="/"
-                className="block text-center text-sm font-medium text-[#6A6053] transition hover:text-[#1A1A1A]"
+                className="block text-center text-sm font-medium text-gray-500 transition hover:text-gray-800"
               >
                 Return home
               </Link>
@@ -421,7 +423,7 @@ export default function VerifyEmailPage() {
     <Suspense
       fallback={
         <div className="flex min-h-[80vh] items-center justify-center">
-          <Loader2 className="animate-spin text-[#C9A96E]" size={28} />
+          <Loader2 className="animate-spin text-[var(--color-primary)]" size={28} />
         </div>
       }
     >

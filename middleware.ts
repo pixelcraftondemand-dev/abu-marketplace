@@ -37,7 +37,7 @@ const ALLOWED_ORIGINS = [
 // route handler is the authentication boundary. Every other unsafe API call
 // originates in the browser and is protected from cross-site request forgery
 // here, before a route handler can mutate state.
-const WEBHOOK_PATHS = new Set(["/api/flutterwave", "/api/webhook/clerk"]);
+const WEBHOOK_PATHS = new Set(["/api/webhook/clerk"]);
 const UNSAFE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 function isTrustedMutationOrigin(req: NextRequest): boolean {
@@ -235,12 +235,14 @@ setInterval(() => {
 const isProtectedRoute = createRouteMatcher([
   "/store(.*)",
   "/admin(.*)",
+  "/agent(.*)",
   "/orders(.*)",
   "/wishlist",
   "/account",
   "/cart/checkout",
   "/api/store(.*)",
   "/api/admin(.*)",
+  "/api/agent(.*)",
 ]);
 
 // Public read-only storefront endpoint (used by /shop/[username] WITHOUT auth).

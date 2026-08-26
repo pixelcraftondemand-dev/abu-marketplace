@@ -2,96 +2,125 @@
 
 @layer base {
   :root {
-    /* Luxury Color Palette */
-    --background: 0 0% 100%;
-    --foreground: 220 20% 10%;
+    /* ─── ABU Marketplace Tokens ─── */
+    --background: 228 100% 97%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 220 20% 10%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 10%;
-    --primary: 220 30% 15%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 217 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 30 30% 96%;
-    --secondary-foreground: 220 30% 15%;
-    --muted: 30 20% 96%;
-    --muted-foreground: 220 10% 45%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 30 20% 90%;
-    --input: 30 20% 90%;
-    --ring: 30 60% 50%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 100% 50%;
     --radius: 0.5rem;
 
-    /* Custom luxury tokens */
-    --luxury-gold: #C9A96E;
-    --luxury-gold-light: #D4B87A;
-    --luxury-gold-dark: #A88B52;
+    /* ABU brand palette */
+    --abu-blue: #0A5FFF;
+    --abu-blue-hover: #084FD6;
+    --abu-blue-light: #E8F0FF;
+    --abu-dark: #1A2B4C;
+    --abu-orange: #F2994A;
+    --abu-red: #E8453C;
+
+    /* Semantic color aliases (new components) */
+    --color-primary: #0A5FFF;
+    --color-primary-hover: #0848CC;
+    --color-accent: #F2994A;
+    --color-accent-hover: #E08838;
+    --color-urgency: #F2994A;
+    --sale-red: #E8453C;
+    --text-muted: #6B7280;
+    --border: #E5E7EB;
+    --bg-neutral: #F7F8FA;
+
+    /* Legacy tokens — kept for backward compat */
+    --luxury-gold: #0A5FFF;
+    --luxury-gold-light: #3B7FFF;
+    --luxury-gold-dark: #0848CC;
     --luxury-black: #1A1A1A;
-    --luxury-charcoal: #2D2D2D;
-    --luxury-cream: #FAF8F5;
-    --luxury-warm: #F5F0EB;
-    --luxury-stone: #E8E2DB;
+    --luxury-charcoal: #1A2B4C;
+    --luxury-cream: #F7F8FA;
+    --luxury-warm: #F0F2F5;
+    --luxury-stone: #E5E7EB;
     --luxury-text: #1A1A1A;
-    --luxury-text-muted: #6B6560;
-    --luxury-text-light: #9B9590;
+    --luxury-text-muted: #6B7280;
+    --luxury-text-light: #9CA3AF;
 
     /* ─── Theme tokens (light mode) ─── */
-    --bg-primary: #FAFAF8;
+    --bg-neutral: #F7F8FA;
+    --bg-primary: #F7F8FA;
     --bg-surface: #FFFFFF;
     --bg-elevated: #FFFFFF;
-    --bg-muted: #F4F3F0;
-    --bg-topbar: #111111;
-    --shadow-nav: 0 1px 0 0 rgba(232,226,219,1);
-    --text-primary: #141414;
-    --text-secondary: #8A8A85;
-    --text-tertiary: #B0ADA8;
+    --bg-muted: #F0F2F5;
+    --bg-topbar: #1A2B4C;
+    --shadow-nav: 0 1px 0 0 #E5E7EB;
+    --text-primary: #1A1A1A;
+    --text-secondary: #6B7280;
+    --text-tertiary: #9CA3AF;
     --text-inverse: #FFFFFF;
-    --accent: #C9A96E;
-    --accent-hover: #D4B87A;
-    --accent-brand: #2563EB;
-    --accent-brand-hover: #1D4ED8;
-    --accent-brand-light: #DBEAFE;
-    --border-primary: #E8E8E4;
-    --border-subtle: #F0F0EC;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.06);
-    --shadow-lg: 0 12px 32px rgba(0,0,0,0.08);
+    --accent: #0A5FFF;
+    --accent-hover: #0848CC;
+    --accent-brand: #0A5FFF;
+    --accent-brand-hover: #0848CC;
+    --accent-brand-light: #E8F0FF;
+    --border-primary: #E5E7EB;
+    --border-subtle: #F0F2F5;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    --shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
   }
 
   /* ─── Dark Mode Tokens ─── */
   .dark, .dark body {
-    --bg-primary: #121212;
-    --bg-surface: #1C1C1E;
-    --bg-elevated: #232326;
-    --bg-muted: #2C2C2E;
-    --bg-topbar: #000000;
+    --bg-primary: #0F172A;
+    --bg-surface: #1E293B;
+    --bg-elevated: #273549;
+    --bg-muted: #334155;
+    --bg-topbar: #0B1120;
+    --bg-neutral: #0F172A;
     --shadow-nav: 0 1px 0 0 rgba(255,255,255,0.06);
-    --text-primary: #F2F2F0;
-    --text-secondary: #A1A1A0;
-    --text-tertiary: #6E6E6D;
-    --text-inverse: #141414;
-    --accent: #D4B87A;
-    --accent-hover: #E0C88A;
-    --accent-brand: #60A5FA;
-    --accent-brand-hover: #93C5FD;
-    --accent-brand-light: rgba(96,165,250,0.15);
-    --border-primary: #2C2C2E;
-    --border-subtle: #1E1E1E;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
-    --shadow-lg: 0 12px 32px rgba(0,0,0,0.4);
-    --luxury-gold: #D4B87A;
-    --luxury-gold-light: #E0C88A;
-    --luxury-gold-dark: #C9A96E;
-    --luxury-black: #F2F2F0;
-    --luxury-charcoal: #E0E0DE;
-    --luxury-cream: #121212;
-    --luxury-warm: #1C1C1E;
-    --luxury-stone: #2C2C2E;
-    --luxury-text: #F2F2F0;
-    --luxury-text-muted: #A1A1A0;
-    --luxury-text-light: #6E6E6D;
+    --text-primary: #F1F5F9;
+    --text-secondary: #94A3B8;
+    --text-tertiary: #64748B;
+    --text-muted: #94A3B8;
+    --text-inverse: #0F172A;
+    --accent: #3B82F6;
+    --accent-hover: #60A5FA;
+    --accent-brand: #3B82F6;
+    --accent-brand-hover: #60A5FA;
+    --accent-brand-light: rgba(59,130,246,0.15);
+    --color-primary: #3B82F6;
+    --color-primary-hover: #60A5FA;
+    --color-accent: #F2994A;
+    --color-accent-hover: #E08838;
+    --color-urgency: #F2994A;
+    --sale-red: #E8453C;
+    --border: #334155;
+    --border-primary: #334155;
+    --border-subtle: #1E293B;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+    --shadow-lg: 0 12px 32px rgba(0,0,0,0.5);
+    --luxury-gold: #3B82F6;
+    --luxury-gold-light: #60A5FA;
+    --luxury-gold-dark: #2563EB;
+    --luxury-black: #F1F5F9;
+    --luxury-charcoal: #CBD5E1;
+    --luxury-cream: #0F172A;
+    --luxury-warm: #1E293B;
+    --luxury-stone: #334155;
+    --luxury-text: #F1F5F9;
+    --luxury-text-muted: #94A3B8;
+    --luxury-text-light: #64748B;
   }
 
   .dark body {
@@ -119,15 +148,15 @@
     color: var(--luxury-text);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: "kern" 1, "liga" 1;
+    font-feature-settings: "kern" 1, "liga" 1, "tnum" 1;
   }
 
   ::selection {
-    background: rgba(201, 169, 110, 0.25);
+    background: rgba(10, 95, 255, 0.2);
     color: var(--luxury-black);
   }
 
-  /* Premium scrollbar */
+  /* Scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
   }
@@ -166,9 +195,10 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
-  /* ─── Magazine Typography ─── */
+  /* ─── Typography — Confident Grotesk/Sans ─── */
   .font-display {
-    font-family: var(--font-playfair), 'Playfair Display', Georgia, serif;
+    font-family: var(--font-inter), 'Inter', system-ui, -apple-system, sans-serif;
+    font-weight: 600;
   }
 
   .font-body {
@@ -176,17 +206,18 @@
   }
 
   .text-magazine {
-    font-family: var(--font-playfair), 'Playfair Display', Georgia, serif;
-    letter-spacing: -0.03em;
-    line-height: 1.05;
+    font-family: var(--font-inter), 'Inter', system-ui, sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
   }
 
   .text-editorial {
     font-family: var(--font-inter), 'Inter', system-ui, sans-serif;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    font-size: 0.7rem;
-    font-weight: 500;
+    font-size: 0.65rem;
+    font-weight: 600;
   }
 
   /* ─── Asymmetric Grid System ─── */
@@ -278,39 +309,39 @@
     z-index: 2;
   }
 
-  /* ─── Product Cards (Etsy-style discovery) ─── */
+  /* ─── Product Cards (Amazon-style density) ─── */
   .product-discovery {
     position: relative;
     overflow: hidden;
-    border-radius: 0;
+    border-radius: 0.5rem;
     background: var(--bg-surface);
-    transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    border: 1px solid var(--border-primary);
+    transition: all 0.2s ease;
   }
 
   .product-discovery:hover {
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
-    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--accent);
   }
 
   .product-discovery:hover .product-discovery-img {
-    transform: scale(1.05);
+    transform: scale(1.03);
   }
 
   .product-discovery-img {
-    transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.3s ease;
   }
 
   .product-discovery-badge {
     position: absolute;
-    top: 1rem;
-    left: 1rem;
-    padding: 0.35rem 0.75rem;
-    background: var(--luxury-gold);
+    top: 0.5rem;
+    left: 0.5rem;
+    padding: 0.2rem 0.5rem;
+    background: var(--abu-red);
     color: white;
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    font-size: 0.625rem;
+    font-weight: 700;
+    border-radius: 0.25rem;
   }
 
   /* ─── Amazon-style efficiency ─── */
@@ -372,35 +403,28 @@
     }
   }
 
-  /* ─── Luxury Buttons ─── */
+  /* ─── ABU Buttons ─── */
   .btn-luxury {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 1rem 2.5rem;
-    background: var(--luxury-black);
-    color: var(--bg-primary);
-    font-size: 0.8rem;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    padding: 0.75rem 1.75rem;
+    background: var(--accent);
+    color: var(--text-inverse);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
     position: relative;
     overflow: hidden;
   }
 
-  .btn-luxury::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--luxury-gold);
-    transform: translateY(100%);
-    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-
-  .btn-luxury:hover::before {
-    transform: translateY(0);
+  .btn-luxury:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(10, 95, 255, 0.25);
   }
 
   .btn-luxury span {
@@ -408,29 +432,25 @@
     z-index: 1;
   }
 
-  .btn-luxury:hover {
-    color: white;
-  }
-
   .btn-luxury-outline {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 1rem 2.5rem;
+    padding: 0.75rem 1.75rem;
     background: transparent;
-    color: var(--luxury-black);
-    border: 1px solid var(--luxury-black);
-    font-size: 0.8rem;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    transition: all 0.3s ease;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
   }
 
   .btn-luxury-outline:hover {
-    background: var(--luxury-black);
-    color: var(--bg-primary);
+    background: var(--accent);
+    color: var(--text-inverse);
   }
 
   .btn-gold {
@@ -438,41 +458,42 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 0.875rem 2rem;
-    background: var(--luxury-gold);
+    padding: 0.625rem 1.5rem;
+    background: var(--accent);
     color: var(--text-inverse);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    transition: all 0.3s ease;
+    letter-spacing: 0.02em;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
   }
 
   .btn-gold:hover {
-    background: var(--luxury-gold-dark);
+    background: var(--accent-hover);
     transform: translateY(-1px);
-    box-shadow: 0 10px 30px -10px rgba(201, 169, 110, 0.4);
+    box-shadow: 0 4px 12px rgba(10, 95, 255, 0.25);
   }
 
-  /* ─── Category Pills (Etsy-style) ─── */
+  /* ─── Category Pills ─── */
   .category-pill-luxury {
     display: inline-flex;
     align-items: center;
-    padding: 0.75rem 1.5rem;
+    padding: 0.5rem 1rem;
     background: var(--bg-surface);
-    border: 1px solid var(--luxury-stone);
+    border: 1px solid var(--border-primary);
     color: var(--text-secondary);
-    font-size: 0.8rem;
+    font-size: 0.8125rem;
     font-weight: 500;
-    transition: all 0.3s ease;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
     white-space: nowrap;
   }
 
   .category-pill-luxury:hover,
   .category-pill-luxury.active {
-    background: var(--luxury-black);
-    border-color: var(--luxury-black);
-    color: var(--bg-primary);
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--text-inverse);
   }
 
   /* ─── Divider ─── */
@@ -486,23 +507,24 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 3rem;
-    padding: 1.5rem;
+    gap: 2rem;
+    padding: 0.875rem 1.5rem;
     background: var(--bg-surface);
-    border-top: 1px solid var(--luxury-stone);
-    border-bottom: 1px solid var(--luxury-stone);
+    border-top: 1px solid var(--border-primary);
+    border-bottom: 1px solid var(--border-primary);
   }
 
   .trust-item {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    font-size: 0.8rem;
-    color: var(--luxury-text-muted);
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
   }
 
   .trust-item svg {
-    color: var(--luxury-gold);
+    color: var(--accent);
   }
 
   /* ─── Image hover effects ─── */

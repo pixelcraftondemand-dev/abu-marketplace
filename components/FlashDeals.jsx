@@ -7,10 +7,10 @@ const FlashDeals = () => {
     const { formatted, mounted } = useFlashCountdown()
 
     return (
-        <div className="inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] px-3 py-1 text-xs font-semibold text-white">
-            <span className="animate-pulse">⚡</span>
+        <div className="inline-flex items-center gap-2 rounded-full bg-gray-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-lg shadow-black/10">
+            <span className="animate-pulse text-sm">⚡</span>
             {t('flashDeals.endsIn')}
-            <span className="rounded bg-[#C9A96E] px-1.5 py-0.5 font-mono text-[#1A1A1A]">
+            <span className="rounded-md bg-[var(--color-accent)] px-2 py-0.5 font-mono text-white tabular-nums">
                 {mounted ? formatted : '--:--:--'}
             </span>
         </div>

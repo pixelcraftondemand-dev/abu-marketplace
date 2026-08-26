@@ -5,7 +5,7 @@ import { checkoutRateLimiter } from "@/lib/security";
 import { getSessionFromRequest, getVerifiedUserFromRequest } from "@/lib/serverAuth";
 import { GET, POST } from "@/app/api/orders/route";
 
-// initiatePayment is a Flutterwave network call we never want to make in tests.
+// AMBER PAY is in-house — no external payment provider calls in tests.
 
 vi.mock("@/lib/serverAuth", () => ({
   getSessionFromRequest: vi.fn(),

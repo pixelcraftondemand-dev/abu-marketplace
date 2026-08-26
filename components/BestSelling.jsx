@@ -18,14 +18,14 @@ const BestSelling = () => {
         .slice(0, displayQuantity)
 
     return (
-        <div className='mx-auto my-16 max-w-6xl px-3 sm:px-6'>
+        <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-10 sm:my-14'>
             <Title
                 eyebrow={t('home.eyebrowBestSelling')}
                 title={t('home.bestSelling')}
                 description={t('home.showingProducts', { count: bestSelling.length, total: sourceProducts.length })}
                 href='/shop'
             />
-            <StaggerReveal className='mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:gap-6'>
+            <StaggerReveal className='mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 sm:gap-3'>
                 {bestSelling.map((product) => (
                     <StaggerItem key={product.id}>
                         <ProductCard product={product} />

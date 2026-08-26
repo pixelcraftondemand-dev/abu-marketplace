@@ -18,7 +18,7 @@ const refundSchema = z.object({
 /**
  * Idempotent, admin-only refunds:
  *  - a Refund ledger row is created (PENDING) before calling the provider;
- *  - Flutterwave is called with the ledger refund id in meta, so a retried
+ *  - AMBER PAY wallet refunds are internal ledger operations (no external call).
  *    request can never issue a second refund (the provider refund is async —
  *    it settles in the dashboard over 3-15 working days);
  *  - the total of SUCCEEDED refunds can never exceed the captured amount;

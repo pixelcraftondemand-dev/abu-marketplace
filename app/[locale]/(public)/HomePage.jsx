@@ -2,58 +2,52 @@
 import BestSelling from "@/components/BestSelling";
 import Hero from "@/components/Hero";
 import Newsletter from "@/components/Newsletter";
-import OurSpecs from "@/components/OurSpec";
 import LatestProducts from "@/components/LatestProducts";
-import MarketplaceHighlights from "@/components/MarketplaceHighlights";
 import FlashDealsSection from "@/components/FlashDealsSection";
-import HalalCertifiedSection from "@/components/HalalCertifiedSection";
-import ForHireSection from "@/components/ForHireSection";
+import MarketplaceHighlights from "@/components/MarketplaceHighlights";
+import TrustStrip from "@/components/TrustStrip";
+import CategoryQuickLinks from "@/components/CategoryQuickLinks";
 import ScrollReveal from "@/components/ScrollReveal";
 
 export default function HomePage() {
     return (
         <div>
-            {/* Hero — subtle entrance, no directional slide */}
+            {/* Hero — Full-width promotional carousel */}
             <ScrollReveal direction="none" duration={0.7}>
                 <Hero />
             </ScrollReveal>
 
-            {/* Flash Deals — slides up from below */}
+            {/* Trust Strip — 4 icons: delivery, quality, returns, secure */}
+            <ScrollReveal direction="none" duration={0.3}>
+                <TrustStrip />
+            </ScrollReveal>
+
+            {/* Category Quick-Links — 8 icon tiles */}
+            <ScrollReveal direction="none" duration={0.3}>
+                <CategoryQuickLinks />
+            </ScrollReveal>
+
+            {/* Flash Deals — countdown timer + dense grid */}
             <ScrollReveal delay={0.05}>
                 <FlashDealsSection />
             </ScrollReveal>
 
-            {/* Halal Certified — slides up */}
-            <ScrollReveal>
-                <HalalCertifiedSection />
-            </ScrollReveal>
-
-            {/* Latest Products — slides up */}
-            <ScrollReveal>
-                <LatestProducts />
-            </ScrollReveal>
-
-            {/* Marketplace Highlights — slides up */}
-            <ScrollReveal>
-                <MarketplaceHighlights />
-            </ScrollReveal>
-
-            {/* Best Selling — slides up */}
+            {/* Trending / Best Selling — "Because you might like" */}
             <ScrollReveal>
                 <BestSelling />
             </ScrollReveal>
 
-            {/* For Hire Services — slides up */}
+            {/* Collection Banners — brand spotlight, new arrivals, clearance */}
             <ScrollReveal>
-                <ForHireSection />
+                <MarketplaceHighlights />
             </ScrollReveal>
 
-            {/* Our Specs — slides up */}
+            {/* Latest Products — full category grid */}
             <ScrollReveal>
-                <OurSpecs />
+                <LatestProducts />
             </ScrollReveal>
 
-            {/* Newsletter — slides up */}
+            {/* Newsletter */}
             <ScrollReveal>
                 <Newsletter />
             </ScrollReveal>

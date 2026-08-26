@@ -8,29 +8,29 @@ export default function HalalCertifiedSection() {
   const { t } = useTranslation();
 
   return (
-    <section className="bg-[var(--bg-muted)] py-16">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="grid gap-8 rounded-[32px] border border-[var(--border-primary)] bg-[var(--bg-surface)] p-8 shadow-sm lg:grid-cols-[auto_1fr_auto] lg:items-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-[var(--accent)]/10 text-[var(--text-primary)]">
-            <ShieldCheck size={28} />
+    <section className="bg-[var(--bg-muted)] py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid gap-6 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-surface)] p-6 shadow-sm lg:grid-cols-[auto_1fr_auto] lg:items-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--accent)]/10 text-[var(--accent)]">
+            <ShieldCheck size={24} />
           </div>
           <div>
-            <p className="text-sm uppercase tracking-[0.25em] text-[var(--accent)] mb-3">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--accent)] mb-2 font-semibold">
               {t("landing.halalCertifiedSectionLabel")}
             </p>
-            <h2 className="font-display text-3xl text-[var(--text-primary)] mb-4">
+            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
               {t("landing.halalCertifiedSectionTitle")}
             </h2>
-            <p className="text-base text-[var(--text-secondary)] max-w-2xl">
+            <p className="text-sm text-[var(--text-secondary)] max-w-2xl">
               {t("landing.halalCertifiedSectionText")}
             </p>
           </div>
           <Link
             href="/shop?category=halal-certified"
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--text-primary)] px-6 py-3 text-sm font-semibold text-[var(--bg-primary)] transition hover:bg-[var(--text-primary)]/90"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--accent)] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--accent-hover)]"
           >
             {t("landing.exploreHalalCertified")}
-            <ArrowRight size={16} />
+            <ArrowRight size={14} />
           </Link>
         </div>
       </div>

@@ -25,7 +25,7 @@ export async function GET(request) {
       return NextResponse.json({ error: "Not authorized." }, { status: 403 });
     }
 
-    // Reconciliation hits the Flutterwave API — bound it per admin.
+    // Reconciliation checks internal AMBER PAY ledger — bound it per admin.
     const rl = await adminActionRateLimiter.check(userId);
     if (!rl.allowed) {
       return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429, headers: { "Retry-After": String(rl.retryAfter || 600) } });
