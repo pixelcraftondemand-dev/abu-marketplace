@@ -14,6 +14,9 @@ model User {
   name  String
   email String
   image String
+  phone String?  // phone number for USSD lookups (E.164 format: +232...)
+  ussdPinHash String?  // bcrypt hash of 4-digit USSD PIN
+  ussdPinSetAt DateTime? // when the PIN was last changed
   cart  Json
 
   // Relations
@@ -43,6 +46,9 @@ model User {
   pspTransactions      PspTransaction[]
   disputes             Dispute[]
   fraudEvents          FraudEvent[]
+  agent                Agent?
+  paymentCodes         PaymentCode[]
+  cardPayments         CardPayment[]
 
   @@index([deletedAt])
   @@map("user")
@@ -605,7 +611,7 @@ model Refund {
 // Deduplication ledger for provider webhook events (replay protection).
 model WebhookEvent {
   id              String   @id @default(cuid())
-  provider        String   @default("flutterwave")
+  provider        String   @default("amber_pay")
   providerEventId String   @unique
   type            String
   processedAt     DateTime @default(now())
@@ -614,36 +620,60 @@ model WebhookEvent {
   @@map("webhook_event")
 }
 
-// ─── Wallet ───────────────────────────────────────────────────────────────────
+// ─── AMBER PAY — Wallet ──────────────────────────────────────────────────────
 // One wallet per user, holding the canonical (USD) balance. All mutations go
 // through atomic conditional updates so balances can never go negative and a
 // top-up/checkout can never be applied twice.
+// 
+// AMBER PAY is the marketplace's in-house financial system, inspired by
+// Vult (Sierra Leone's digital banking super app). Users fund their wallet
+// via agent cash-in, then spend at checkout or send P2P.
 model Wallet {
   id        String   @id @default(cuid())
   userId    String   @unique
-  balance   Float    @default(0)
+  balance   Float    @default(0) // canonical USD balance
+  sllBalance Float   @default(0) // Sierra Leonean Leone balance (display-only, converted from USD)
+  status    String   @default("active") // active | frozen | closed
+  frozenAt  DateTime?
+  closedAt  DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user         User                @relation(fields: [userId], references: [id])
   transactions WalletTransaction[]
+  topUpRequests TopUpRequest[]
+  withdrawalRequests WithdrawalRequest[]
+  sentTransfers P2PTransfer[] @relation("senderTransfers")
+  receivedTransfers P2PTransfer[] @relation("receiverTransfers")
+  cardPayments CardPayment[]
 
   @@map("wallet")
 }
 
+// ─── AMBER PAY — Wallet Transaction Ledger ───────────────────────────────────
 // Immutable audit ledger. (referenceType, referenceId) is unique so the same
-// top-up or checkout can never be recorded (and therefore credited/debited)
-// twice, even under concurrent webhook deliveries.
+// top-up, checkout, or transfer can never be recorded twice.
+// 
+// Transaction types:
+//   TOPUP        — cash-in via agent, bank deposit (future)
+//   PAYMENT      — marketplace checkout
+//   P2P_SEND     — peer-to-peer transfer (sender side)
+//   P2P_RECEIVE  — peer-to-peer transfer (receiver side)
+//   WITHDRAWAL   — cash-out via agent
+//   REFUND       — order refund
+//   FEE          — platform fee deduction
 model WalletTransaction {
   id            String   @id @default(cuid())
   walletId      String
   userId        String
-  type          String // TOPUP | PAYMENT
+  type          String // TOPUP | PAYMENT | P2P_SEND | P2P_RECEIVE | WITHDRAWAL | REFUND | FEE
   amount        Float // positive = credit, negative = debit
   balanceAfter  Float
-  referenceType String? // "payment" (top-up) | "order" (checkout)
+  currency      String  @default("USD") // USD | SLL
+  referenceType String? // "order" | "p2p_transfer" | "topup_request" | "agent_transaction" | "settlement"
   referenceId   String?
   description   String?
+  metadata      Json?   // extra context (agent ID, recipient info, etc.)
   createdAt     DateTime @default(now())
 
   wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
@@ -651,7 +681,219 @@ model WalletTransaction {
   @@unique([referenceType, referenceId])
   @@index([walletId])
   @@index([userId])
+  @@index([type])
   @@map("wallet_transaction")
+}
+
+// ─── AMBER PAY — Agent Network ────────────────────────────────────────────────
+// Agents are physical cash-in/cash-out locations (like Vult's agent network).
+// Users deposit cash at an agent to fund their wallet, or withdraw cash.
+// Agents earn a commission on each transaction.
+model Agent {
+  id              String   @id @default(cuid())
+  userId          String   @unique // the agent's own user account
+  businessName    String
+  location        String // physical address / area
+  city            String
+  region          String // province/district
+  phone           String
+  status          String   @default("pending") // pending | active | suspended | closed
+  dailyLimit      Float    @default(5000) // max cash-in per day in USD
+  monthlyLimit    Float    @default(50000) // max cash-in per month in USD
+  commissionRate  Float    @default(0.02) // 2% commission on each transaction
+  floatBalance    Float    @default(0) // agent's own cash float
+  verifiedAt      DateTime?
+  suspendedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+
+  user          User                @relation(fields: [userId], references: [id])
+  transactions  AgentTransaction[]
+  topUpRequests TopUpRequest[]
+  withdrawalRequests WithdrawalRequest[]
+
+  @@map("agent")
+}
+
+// ─── AMBER PAY — Agent Transactions ───────────────────────────────────────────
+// Records every cash-in / cash-out operation at an agent location.
+model AgentTransaction {
+  id          String   @id @default(cuid())
+  agentId     String
+  userId      String // the customer whose wallet is being funded/withdrawn
+  type        String // CASH_IN | CASH_OUT
+  amount      Float // amount in USD
+  fee         Float  @default(0) // agent commission
+  status      String  @default("pending") // pending | confirmed | failed
+  agentRef    String? @unique // unique reference code shown to agent
+  notes       String?
+  confirmedAt DateTime?
+  failedAt    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agent Agent @relation(fields: [agentId], references: [id])
+
+  @@index([agentId])
+  @@index([userId])
+  @@index([status])
+  @@map("agent_transaction")
+}
+
+// ─── AMBER PAY — Top-Up Requests ─────────────────────────────────────────────
+// When a user wants to fund their wallet, they create a top-up request.
+// An agent sees pending requests nearby and processes them (cash-in).
+// This is the "Agent Request" feature from Vult's version history.
+model TopUpRequest {
+  id          String   @id @default(cuid())
+  walletId    String
+  userId      String
+  agentId     String? // assigned agent (null until an agent picks it up)
+  amount      Float // requested amount in USD
+  currency    String  @default("USD")
+  status      String  @default("pending") // pending | matched | processing | completed | expired | cancelled
+  agentRef    String? @unique // code the user shows the agent
+  notes       String?
+  matchedAt   DateTime?
+  completedAt DateTime?
+  expiredAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+  agent  Agent? @relation(fields: [agentId], references: [id])
+
+  @@index([walletId])
+  @@index([userId])
+  @@index([agentId])
+  @@index([status])
+  @@map("topup_request")
+}
+
+// ─── AMBER PAY — Withdrawal Requests ────────────────────────────────────────
+// When a user wants to withdraw cash from their wallet, they create a
+// withdrawal request. An agent nearby sees the request, hands over cash,
+// and the user's wallet is debited.
+model WithdrawalRequest {
+  id          String   @id @default(cuid())
+  walletId    String
+  userId      String
+  agentId     String? // assigned agent (null until an agent picks it up)
+  amount      Float // requested amount in USD
+  currency    String  @default("USD")
+  status      String  @default("pending") // pending | matched | processing | completed | expired | cancelled
+  agentRef    String? @unique // code the user shows the agent
+  notes       String?
+  matchedAt   DateTime?
+  completedAt DateTime?
+  expiredAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+  agent  Agent? @relation(fields: [agentId], references: [id])
+
+  @@index([walletId])
+  @@index([userId])
+  @@index([agentId])
+  @@index([status])
+  @@map("withdrawal_request")
+}
+
+// ─── AMBER PAY — P2P Transfers ───────────────────────────────────────────────
+// Send money between AMBER PAY users. Instant wallet-to-wallet.
+model P2PTransfer {
+  id            String   @id @default(cuid())
+  senderId      String
+  receiverId    String
+  senderWalletId    String
+  receiverWalletId  String
+  amount        Float // amount in USD
+  fee           Float  @default(0) // platform fee
+  netAmount     Float // amount received (amount - fee)
+  currency      String  @default("USD")
+  description   String?
+  status        String  @default("pending") // pending | completed | failed | reversed
+  idempotencyKey String @unique
+  completedAt   DateTime?
+  failedAt      DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  senderWallet   Wallet @relation("senderTransfers", fields: [senderWalletId], references: [id])
+  receiverWallet Wallet @relation("receiverTransfers", fields: [receiverWalletId], references: [id])
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+  @@map("p2p_transfer")
+}
+
+// ─── AMBER PAY — Payment Codes ───────────────────────────────────────────────
+// Code-based payment flow (Monime/Vult style):
+//   1. Web app generates a code (e.g. "7X3K9M")
+//   2. User dials *123*7X3K9M# on their phone
+//   3. USSD prompts: pick Orange Money or Afrimoney
+//   4. User enters their mobile money PIN
+//   5. Transaction is processed, wallet is credited
+model PaymentCode {
+  id            String   @id @default(cuid())   code          String   @unique // 10-digit numeric code (e.g. "8372910456")
+  userId        String
+  amount        Float // amount in USD
+  currency      String   @default("USD")
+  type          String // DEPOSIT | WITHDRAWAL | CHECKOUT
+  provider      String? // orange_money | afrimoney (set after user selects)
+  status        String   @default("pending") // pending | provider_selected | processing | completed | expired | failed
+  mobileRef     String? // mobile money transaction reference
+  expiresAt     DateTime // code expires after 10 minutes
+  completedAt   DateTime?
+  failedAt      DateTime?
+  failureReason String?
+  metadata      Json?   // extra context
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([code])
+  @@index([userId])
+  @@index([status])
+  @@map("payment_code")
+}
+
+// ─── AMBER PAY — Card Payments ───────────────────────────────────────────────
+// Prepaid and debit card top-ups for wallet funding.
+// Card details are tokenized — only last 4 digits and card brand are stored.
+model CardPayment {
+  id              String   @id @default(cuid())
+  userId          String
+  walletId        String
+  amount          Float    // amount in USD
+  currency        String   @default("USD")
+  cardLast4       String   // last 4 digits of card number
+  cardBrand       String   // visa | mastercard | amex | other
+  cardType        String   // prepaid | debit | credit
+  status          String   @default("pending") // pending | processing | completed | failed | expired
+  providerRef     String?  @unique // card processor transaction reference
+  authorizationCode String? // card authorization code
+  responseCode    String?   // processor response code
+  responseMessage String?   // processor response message
+  expiresAt       DateTime // payment link expires after 10 minutes
+  completedAt     DateTime?
+  failedAt        DateTime?
+  failureReason   String?
+  metadata        Json?    // extra context (IP, device, etc.)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id])
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([userId])
+  @@index([walletId])
+  @@index([status])
+  @@index([cardLast4])
+  @@map("card_payment")
 }
 
 // ─── Rate limiting ────────────────────────────────────────────────────────────
