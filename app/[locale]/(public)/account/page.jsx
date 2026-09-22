@@ -91,7 +91,7 @@ export default function AccountPage() {
           </p>
           <button
             onClick={() => dispatch(openSignInModal())}
-            className="mt-6 w-full bg-[var(--color-primary)] text-white py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0"
+            className="mt-6 w-full bg-[var(--color-primary)] text-white py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-orange-500/20 hover:-translate-y-0.5 active:translate-y-0"
           >
             Sign in
           </button>
@@ -120,7 +120,7 @@ export default function AccountPage() {
 
         {/* Profile header */}
         <section className="relative overflow-hidden rounded-2xl bg-gray-900 p-8 text-white shadow-xl sm:p-10">
-          <div className="absolute -right-16 -top-16 w-56 h-56 rounded-full bg-blue-500/10 blur-3xl" />
+          <div className="absolute -right-16 -top-16 w-56 h-56 rounded-full bg-orange-500/10 blur-3xl" />
           <div className="relative flex flex-col items-start gap-6 sm:flex-row sm:items-center">
             {user.imageUrl ? (
               <Image
@@ -131,12 +131,12 @@ export default function AccountPage() {
                 className="w-20 h-20 rounded-full object-cover ring-4 ring-white/10"
               />
             ) : (
-              <span className="w-20 h-20 shrink-0 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+              <span className="w-20 h-20 shrink-0 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
                 <UserIcon size={36} strokeWidth={1.5} className="text-white" />
               </span>
             )}
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">
+              <p className="text-xs font-semibold uppercase tracking-wider text-orange-400">
                 {joinedAt ? `Member since ${joinedAt}` : "Your account"}
               </p>
               <h1 className="mt-1.5 text-3xl font-bold tracking-tight sm:text-4xl">
@@ -162,7 +162,7 @@ export default function AccountPage() {
                     href={href}
                     className="group flex items-center gap-3.5 rounded-xl border border-gray-100 bg-gray-50 p-4 transition-all duration-200 hover:border-gray-200 hover:bg-white hover:shadow-sm hover:-translate-y-0.5"
                   >
-                    <span className="w-10 h-10 shrink-0 bg-blue-50 rounded-xl flex items-center justify-center text-[var(--color-primary)] transition-colors duration-200 group-hover:bg-blue-100">
+                    <span className="w-10 h-10 shrink-0 bg-orange-50 rounded-xl flex items-center justify-center text-[var(--color-primary)] transition-colors duration-200 group-hover:bg-orange-100">
                       <Icon size={18} strokeWidth={1.8} />
                     </span>
                     <span className="min-w-0">
@@ -214,7 +214,7 @@ export default function AccountPage() {
                         href={href}
                         className="group flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4 transition-all duration-200 hover:border-gray-200 hover:bg-white hover:shadow-sm"
                       >
-                        <span className="w-9 h-9 shrink-0 bg-blue-50 rounded-lg flex items-center justify-center text-[var(--color-primary)] transition-colors duration-200 group-hover:bg-blue-100">
+                        <span className="w-9 h-9 shrink-0 bg-orange-50 rounded-lg flex items-center justify-center text-[var(--color-primary)] transition-colors duration-200 group-hover:bg-orange-100">
                           <Icon size={16} strokeWidth={1.8} />
                         </span>
                         <span className="min-w-0">
@@ -242,7 +242,7 @@ export default function AccountPage() {
                   </div>
                   <Link
                     href="/create-store"
-                    className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5"
+                    className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-orange-500/20 hover:-translate-y-0.5"
                   >
                     Create your store <ArrowRight size={14} />
                   </Link>

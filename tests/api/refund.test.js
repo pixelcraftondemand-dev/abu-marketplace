@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import prisma from "@/lib/prisma";
-import { refundRateLimiter } from "@/lib/security";
-import { getSessionFromRequest } from "@/lib/serverAuth";
-import authAdmin from "@/middlewares/authAdmin";
-import { POST } from "@/app/api/admin/refund/route";
+const { mockPayment, mockRefund, mockPrisma } = vi.hoisted(() => {
+  const mockPayment = { findUnique: vi.fn(), updateMany: vi.fn(() => ({ count: 1 })) };
+  const mockRefund = { create: vi.fn(), updateMany: vi.fn(() => ({ count: 1 })), findMany: vi.fn() };
+  const mockPrisma = {
+    payment: mockPayment,
+    refund: mockRefund,
+    $transaction: vi.fn(async (fn) => fn({ payment: mockPayment, refund: mockRefund })),
+  };
+  return { mockPayment, mockRefund, mockPrisma };
+});
 
 vi.mock("@/lib/serverAuth", () => ({
   getSessionFromRequest: vi.fn(),
@@ -14,12 +19,13 @@ vi.mock("@/middlewares/authAdmin", () => ({
   default: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({
-  default: {
-    payment: { findUnique: vi.fn(), updateMany: vi.fn(() => ({ count: 1 })) },
-    refund: { create: vi.fn(), updateMany: vi.fn(), findMany: vi.fn() },
-  },
-}));
+vi.mock("@/lib/prisma", () => ({ default: mockPrisma }));
+
+import prisma from "@/lib/prisma";
+import { refundRateLimiter } from "@/lib/security";
+import { getSessionFromRequest } from "@/lib/serverAuth";
+import authAdmin from "@/middlewares/authAdmin";
+import { POST } from "@/app/api/admin/refund/route";
 
 function buildRequest(body) {
   return new Request("http://localhost:3000/api/admin/refund", {

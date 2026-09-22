@@ -279,7 +279,7 @@ function VerifyEmailContent() {
             <p className="mt-3 text-sm leading-6 text-gray-500">{current.text}</p>
             <Link
               href="/"
-              className="mt-8 inline-block bg-[var(--color-primary)] px-8 py-3.5 text-sm font-semibold text-white rounded-xl transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5"
+              className="mt-8 inline-block bg-[var(--color-primary)] px-8 py-3.5 text-sm font-semibold text-white rounded-xl transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-orange-500/20 hover:-translate-y-0.5"
             >
               Continue to ABU Marketplace
             </Link>
@@ -322,7 +322,7 @@ function VerifyEmailContent() {
         ) : (
           <form onSubmit={handleSubmit} className="mt-8">
             <div className="flex justify-center">
-              <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center">
+              <div className="w-14 h-14 bg-orange-50 rounded-xl flex items-center justify-center">
                 <KeyRound className="text-[var(--color-primary)]" size={24} strokeWidth={1.8} />
               </div>
             </div>
@@ -349,7 +349,7 @@ function VerifyEmailContent() {
                   onChange={(e) => handleDigitChange(index, e.target.value)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
                   aria-label={`Digit ${index + 1}`}
-                  className={`h-14 w-11 sm:h-16 sm:w-13 rounded-xl border text-center text-2xl font-semibold text-gray-800 outline-none transition-all duration-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-500/10 disabled:opacity-60 ${
+                  className={`h-14 w-11 sm:h-16 sm:w-13 rounded-xl border text-center text-2xl font-semibold text-gray-800 outline-none transition-all duration-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-500/10 disabled:opacity-60 ${
                     notice?.type === "error" ? "border-red-300" : "border-gray-200"
                   }`}
                 />

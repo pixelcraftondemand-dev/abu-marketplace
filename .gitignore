@@ -55,3 +55,14 @@ prisma/*.db*
 
 # build logs
 build-output.txt
+
+# local dev logs
+.dev-server-smoke.log
+.next-build*.log
+.pg-dev.log
+
+# local reference checkout
+.quickcart-ref/
+
+# local embedded Postgres test data
+tmp-pgdata/

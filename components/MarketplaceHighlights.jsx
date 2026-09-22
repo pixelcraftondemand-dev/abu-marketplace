@@ -50,7 +50,7 @@ const MarketplaceHighlights = () => {
                 <div className="grid gap-4">
                     <Link href="/shop" className="group flex min-h-40 items-center justify-between overflow-hidden rounded-2xl bg-gray-50 p-6 border border-gray-100 transition-all duration-300 hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.06)] hover:border-gray-200 hover:-translate-y-0.5">
                         <div>
-                            <div className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600">
+                            <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-600">
                                 <TruckIcon size={12} />
                                 {t("highlights.freeDeliveryOver")} <CurrencyAmount amount={FREE_DELIVERY_THRESHOLD} />
                             </div>

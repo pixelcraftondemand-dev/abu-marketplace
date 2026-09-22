@@ -45,7 +45,7 @@ const AddressModal = ({ setShowAddressModal }) => {
         }
     }
 
-    const inputClass = "w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-800 outline-none transition-all duration-200 focus:border-blue-300 focus:ring-2 focus:ring-blue-500/10 placeholder:text-gray-400"
+    const inputClass = "w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm text-gray-800 outline-none transition-all duration-200 focus:border-orange-300 focus:ring-2 focus:ring-orange-500/10 placeholder:text-gray-400"
     const labelClass = "text-xs text-gray-500 font-medium mb-1.5 block"
 
     return (
@@ -61,7 +61,7 @@ const AddressModal = ({ setShowAddressModal }) => {
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 pb-0">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                        <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
                             <MapPin size={18} className="text-[var(--color-primary)]" />
                         </div>
                         <div>
@@ -182,7 +182,7 @@ const AddressModal = ({ setShowAddressModal }) => {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-[var(--color-primary)] text-white py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none"
+                        className="w-full bg-[var(--color-primary)] text-white py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-orange-500/20 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none"
                     >
                         {loading ? 'Saving...' : 'Save Address'}
                     </button>

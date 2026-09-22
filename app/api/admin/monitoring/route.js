@@ -2,10 +2,10 @@
 // the internal monitoring dashboard. Admin-only.
 
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma.js";
-import { getSessionFromRequest } from "@/lib/serverAuth.js";
-import authAdmin from "@/middlewares/authAdmin.js";
-import { computeAllMetrics } from "@/lib/services/monitoringMetrics.js";
+import prisma from "@/lib/prisma";
+import { getSessionFromRequest } from "@/lib/serverAuth";
+import authAdmin from "@/middlewares/authAdmin";
+import { computeAllMetrics } from "@/lib/services/monitoringMetrics";
 
 // ─── GET /api/admin/monitoring ───────────────────────────────────────────────
 

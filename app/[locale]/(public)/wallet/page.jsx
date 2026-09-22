@@ -671,9 +671,8 @@ function WalletPageContent() {
                         <p className="text-center text-xs text-[var(--text-tertiary)]">
                           {t("wallet.minimum")} • Secure payment via AMBER PAY
                         </p>
-                </form>
-                )}
-              )}
+                      </form>
+                    )}
                   </>
                 )}
 
@@ -739,6 +738,9 @@ function WalletPageContent() {
                     </form>
                   </>
                 )}
+
+                </>
+              )}
           </section>
           {/* ── Withdraw Cash Card ──────────────────────────────── */}
           <section className="rounded-[2rem] border border-[var(--border-primary)] bg-[var(--bg-surface)] p-8 shadow-sm">

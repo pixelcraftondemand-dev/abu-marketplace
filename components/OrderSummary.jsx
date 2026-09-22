@@ -75,7 +75,8 @@ const OrderSummary = ({ totalPrice, items }) => {
 
             const {data} = await axios.post('/api/orders', orderData, {
                 headers: { Authorization: `Bearer ${token}` }
-            })           if(data.alreadyProcessed){
+            })
+            if(data.alreadyProcessed){
                 toast.success(data.message || t('checkout.orderPlaced'))
                 router.push('/order-confirmation')
                 dispatch(fetchCart({getToken}))
@@ -94,7 +95,7 @@ const OrderSummary = ({ totalPrice, items }) => {
           <div className='bg-white border border-gray-100 rounded-2xl p-6 shadow-sm'>
             {/* Header */}
             <div className="flex items-center gap-2 mb-5">
-              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
                 <CreditCard size={16} className="text-[var(--color-primary)]" />
               </div>
               <h2 className='text-base font-bold text-gray-900'>{t('checkout.paymentSummary')}</h2>
@@ -103,14 +104,14 @@ const OrderSummary = ({ totalPrice, items }) => {
             {/* Payment Method */}
             <p className='text-gray-400 text-[10px] font-semibold mb-2.5 uppercase tracking-wider'>{t('checkout.paymentMethod')}</p>
             <div className='space-y-2 mb-5'>
-                <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 ${paymentMethod === 'COD' ? 'border-[var(--color-primary)] bg-blue-50/50 shadow-sm shadow-blue-500/5' : 'border-gray-100 hover:border-gray-200'}`}>
+                <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 ${paymentMethod === 'COD' ? 'border-[var(--color-primary)] bg-orange-50/50 shadow-sm shadow-orange-500/5' : 'border-gray-100 hover:border-gray-200'}`}>
                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${paymentMethod === 'COD' ? 'border-[var(--color-primary)]' : 'border-gray-300'}`}>
                         {paymentMethod === 'COD' && <div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />}
                     </div>
                     <Banknote size={16} className={paymentMethod === 'COD' ? 'text-[var(--color-primary)]' : 'text-gray-400'} />
                     <span className={`text-sm font-medium ${!codEnabled ? 'text-gray-400' : 'text-gray-700'}`}>{t('checkout.cod')}</span>
                 </label>
-                <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 ${paymentMethod === 'WALLET' ? 'border-[var(--color-primary)] bg-blue-50/50 shadow-sm shadow-blue-500/5' : 'border-gray-100 hover:border-gray-200'}`}>
+                <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 ${paymentMethod === 'WALLET' ? 'border-[var(--color-primary)] bg-orange-50/50 shadow-sm shadow-orange-500/5' : 'border-gray-100 hover:border-gray-200'}`}>
                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${paymentMethod === 'WALLET' ? 'border-[var(--color-primary)]' : 'border-gray-300'}`}>
                         {paymentMethod === 'WALLET' && <div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />}
                     </div>
@@ -140,7 +141,7 @@ const OrderSummary = ({ totalPrice, items }) => {
                 ) : (
                     <div>
                         {addressList.length > 0 && (
-                            <select className='border border-gray-200 p-2.5 w-full my-2 outline-none rounded-xl text-sm bg-white focus:border-[var(--color-primary)] focus:ring-2 focus:ring-blue-500/10 transition-all' onChange={(e) => setSelectedAddress(addressList[e.target.value])}>
+                            <select className='border border-gray-200 p-2.5 w-full my-2 outline-none rounded-xl text-sm bg-white focus:border-[var(--color-primary)] focus:ring-2 focus:ring-orange-500/10 transition-all' onChange={(e) => setSelectedAddress(addressList[e.target.value])}>
                                 <option value="">{t('checkout.selectAddress')}</option>
                                 {addressList.map((address, index) => (
                                     <option key={index} value={index}>{address.name}, {address.city}, {address.state}, {address.zip}</option>
@@ -185,7 +186,7 @@ const OrderSummary = ({ totalPrice, items }) => {
                         value={couponCodeInput}
                         type="text"
                         placeholder={t('checkout.couponCode')}
-                        className='border border-gray-200 px-3 py-2.5 rounded-xl flex-1 outline-none text-sm bg-white focus:border-[var(--color-primary)] focus:ring-2 focus:ring-blue-500/10 transition-all'
+                        className='border border-gray-200 px-3 py-2.5 rounded-xl flex-1 outline-none text-sm bg-white focus:border-[var(--color-primary)] focus:ring-2 focus:ring-orange-500/10 transition-all'
                     />
                     <button className='bg-gray-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-800 transition-all duration-200 active:scale-95'>
                         {t('checkout.apply')}
@@ -214,7 +215,7 @@ const OrderSummary = ({ totalPrice, items }) => {
             <button
                 onClick={e => toast.promise(handlePlaceOrder(e), { loading: t('checkout.placingOrder') })}
                 disabled={paymentMethod === 'WALLET' && !walletLoading && walletBalance != null && walletBalance < totalPrice}
-                className='w-full bg-[var(--color-primary)] text-white py-3.5 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/25 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:transform-none disabled:hover:shadow-none flex items-center justify-center gap-2'
+                className='w-full bg-[var(--color-primary)] text-white py-3.5 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-orange-500/25 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:transform-none disabled:hover:shadow-none flex items-center justify-center gap-2'
             >
                 <Lock size={14} />
                 {t('checkout.placeOrder')}

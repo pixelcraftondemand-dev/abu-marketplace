@@ -46,11 +46,11 @@ export default function StoreShopPage() {
             <div className="min-h-[70vh] mx-6 flex items-center justify-center">
                 <div className="text-center">
                     <p className="font-display text-2xl text-[#1A1A1A] mb-2">Failed to load this store</p>
-                    <p className="text-[#9B9590] mb-8">We couldn&apos;t load this store right now. Please try again.</p>
+                    <p className="text-[#9CA3AF] mb-8">We couldn&apos;t load this store right now. Please try again.</p>
                     <button
                         type="button"
                         onClick={fetchStoreData}
-                        className="inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#C9A96E]"
+                        className="inline-flex items-center gap-2 rounded-full bg-[#1A1A1A] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#EA580C]"
                     >
                         <RotateCcw size={16} />
                         Retry
@@ -77,7 +77,7 @@ export default function StoreShopPage() {
                                     Official Store
                                 </span>
                                 {storeInfo.halalCertified && (
-                                    <span className="rounded-full bg-[#C9A96E] px-3 py-1 text-xs font-semibold tracking-[0.16em] uppercase text-white">
+                                    <span className="rounded-full bg-[#EA580C] px-3 py-1 text-xs font-semibold tracking-[0.16em] uppercase text-white">
                                         Halal Certified
                                     </span>
                                 )}
@@ -86,7 +86,7 @@ export default function StoreShopPage() {
                             {/* Jumia-style store stats row */}
                             <div className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm md:justify-start">
                                 <span className="inline-flex items-center gap-1.5 text-slate-600">
-                                    <Package size={15} className="text-[#C9A96E]" />
+                                    <Package size={15} className="text-[#EA580C]" />
                                     {productCount} products
                                 </span>
                                 {avgRating && (

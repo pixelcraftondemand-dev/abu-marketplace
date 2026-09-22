@@ -4,7 +4,6 @@ import { getSessionFromRequest } from "@/lib/serverAuth";
 import { refundRateLimiter } from "@/lib/security";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { transitionPaymentStatus } from "@/lib/services/paymentService";
 import { PAYMENT_STATES } from "@/lib/services/paymentState";
 import { logPayment, getRequestId } from "@/lib/paymentLog";
 
@@ -85,26 +84,40 @@ export async function POST(request) {
     });
 
     try {
-      // Mark refund as succeeded (no external provider to call — wallet/COD refunds
-      // are internal ledger operations).
-      await prisma.refund.updateMany({
-        where: { id: refund.id, status: "PENDING" },
-        data: { status: "SUCCEEDED" },
-      });
+      // Atomic transaction: mark refund succeeded + transition payment status.
+      // All three writes (refund update, payment transition) must succeed or
+      // all must roll back — a succeeded refund on a still-SUCCEEDED payment
+      // would allow over-refunds on retry.
+      const txResult = await prisma.$transaction(async (tx) => {
+        // Mark refund as succeeded (no external provider to call — wallet/COD refunds
+        // are internal ledger operations).
+        await tx.refund.updateMany({
+          where: { id: refund.id, status: "PENDING" },
+          data: { status: "SUCCEEDED" },
+        });
 
-      const succeededRefunds = await prisma.refund.findMany({
-        where: { paymentId: payment.id, status: "SUCCEEDED" },
-        select: { amount: true },
-      });
-      const totalRefunded = succeededRefunds.reduce((sum, r) => sum + r.amount, 0);
-      const next =
-        totalRefunded >= payment.amount - 0.001
-          ? PAYMENT_STATES.REFUNDED
-          : PAYMENT_STATES.PARTIALLY_REFUNDED;
+        const succeededRefunds = await tx.refund.findMany({
+          where: { paymentId: payment.id, status: "SUCCEEDED" },
+          select: { amount: true },
+        });
+        const totalRefunded = succeededRefunds.reduce((sum, r) => sum + r.amount, 0);
+        const next =
+          totalRefunded >= payment.amount - 0.001
+            ? PAYMENT_STATES.REFUNDED
+            : PAYMENT_STATES.PARTIALLY_REFUNDED;
 
-      if (next !== payment.status) {
-        await transitionPaymentStatus(prisma, payment.id, payment.status, next);
-      }
+        if (next !== payment.status) {
+          const transitionResult = await tx.payment.updateMany({
+            where: { id: payment.id, status: payment.status },
+            data: { status: next },
+          });
+          if (transitionResult.count !== 1) {
+            throw new Error("PAYMENT_STATE_CHANGED");
+          }
+        }
+
+        return { next };
+      });
 
       logPayment({
         event: "refund.succeeded",
@@ -117,7 +130,7 @@ export async function POST(request) {
 
       return NextResponse.json({
         refund: { id: refund.id, amount, status: "SUCCEEDED" },
-        paymentStatus: next,
+        paymentStatus: txResult.next,
       });
     } catch (error) {
       await prisma.refund.updateMany({

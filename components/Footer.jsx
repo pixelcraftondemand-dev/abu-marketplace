@@ -78,19 +78,19 @@ export default function Footer() {
             <div className="space-y-3 text-sm text-white/40">
               <a href="tel:+23232110054" className="flex items-center gap-2.5 hover:text-white transition-colors duration-200 group">
                 <span className="w-8 h-8 rounded-lg bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors duration-200">
-                  <Phone size={14} className="text-blue-400" />
+                  <Phone size={14} className="text-orange-400" />
                 </span>
                 +232 32 110 054
               </a>
               <a href="mailto:abumarketplace.shop@gmail.com" className="flex items-center gap-2.5 hover:text-white transition-colors duration-200 group">
                 <span className="w-8 h-8 rounded-lg bg-white/5 group-hover:bg-white/10 flex items-center justify-center transition-colors duration-200">
-                  <Mail size={14} className="text-blue-400" />
+                  <Mail size={14} className="text-orange-400" />
                 </span>
                 abumarketplace.shop@gmail.com
               </a>
               <span className="flex items-center gap-2.5">
                 <span className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-                  <MapPin size={14} className="text-blue-400" />
+                  <MapPin size={14} className="text-orange-400" />
                 </span>
                 50 Pratt Street, Freetown
               </span>
@@ -154,7 +154,7 @@ export default function Footer() {
                   Secure
                 </span>
                 <span className="flex items-center gap-1">
-                  <Lock size={11} className="text-blue-400/60" />
+                  <Lock size={11} className="text-orange-400/60" />
                   Encrypted
                 </span>
               </div>

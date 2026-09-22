@@ -4,11 +4,11 @@
 // a digest email. Also snapshots all metrics for the dashboard.
 
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma.js";
-import { computeAllMetrics } from "@/lib/services/monitoringMetrics.js";
-import { evaluateAlerts } from "@/lib/services/alertEngine.js";
-import { sendAlertEmail, buildDigestEmailHtml } from "@/lib/services/alertNotifications.js";
-import { getEmailFromAddress } from "@/lib/emailUtils.js";
+import prisma from "@/lib/prisma";
+import { computeAllMetrics } from "@/lib/services/monitoringMetrics";
+import { evaluateAlerts } from "@/lib/services/alertEngine";
+import { sendAlertEmail, buildDigestEmailHtml } from "@/lib/services/alertNotifications";
+import { getEmailFromAddress } from "@/lib/emailUtils";
 
 export async function GET(request) {
   const authHeader = request.headers.get("authorization");

@@ -70,7 +70,7 @@ export default function PricingPage() {
                     ABU gives buyers and sellers a more premium experience with layered perks, faster support, and stronger value as you scale up.
                 </p>
                 {membershipState?.status === "active" && (
-                    <div className="mt-6 rounded-full border border-[#C9A96E] bg-[#FCF7EE] px-4 py-2 text-sm font-medium text-[#7B6446]">
+                    <div className="mt-6 rounded-full border border-[#EA580C] bg-[#FCF7EE] px-4 py-2 text-sm font-medium text-[#7B6446]">
                         Active plan: {premiumTiers.find((tier) => tier.id === membershipState.membershipTier)?.name || "Premium"}
                     </div>
                 )}
@@ -81,14 +81,14 @@ export default function PricingPage() {
                     <div
                         key={tier.id}
                         className={`rounded-[1.75rem] border p-8 shadow-sm ${tier.id === "plus"
-                            ? "border-[#C9A96E] bg-[#FCF7EE] shadow-[0_20px_60px_rgba(34,34,34,0.08)]"
+                            ? "border-[#EA580C] bg-[#FCF7EE] shadow-[0_20px_60px_rgba(34,34,34,0.08)]"
                             : "border-[#E8DCC8] bg-white"
                         }`}
                     >
                         <div className="flex items-center justify-between gap-3">
                             <h2 className="text-2xl font-semibold text-[#1A1A1A]">{tier.name}</h2>
                             {tier.badge && (
-                                <span className="rounded-full bg-[#F0E3D1] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#7B6446]">
+                                <span className="rounded-full bg-[#FFEDD5] px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#7B6446]">
                                     {tier.badge}
                                 </span>
                             )}
@@ -103,7 +103,7 @@ export default function PricingPage() {
                         <ul className="mt-8 space-y-3 text-sm text-[#5B5245]">
                             {tier.perks.map((perk) => (
                                 <li key={perk} className="flex gap-3">
-                                    <span className="mt-1 h-2.5 w-2.5 rounded-full bg-[#C9A96E]" />
+                                    <span className="mt-1 h-2.5 w-2.5 rounded-full bg-[#EA580C]" />
                                     <span>{perk}</span>
                                 </li>
                             ))}

@@ -162,7 +162,7 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
                     className={`absolute bottom-3 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full shadow-md transition-all duration-300 ease-out min-h-[36px] min-w-[36px] ${
                         addedToCart
                             ? 'bg-green-500 text-white scale-110'
-                            : 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/25'
+                            : 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-orange-500/25'
                     } ${isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
                     aria-label={addedToCart ? t('product.addedToCart') : t('product.quickAdd')}
                 >

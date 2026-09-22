@@ -10,7 +10,7 @@ import CurrencyAmount from './CurrencyAmount'
 const statusColors = {
   confirmed: "bg-amber-50 text-amber-700 border-amber-200",
   delivered: "bg-green-50 text-green-700 border-green-200",
-  processing: "bg-blue-50 text-blue-700 border-blue-200",
+  processing: "bg-orange-50 text-orange-700 border-orange-200",
   shipped: "bg-purple-50 text-purple-700 border-purple-200",
   default: "bg-gray-50 text-gray-600 border-gray-200",
 }

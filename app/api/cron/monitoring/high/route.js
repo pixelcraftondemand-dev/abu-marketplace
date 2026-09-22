@@ -4,8 +4,8 @@
 // webhook processing lag. Notifies within business hours.
 
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma.js";
-import { evaluateAlerts } from "@/lib/services/alertEngine.js";
+import prisma from "@/lib/prisma";
+import { evaluateAlerts } from "@/lib/services/alertEngine";
 
 export async function GET(request) {
   const authHeader = request.headers.get("authorization");

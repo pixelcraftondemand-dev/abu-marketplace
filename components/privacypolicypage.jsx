@@ -89,7 +89,7 @@ export default function LegalPage({ title, updated, intro, sections = [] }) {
                 alert('Unable to generate PDF. Please try Print/Save as PDF instead.');
               }
             }}
-            className="rounded-md bg-[#C9A96E] px-4 py-2 text-sm text-[#1A1A1A]"
+            className="rounded-md bg-[#EA580C] px-4 py-2 text-sm text-white"
           >
             Download PDF
           </button>

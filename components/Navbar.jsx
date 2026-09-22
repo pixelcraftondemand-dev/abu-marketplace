@@ -203,7 +203,7 @@ export default function Navbar() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-1.5 flex items-center justify-between">
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1.5 hover:text-white transition-colors duration-200 cursor-default">
-                <MapPin size={11} className="text-blue-400" />
+                <MapPin size={11} className="text-orange-400" />
                 <span>Deliver to Freetown</span>
               </span>
               <span className="text-white/20">|</span>
@@ -303,7 +303,7 @@ export default function Navbar() {
                     onBlur={() => setTimeout(() => setSearchSuggestionsOpen(false), 200)}
                     className={`w-full h-full px-4 bg-white border text-sm text-gray-800 outline-none transition-all duration-200 ${
                       searchFocused
-                        ? "border-blue-300 ring-2 ring-blue-500/10"
+                        ? "border-orange-300 ring-2 ring-orange-500/10"
                         : "border-gray-200 hover:border-gray-300"
                     }`}
                   />
@@ -337,7 +337,7 @@ export default function Navbar() {
                 {/* Search button */}
                 <button
                   type="submit"
-                  className="px-5 bg-[var(--color-primary)] text-white rounded-r-xl hover:bg-[var(--color-primary-hover)] transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/20"
+                  className="px-5 bg-[var(--color-primary)] text-white rounded-r-xl hover:bg-[var(--color-primary-hover)] transition-all duration-200 hover:shadow-lg hover:shadow-orange-500/20"
                   aria-label="Search"
                 >
                   <Search size={18} />
@@ -357,7 +357,7 @@ export default function Navbar() {
               </button>
 
               {/* Wishlist */}
-              <Link href="/wishlist" className="relative p-2.5 text-gray-700 hover:text-[var(--color-primary)] hover:bg-blue-50 rounded-lg transition-all duration-200">
+              <Link href="/wishlist" className="relative p-2.5 text-gray-700 hover:text-[var(--color-primary)] hover:bg-orange-50 rounded-lg transition-all duration-200">
                 <Heart size={20} strokeWidth={1.5} />
                 {wishlistCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[9px] font-bold text-white bg-red-500 rounded-full shadow-sm shadow-red-500/30 animate-[scale-in_0.2s_ease-out]">
@@ -367,10 +367,10 @@ export default function Navbar() {
               </Link>
 
               {/* Cart */}
-              <Link href="/cart" className="relative p-2.5 text-gray-700 hover:text-[var(--color-primary)] hover:bg-blue-50 rounded-lg transition-all duration-200">
+              <Link href="/cart" className="relative p-2.5 text-gray-700 hover:text-[var(--color-primary)] hover:bg-orange-50 rounded-lg transition-all duration-200">
                 <ShoppingBag size={20} strokeWidth={1.5} />
                 {cartCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[9px] font-bold text-white bg-[var(--color-primary)] rounded-full shadow-sm shadow-blue-500/30 animate-[scale-in_0.2s_ease-out]">
+                  <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[9px] font-bold text-white bg-[var(--color-primary)] rounded-full shadow-sm shadow-orange-500/30 animate-[scale-in_0.2s_ease-out]">
                     {cartCount}
                   </span>
                 )}
@@ -389,7 +389,7 @@ export default function Navbar() {
                       </button>
                       <Link
                         href="/sign-up"
-                        className="bg-[var(--color-primary)] text-white text-[11px] font-semibold py-2 px-4 rounded-lg hover:bg-[var(--color-primary-hover)] transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/20"
+                        className="bg-[var(--color-primary)] text-white text-[11px] font-semibold py-2 px-4 rounded-lg hover:bg-[var(--color-primary-hover)] transition-all duration-200 hover:shadow-lg hover:shadow-orange-500/20"
                       >
                         {t("nav.signUp")}
                       </Link>
@@ -402,7 +402,7 @@ export default function Navbar() {
                       {user.imageUrl ? (
                         <Image src={user.imageUrl} alt="" width={28} height={28} className="rounded-full object-cover ring-2 ring-gray-100" />
                       ) : (
-                        <div className="w-7 h-7 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                        <div className="w-7 h-7 bg-gradient-to-br from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
                           <User size={14} className="text-white" />
                         </div>
                       )}
@@ -418,7 +418,7 @@ export default function Navbar() {
 
           {/* Mobile Search Bar */}
           <div className={`lg:hidden overflow-hidden transition-all duration-300 ease-out ${searchFocused ? "max-h-[200px] pb-3 opacity-100" : "max-h-0 opacity-0"}`}>
-            <form onSubmit={handleSearch} className="flex items-center border border-gray-200 rounded-xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-blue-500/10 focus-within:border-blue-300 transition-all duration-200">
+            <form onSubmit={handleSearch} className="flex items-center border border-gray-200 rounded-xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-orange-500/10 focus-within:border-orange-300 transition-all duration-200">
               <Search size={16} className="text-gray-400 ml-3.5" />
               <input
                 type="text"
@@ -558,7 +558,7 @@ export default function Navbar() {
             </div>
 
             {/* Search in mobile menu */}
-            <form onSubmit={handleSearch} className="flex items-center border border-gray-200 rounded-xl overflow-hidden mb-5 focus-within:ring-2 focus-within:ring-blue-500/10 focus-within:border-blue-300 transition-all duration-200">
+            <form onSubmit={handleSearch} className="flex items-center border border-gray-200 rounded-xl overflow-hidden mb-5 focus-within:ring-2 focus-within:ring-orange-500/10 focus-within:border-orange-300 transition-all duration-200">
               <Search size={16} className="text-gray-400 ml-3.5" />
               <input
                 type="text"
@@ -583,7 +583,7 @@ export default function Navbar() {
                   onClick={() => setMobileMenuOpen(false)}
                   className={`block py-2.5 px-3 text-sm font-medium rounded-lg transition-all duration-200 ${
                     isActive(link.href)
-                      ? "bg-blue-50 text-[var(--color-primary)]"
+                      ? "bg-orange-50 text-[var(--color-primary)]"
                       : "text-gray-700 hover:bg-gray-50"
                   }`}
                 >
@@ -609,7 +609,7 @@ export default function Navbar() {
                   onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center justify-between py-2.5 px-3 text-sm font-medium rounded-lg transition-all duration-200 ${
                     isActive(link.href)
-                      ? "bg-blue-50 text-[var(--color-primary)]"
+                      ? "bg-orange-50 text-[var(--color-primary)]"
                       : "text-gray-600 hover:bg-gray-50"
                   }`}
                 >
@@ -648,7 +648,7 @@ export default function Navbar() {
                   <Link
                     href="/sign-up"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="block w-full text-center py-3 bg-[var(--color-primary)] text-white text-sm font-semibold rounded-xl hover:bg-[var(--color-primary-hover)] transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/20"
+                    className="block w-full text-center py-3 bg-[var(--color-primary)] text-white text-sm font-semibold rounded-xl hover:bg-[var(--color-primary-hover)] transition-all duration-200 hover:shadow-lg hover:shadow-orange-500/20"
                   >
                     {t("nav.signUp")}
                   </Link>

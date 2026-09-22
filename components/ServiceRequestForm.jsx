@@ -34,7 +34,7 @@ export default function ServiceRequestForm({ initialTrade = "", onSuccess }) {
   };
 
   const inputClass =
-    "w-full rounded-xl border border-[#E8E2DB] bg-white px-4 py-2.5 text-sm text-[#1A1A1A] outline-none transition placeholder:text-[#9B9590] focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/20";
+    "w-full rounded-xl border border-[#E5E7EB] bg-white px-4 py-2.5 text-sm text-[#1A1A1A] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#EA580C] focus:ring-2 focus:ring-[#EA580C]/20";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" aria-label={t("services.requestTitle")}>
@@ -50,13 +50,13 @@ export default function ServiceRequestForm({ initialTrade = "", onSuccess }) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6B6560]">
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">
             {t("services.formName")} *
           </label>
           <input required value={form.name} onChange={set("name")} className={inputClass} placeholder={t("services.formNamePlaceholder")} maxLength={100} />
         </div>
         <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6B6560]">
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">
             {t("services.formPhone")} *
           </label>
           <input required value={form.phone} onChange={set("phone")} className={inputClass} placeholder="+232 ..." maxLength={40} />
@@ -65,13 +65,13 @@ export default function ServiceRequestForm({ initialTrade = "", onSuccess }) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6B6560]">
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">
             {t("services.formEmail")}
           </label>
           <input type="email" value={form.email} onChange={set("email")} className={inputClass} placeholder="you@example.com" maxLength={160} />
         </div>
         <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6B6560]">
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">
             {t("services.formLocation")} *
           </label>
           <input required value={form.location} onChange={set("location")} className={inputClass} placeholder={t("services.formLocationPlaceholder")} maxLength={120} />
@@ -80,7 +80,7 @@ export default function ServiceRequestForm({ initialTrade = "", onSuccess }) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6B6560]">
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">
             {t("services.formTrade")} *
           </label>
           <select required value={form.trade} onChange={set("trade")} className={inputClass}>
@@ -93,7 +93,7 @@ export default function ServiceRequestForm({ initialTrade = "", onSuccess }) {
           </select>
         </div>
         <div>
-          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6B6560]">
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">
             {t("services.formJobDate")}
           </label>
           <input value={form.jobDate} onChange={set("jobDate")} className={inputClass} placeholder={t("services.formJobDatePlaceholder")} maxLength={60} />
@@ -101,7 +101,7 @@ export default function ServiceRequestForm({ initialTrade = "", onSuccess }) {
       </div>
 
       <div>
-        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6B6560]">
+        <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#6B7280]">
           {t("services.formDetails")}
         </label>
         <textarea
@@ -117,7 +117,7 @@ export default function ServiceRequestForm({ initialTrade = "", onSuccess }) {
       <button
         type="submit"
         disabled={status.state === "loading"}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#C9A96E] px-6 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-[#A88B52] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#EA580C] px-6 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-[#C2410C] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
       >
         {status.state === "loading" ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
         {t("services.submitRequest")}

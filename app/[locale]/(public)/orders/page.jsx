@@ -51,7 +51,7 @@ export default function Orders() {
                     <p className="text-sm text-gray-500 mt-2 mb-6">Start shopping to see your orders here.</p>
                     <Link
                         href="/shop"
-                        className="inline-flex items-center gap-2 bg-[var(--color-primary)] text-white px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0"
+                        className="inline-flex items-center gap-2 bg-[var(--color-primary)] text-white px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-orange-500/20 hover:-translate-y-0.5 active:translate-y-0"
                     >
                         <ShoppingBag size={16} />
                         Start Shopping

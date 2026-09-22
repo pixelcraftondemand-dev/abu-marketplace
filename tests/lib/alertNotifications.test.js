@@ -19,7 +19,7 @@ vi.mock("@/lib/emailUtils", () => ({
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
-import { routeAlert, buildDigestEmailHtml } from "@/lib/services/alertNotifications.js";
+import { routeAlert, buildDigestEmailHtml } from "@/lib/services/alertNotifications";
 
 beforeEach(() => {
   vi.resetAllMocks();

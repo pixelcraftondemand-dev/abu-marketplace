@@ -53,9 +53,9 @@ export default function OrderConfirmation() {
 
           {/* What's next */}
           <div className="mt-6 space-y-3">
-            <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl text-left">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
-                <Package size={16} className="text-blue-600" />
+            <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl text-left">
+              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center shrink-0">
+                <Package size={16} className="text-orange-600" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-gray-800">Order Processing</p>
@@ -77,7 +77,7 @@ export default function OrderConfirmation() {
           <div className="mt-8 space-y-2.5">
             <Link
               href="/orders"
-              className="w-full flex items-center justify-center gap-2 bg-[var(--color-primary)] text-white py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0"
+              className="w-full flex items-center justify-center gap-2 bg-[var(--color-primary)] text-white py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-orange-500/20 hover:-translate-y-0.5 active:translate-y-0"
             >
               View My Orders
               <ArrowRight size={16} />

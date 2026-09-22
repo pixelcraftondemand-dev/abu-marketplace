@@ -67,8 +67,8 @@ const ProductDetails = ({ product }) => {
                 <div className="mb-3 flex flex-wrap gap-2">
                     <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">{t('productDetails.verifiedSeller')}</span>
                     {product.halalCertified && (
-                        <span className="inline-flex items-center gap-2 rounded-full border border-[#C9A96E]/30 bg-[#FFF7E8] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#8A6510]">
-                            <span className="inline-flex h-2 w-2 rounded-full bg-[#C9A96E]" />
+                        <span className="inline-flex items-center gap-2 rounded-full border border-[#EA580C]/30 bg-[#FFF7ED] px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#C2410C]">
+                            <span className="inline-flex h-2 w-2 rounded-full bg-[#EA580C]" />
                             {t('categories.halalCertified')}
                         </span>
                     )}

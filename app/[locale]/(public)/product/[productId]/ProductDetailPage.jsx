@@ -121,7 +121,7 @@ export default function ProductDetailPage({ product: serverProduct }) {
           </p>
           <Link
             href="/shop"
-            className="inline-flex items-center gap-2 bg-[var(--color-primary)] text-white px-8 py-3.5 text-sm font-semibold rounded-xl transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0"
+            className="inline-flex items-center gap-2 bg-[var(--color-primary)] text-white px-8 py-3.5 text-sm font-semibold rounded-xl transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-orange-500/20 hover:-translate-y-0.5 active:translate-y-0"
           >
             {t('productPage.continueShopping')}
           </Link>
@@ -145,7 +145,7 @@ export default function ProductDetailPage({ product: serverProduct }) {
           </p>
           <button
             onClick={() => setRetryCount((n) => n + 1)}
-            className="inline-flex items-center gap-2 bg-[var(--color-primary)] text-white px-8 py-3.5 text-sm font-semibold rounded-xl transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0"
+            className="inline-flex items-center gap-2 bg-[var(--color-primary)] text-white px-8 py-3.5 text-sm font-semibold rounded-xl transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-orange-500/20 hover:-translate-y-0.5 active:translate-y-0"
           >
             <RotateCcw size={15} />
             {t('productPage.retry')}
@@ -216,7 +216,7 @@ export default function ProductDetailPage({ product: serverProduct }) {
                     onClick={() => setSelectedImage(i)}
                     className={`relative w-[72px] h-[72px] shrink-0 overflow-hidden bg-white rounded-xl border-2 transition-all duration-200 ${
                       selectedImage === i
-                        ? "border-[var(--color-primary)] shadow-md shadow-blue-500/10 scale-105"
+                        ? "border-[var(--color-primary)] shadow-md shadow-orange-500/10 scale-105"
                         : "border-gray-100 hover:border-gray-200 hover:shadow-sm"
                     }`}
                   >
@@ -296,7 +296,7 @@ export default function ProductDetailPage({ product: serverProduct }) {
               </div>
 
               {/* Delivery Estimate */}
-              <div className="flex items-center gap-3 mb-5 p-3 bg-blue-50/50 rounded-xl border border-blue-100/50">
+              <div className="flex items-center gap-3 mb-5 p-3 bg-orange-50/50 rounded-xl border border-orange-100/50">
                 <Truck size={18} className="text-[var(--color-primary)] shrink-0" />
                 <div>
                   <p className="text-sm font-semibold text-gray-800">Delivery to Freetown</p>
@@ -350,7 +350,7 @@ export default function ProductDetailPage({ product: serverProduct }) {
                 <button
                   onClick={handleBuyNow}
                   disabled={!product.inStock}
-                  className="w-full py-3.5 bg-[var(--color-primary)] text-white text-sm font-semibold uppercase tracking-wide rounded-xl transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/25 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full py-3.5 bg-[var(--color-primary)] text-white text-sm font-semibold uppercase tracking-wide rounded-xl transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-orange-500/25 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <Zap size={16} />
                   {t('productPage.buyNow')}
@@ -392,7 +392,7 @@ export default function ProductDetailPage({ product: serverProduct }) {
                       {product.store.logo ? (
                         <Image src={product.store.logo} alt="" width={40} height={40} className="w-10 h-10 rounded-full object-cover border border-gray-100" />
                       ) : (
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-sm font-bold text-white rounded-full">
+                        <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-sm font-bold text-white rounded-full">
                           {(product.store.name || "S").charAt(0)}
                         </div>
                       )}
@@ -510,7 +510,7 @@ export default function ProductDetailPage({ product: serverProduct }) {
                   {(product.reviews || []).map((review, i) => (
                     <div key={i} className="p-5 bg-white border border-gray-100 rounded-2xl hover:shadow-sm transition-shadow duration-200">
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold rounded-full">
+                        <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white text-xs font-bold rounded-full">
                           {(review.user?.name || "U").charAt(0)}
                         </div>
                         <div>
@@ -545,7 +545,7 @@ export default function ProductDetailPage({ product: serverProduct }) {
                 <p className="text-gray-800 font-semibold">{t('productPage.shippingOptions')}</p>
                 <div className="space-y-3">
                   <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center shrink-0">
                       <Truck size={16} className="text-[var(--color-primary)]" />
                     </div>
                     <div>

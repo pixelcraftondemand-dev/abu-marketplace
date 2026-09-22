@@ -67,7 +67,7 @@ export default function Cart() {
                     </div>
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">{t('cart.empty')}</h1>
                     <p className="text-sm text-gray-500 mt-2 mb-8">Looks like your cart is empty. Start shopping!</p>
-                    <Link href="/shop" className="inline-flex items-center gap-2 bg-[var(--color-primary)] px-8 py-3.5 text-sm font-semibold text-white rounded-xl transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0">
+                    <Link href="/shop" className="inline-flex items-center gap-2 bg-[var(--color-primary)] px-8 py-3.5 text-sm font-semibold text-white rounded-xl transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-orange-500/20 hover:-translate-y-0.5 active:translate-y-0">
                         {t('cart.freeDeliveryCta')}
                         <ArrowRight size={16} />
                     </Link>
@@ -86,7 +86,7 @@ export default function Cart() {
                         {/* Free delivery progress */}
                         <div className="mb-5 bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
                             <div className="flex items-center gap-2.5 text-sm">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${deliveryFree ? 'bg-green-100' : 'bg-blue-100'}`}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${deliveryFree ? 'bg-green-100' : 'bg-orange-100'}`}>
                                     <Truck size={16} className={deliveryFree ? 'text-green-600' : 'text-[var(--color-primary)]'} />
                                 </div>
                                 {deliveryFree ? (
@@ -105,7 +105,7 @@ export default function Cart() {
                             </div>
                             <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100">
                                 <div
-                                    className={`h-full rounded-full transition-all duration-700 ease-out ${deliveryFree ? 'bg-gradient-to-r from-green-400 to-green-500' : 'bg-gradient-to-r from-blue-500 to-blue-600'}`}
+                                    className={`h-full rounded-full transition-all duration-700 ease-out ${deliveryFree ? 'bg-gradient-to-r from-green-400 to-green-500' : 'bg-gradient-to-r from-orange-500 to-orange-600'}`}
                                     style={{ width: `${progressPct}%` }}
                                 />
                             </div>

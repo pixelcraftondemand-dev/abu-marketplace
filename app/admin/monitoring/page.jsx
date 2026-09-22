@@ -40,7 +40,7 @@ import {
 // ─── Color palette ────────────────────────────────────────────────────────────
 
 const COLORS = {
-  gold: '#C9A96E',
+  gold: '#EA580C',
   goldLight: '#F0E3D1',
   green: '#56C27A',
   greenLight: '#D7F7E3',
@@ -200,7 +200,7 @@ export default function MonitoringDashboard() {
       <div className="rounded-[2rem] border border-slate-200 bg-gradient-to-br from-[#1A1A1A] via-[#232323] to-[#2D2D2D] p-8 text-white shadow-[0_25px_80px_rgba(0,0,0,0.14)]">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#C9A96E]">Monitoring &amp; alerting</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#EA580C]">Monitoring &amp; alerting</p>
             <h1 className="mt-3 text-3xl font-semibold">Payment system health</h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
               Real-time metrics, alert history, and threshold configuration for the payment gateway.

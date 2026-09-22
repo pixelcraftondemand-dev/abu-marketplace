@@ -34,12 +34,12 @@ function makeDb() {
 }
 
 vi.mock("@/lib/prisma", () => ({ default: {} }));
-vi.mock("@/lib/services/alertNotifications.js", () => ({
+vi.mock("@/lib/services/alertNotifications", () => ({
   routeAlert: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { evaluateAlerts } from "@/lib/services/alertEngine.js";
-import { routeAlert } from "@/lib/services/alertNotifications.js";
+import { evaluateAlerts } from "@/lib/services/alertEngine";
+import { routeAlert } from "@/lib/services/alertNotifications";
 
 beforeEach(() => {
   vi.resetAllMocks();

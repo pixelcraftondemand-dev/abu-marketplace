@@ -24,7 +24,7 @@ export default function WishlistPage() {
                     <p className="text-sm text-gray-500 mt-2 mb-6 max-w-xs mx-auto">{t('wishlist.emptyText')}</p>
                     <Link
                         href="/shop"
-                        className="inline-flex items-center gap-2 bg-[var(--color-primary)] text-white px-8 py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-blue-500/20 hover:-translate-y-0.5 active:translate-y-0"
+                        className="inline-flex items-center gap-2 bg-[var(--color-primary)] text-white px-8 py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-orange-500/20 hover:-translate-y-0.5 active:translate-y-0"
                     >
                         <ShoppingBag size={16} />
                         {t('wishlist.startShopping')}

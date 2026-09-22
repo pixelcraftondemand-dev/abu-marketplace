@@ -74,7 +74,7 @@ export default function AddedToCartSheet() {
               </div>
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-slate-800">{product.name}</p>
-                <p className="text-sm font-semibold text-[#C9A96E]">
+                <p className="text-sm font-semibold text-[#EA580C]">
                   <CurrencyAmount amount={product.price} />
                 </p>
               </div>
@@ -93,7 +93,7 @@ export default function AddedToCartSheet() {
           <Link
             href="/cart"
             onClick={dismiss}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#C9A96E] px-4 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-[#b18d45]"
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#EA580C] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#C2410C]"
           >
             <ShoppingBag size={15} />
             {t("product.viewCart")}

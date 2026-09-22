@@ -31,10 +31,10 @@ describe("GET /api/exchange", () => {
   });
 
   it("forwards the base and symbols query parameters", async () => {
-    getExchangeRates.mockResolvedValue({ base: "EUR", rates: { USD: 1.09 }, stale: false });
-    const res = await GET(buildRequest("?base=EUR&symbols=USD,GBP"));
+    getExchangeRates.mockResolvedValue({ base: "SLL", rates: { USD: 0.00004444 }, stale: false });
+    const res = await GET(buildRequest("?base=SLL&symbols=USD,SLL"));
     expect(res.status).toBe(200);
-    expect(getExchangeRates).toHaveBeenCalledWith("EUR", ["USD", "GBP"]);
+    expect(getExchangeRates).toHaveBeenCalledWith("SLL", ["USD", "SLL"]);
   });
 
   it("rejects an unsupported base currency before calling the service", async () => {

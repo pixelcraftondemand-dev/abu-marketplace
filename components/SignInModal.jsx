@@ -383,7 +383,7 @@ export default function SignInModal({ open, onClose }) {
                   }}
                   placeholder="you@example.com"
                   autoComplete="email"
-                  className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-300 transition-all duration-200"
+                  className="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-orange-300 transition-all duration-200"
                 />
               </div>
 
@@ -434,7 +434,7 @@ export default function SignInModal({ open, onClose }) {
                 value={code}
                 onChange={(e) => handleCodeChange(e.target.value)}
                 placeholder="000000"
-                className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl text-center text-2xl font-mono font-semibold tracking-[0.3em] text-gray-800 placeholder:text-gray-300 placeholder:tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-blue-300 transition-all duration-200"
+                className="w-full px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl text-center text-2xl font-mono font-semibold tracking-[0.3em] text-gray-800 placeholder:text-gray-300 placeholder:tracking-[0.3em] focus:outline-none focus:ring-2 focus:ring-orange-500/10 focus:border-orange-300 transition-all duration-200"
                 maxLength={6}
               />
 

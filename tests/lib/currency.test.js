@@ -14,17 +14,19 @@ describe("currency utils", () => {
   it("treats USD as the canonical base currency", () => {
     expect(supportedCurrencies).toContain("USD");
     expect(supportedCurrencies).toContain("SLL");
-    expect(supportedCurrencies).toContain("EUR");
-    expect(supportedCurrencies).toContain("GBP");
     // The legacy new-leone code was dropped in favor of SLL.
     expect(supportedCurrencies).not.toContain("SLE");
+    // Sierra Leone pilot: prices display in leones with USD as the canonical
+    // base; other currencies are not selectable yet.
+    expect(supportedCurrencies).not.toContain("EUR");
+    expect(supportedCurrencies).not.toContain("GBP");
   });
 
   it("validates supported and unsupported currencies", () => {
     expect(isValidCurrency("USD")).toBe(true);
     expect(isValidCurrency("SLL")).toBe(true);
-    expect(isValidCurrency("EUR")).toBe(true);
-    expect(isValidCurrency("GBP")).toBe(true);
+    expect(isValidCurrency("EUR")).toBe(false);
+    expect(isValidCurrency("GBP")).toBe(false);
     expect(isValidCurrency("BTC")).toBe(false);
     expect(isValidCurrency("")).toBe(false);
     expect(isValidCurrency(undefined)).toBe(false);
@@ -88,9 +90,10 @@ describe("currency utils", () => {
 
   it("maps currency codes to symbols", () => {
     expect(getCurrencySymbol("USD")).toBe("$");
-    expect(getCurrencySymbol("EUR")).toBe("€");
-    expect(getCurrencySymbol("GBP")).toBe("£");
     expect(getCurrencySymbol("SLL")).toContain("SLe");
+    // Unsupported codes fall back to the code itself (no hardcoded symbol).
+    expect(getCurrencySymbol("EUR")).toBe("EUR ");
+    expect(getCurrencySymbol("GBP")).toBe("GBP ");
     expect(getCurrencySymbol("XYZ")).toBe("XYZ ");
   });
 });

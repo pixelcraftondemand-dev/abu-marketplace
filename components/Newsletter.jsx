@@ -1,32 +1,28 @@
 'use client'
 import React from 'react'
 import { useTranslation } from '@/lib/i18n'
-import { Mail } from 'lucide-react'
 
 const Newsletter = () => {
     const { t } = useTranslation()
     return (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-10 sm:my-14">
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-500 to-blue-700 p-8 sm:p-12 text-center">
-                {/* Subtle pattern */}
-                <div className="absolute inset-0 opacity-[0.05]" style={{
-                    backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
-                    backgroundSize: '20px 20px'
-                }} />
-                
-                <div className="relative z-10">
-                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white/15 mb-4">
-                        <Mail size={22} className="text-white" />
-                    </div>
-                    <h2 className='text-xl sm:text-2xl font-bold text-white tracking-tight'>{t('newsletter.title')}</h2>
-                    <p className='text-sm text-white/60 mt-2 mb-6 max-w-md mx-auto leading-relaxed'>{t('newsletter.description')}</p>
-                    <div className='flex bg-white text-sm p-1.5 rounded-xl w-full max-w-xl mx-auto shadow-xl shadow-black/10 focus-within:ring-2 focus-within:ring-white/30 transition-shadow duration-200'>
-                        <input className='flex-1 px-4 outline-none bg-transparent text-gray-900 placeholder:text-gray-400 text-sm' type="text" placeholder={t('newsletter.placeholder')} />
-                        <button className='font-semibold bg-[var(--color-primary)] text-white px-6 py-2.5 rounded-lg text-sm transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg active:scale-95'>{t('newsletter.cta')}</button>
-                    </div>
-                </div>
+        <div className="flex flex-col items-center justify-center text-center space-y-2 pt-8 pb-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h1 className="md:text-4xl text-2xl font-medium text-gray-900">
+                {t('newsletter.title')}
+            </h1>
+            <p className="md:text-base text-gray-500/80 pb-8 max-w-xl">
+                {t('newsletter.description')}
+            </p>
+            <div className="flex items-center justify-between max-w-2xl w-full md:h-14 h-12">
+                <input
+                    className="border border-gray-500/30 rounded-md h-full border-r-0 outline-none w-full rounded-r-none px-3 text-gray-500"
+                    type="text"
+                    placeholder={t('newsletter.placeholder')}
+                />
+                <button className="md:px-12 px-8 h-full text-white bg-orange-600 rounded-md rounded-l-none hover:bg-orange-700 transition-colors duration-200">
+                    {t('newsletter.cta')}
+                </button>
             </div>
-        </section>
+        </div>
     )
 }
 

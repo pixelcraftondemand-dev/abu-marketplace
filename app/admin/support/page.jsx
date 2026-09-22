@@ -49,7 +49,7 @@ export default function AdminSupportPage() {
       <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-[#C9A96E]">Support inbox</p>
+            <p className="text-sm uppercase tracking-[0.3em] text-[#EA580C]">Support inbox</p>
             <h1 className="mt-3 text-3xl font-semibold text-slate-900">ABU support tickets</h1>
             <p className="mt-2 text-sm text-slate-500">Review escalated tickets and reply directly to customers.</p>
           </div>
@@ -67,7 +67,7 @@ export default function AdminSupportPage() {
               <button
                 key={ticket.id}
                 onClick={() => selectTicket(ticket)}
-                className={`w-full rounded-3xl border p-4 text-left transition ${selectedTicket?.id === ticket.id ? 'border-[#C9A96E] bg-[#FEF7E8]' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                className={`w-full rounded-3xl border p-4 text-left transition ${selectedTicket?.id === ticket.id ? 'border-[#EA580C] bg-[#FEF7E8]' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="font-semibold text-slate-900">{ticket.subject}</p>
@@ -112,7 +112,7 @@ export default function AdminSupportPage() {
                   className="w-full rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800"
                   placeholder="Write a reply to the customer..."
                 />
-                <button onClick={sendReply} className="inline-flex items-center gap-2 rounded-full bg-[#C9A96E] px-5 py-3 text-sm font-semibold text-[#1A1A1A] transition hover:bg-[#bfa469]">
+                <button onClick={sendReply} className="inline-flex items-center gap-2 rounded-full bg-[#EA580C] px-5 py-3 text-sm font-semibold text-[#1A1A1A] transition hover:bg-[#bfa469]">
                   Send reply
                 </button>
               </div>

@@ -12,7 +12,7 @@ const TrustStrip = () => {
       icon: Truck,
       title: t('trust.freeDelivery'),
       subtitle: `${t('trust.over')} ${FREE_DELIVERY_THRESHOLD}`,
-      color: 'text-blue-600 bg-blue-50',
+      color: 'text-orange-600 bg-orange-50',
     },
     {
       icon: ShieldCheck,

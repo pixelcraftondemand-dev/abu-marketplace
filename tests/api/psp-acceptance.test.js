@@ -535,7 +535,9 @@ describe("PCI — No card data fields in schema", () => {
     const fs = await import("node:fs");
     const schema = fs.readFileSync("prisma/schema.prisma", "utf-8");
 
-    // Scan for any field that could store raw card data
+    // Scan for any field that could store raw card data. Mobile-money USSD
+    // PINs are not cardholder data: they are stored only as a bcrypt hash
+    // (ussdPinHash), which is verified separately below.
     const forbiddenPatterns = [
       /cardNumber/i,
       /card_number/i,
@@ -547,12 +549,15 @@ describe("PCI — No card data fields in schema", () => {
       /expiryYear/i,
       /exp_month/i,
       /exp_year/i,
-      /pin\b/i,
       /magneticStrip/i,
     ];
 
     for (const pattern of forbiddenPatterns) {
       expect(schema).not.toMatch(pattern);
     }
+
+    // PIN material is hash-only: a hashed column is expected, plaintext is not.
+    expect(schema).toMatch(/ussdPinHash/);
+    expect(schema).not.toMatch(/pin\s+String\b/i);
   });
 });

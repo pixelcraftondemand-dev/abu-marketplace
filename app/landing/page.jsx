@@ -234,7 +234,7 @@ export default function LandingPage() {
   if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FAF8F5]">
-        <div className="w-8 h-8 border border-[#E8E2DB] border-t-[#C9A96E] animate-spin" />
+        <div className="w-8 h-8 border border-[#E8E2DB] border-t-[#EA580C] animate-spin" />
       </div>
     );
   }
@@ -281,7 +281,7 @@ export default function LandingPage() {
                   </Link>
                   <Link
                     href="/collections"
-                    className="inline-flex items-center gap-2 text-white text-sm font-medium tracking-wide uppercase hover:text-[#C9A96E] transition"
+                    className="inline-flex items-center gap-2 text-white text-sm font-medium tracking-wide uppercase hover:text-[#EA580C] transition"
                   >
                     <Play size={14} fill="currentColor" />
                     Watch the Film
@@ -365,14 +365,14 @@ export default function LandingPage() {
         <div className="section-narrow">
           <div className="flex items-end justify-between mb-12">
             <div>
-              <p className="text-editorial text-[#C9A96E] mb-3">Curated Selection</p>
+              <p className="text-editorial text-[#EA580C] mb-3">Curated Selection</p>
               <h2 className="font-display text-4xl md:text-5xl text-[#1A1A1A] font-medium">
                 Featured Products
               </h2>
             </div>
             <Link
               href="/shop"
-              className="hidden md:inline-flex items-center gap-2 text-sm font-medium text-[#1A1A1A] hover:text-[#C9A96E] transition uppercase tracking-wide"
+              className="hidden md:inline-flex items-center gap-2 text-sm font-medium text-[#1A1A1A] hover:text-[#EA580C] transition uppercase tracking-wide"
             >
               {t('common.viewAll')}
               <ArrowRight size={16} />
@@ -406,7 +406,7 @@ export default function LandingPage() {
                   <p className="text-[10px] tracking-[0.15em] uppercase text-[#9B9590] mb-1">
                     {product.category}
                   </p>
-                  <h3 className="font-display text-lg text-[#1A1A1A] group-hover:text-[#C9A96E] transition-colors">
+                  <h3 className="font-display text-lg text-[#1A1A1A] group-hover:text-[#EA580C] transition-colors">
                     {product.name}
                   </h3>
                   <div className="flex items-center justify-between mt-2">
@@ -414,7 +414,7 @@ export default function LandingPage() {
                       <CurrencyAmount amount={product.price} />
                     </span>
                     <div className="flex items-center gap-1">
-                      <Star size={12} className="text-[#C9A96E] fill-[#C9A96E]" />
+                      <Star size={12} className="text-[#EA580C] fill-[#EA580C]" />
                       <span className="text-xs text-[#6B6560]">
                         {product.rating}
                       </span>
@@ -460,7 +460,7 @@ export default function LandingPage() {
               <p className="text-white/70 text-lg max-w-md mb-6">
                 {editorialPicks[0].subtitle}
               </p>
-              <span className="inline-flex items-center gap-2 text-white text-sm font-medium tracking-wide uppercase group-hover:text-[#C9A96E] transition">
+              <span className="inline-flex items-center gap-2 text-white text-sm font-medium tracking-wide uppercase group-hover:text-[#EA580C] transition">
                 Explore Collection
                 <ArrowUpRight size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
               </span>
@@ -514,14 +514,14 @@ export default function LandingPage() {
         <div className="section-narrow">
           <div className="flex items-end justify-between mb-12">
             <div>
-              <p className="text-editorial text-[#C9A96E] mb-3">Collections</p>
+              <p className="text-editorial text-[#EA580C] mb-3">Collections</p>
               <h2 className="font-display text-4xl md:text-5xl text-[#1A1A1A] font-medium">
                 Shop Premium Categories
               </h2>
             </div>
             <Link
               href="/shop"
-              className="hidden md:inline-flex items-center gap-2 text-sm font-medium text-[#1A1A1A] hover:text-[#C9A96E] transition uppercase tracking-wide"
+              className="hidden md:inline-flex items-center gap-2 text-sm font-medium text-[#1A1A1A] hover:text-[#EA580C] transition uppercase tracking-wide"
             >
               {t('common.browseAll')}
               <ArrowRight size={16} />
@@ -546,7 +546,7 @@ export default function LandingPage() {
                   <div className="absolute inset-0 bg-gradient-to-t from-[#1A1A1A]/70 via-[#1A1A1A]/20 to-transparent" />
                 </div>
                 <div className="p-6">
-                  <p className="text-xs uppercase tracking-[0.3em] text-[#C9A96E] mb-3">
+                  <p className="text-xs uppercase tracking-[0.3em] text-[#EA580C] mb-3">
                     Featured
                   </p>
                   <h3 className="font-display text-2xl text-[#1A1A1A] mb-3">
@@ -555,7 +555,7 @@ export default function LandingPage() {
                   <p className="text-sm leading-6 text-[#6B6560] mb-5">
                     {collection.subtitle}
                   </p>
-                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-[#C9A96E] uppercase tracking-[0.2em]">
+                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-[#EA580C] uppercase tracking-[0.2em]">
                     {collection.label}
                     <ArrowRight size={16} />
                   </span>
@@ -595,7 +595,7 @@ export default function LandingPage() {
       <section className="section-clean">
         <div className="section-narrow">
           <div className="text-center mb-16">
-            <p className="text-editorial text-[#C9A96E] mb-3">Testimonials</p>
+            <p className="text-editorial text-[#EA580C] mb-3">Testimonials</p>
             <h2 className="font-display text-4xl md:text-5xl text-[#1A1A1A] font-medium">
               What Our Community Says
             </h2>
@@ -605,9 +605,9 @@ export default function LandingPage() {
             {testimonials.map((t, i) => (
               <div
                 key={i}
-                className="relative p-8 bg-white border border-[#E8E2DB] hover:border-[#C9A96E]/30 transition-all duration-500"
+                className="relative p-8 bg-white border border-[#E8E2DB] hover:border-[#EA580C]/30 transition-all duration-500"
               >
-                <div className="font-display text-6xl text-[#C9A96E]/20 leading-none mb-4">
+                <div className="font-display text-6xl text-[#EA580C]/20 leading-none mb-4">
                   "
                 </div>
                 <p className="text-[#2D2D2D] leading-relaxed mb-6 text-[15px]">
@@ -636,7 +636,7 @@ export default function LandingPage() {
           {/* Left — Content */}
           <div className="flex items-center bg-[#FAF8F5] p-8 lg:p-16 xl:p-24">
             <div className="max-w-md">
-              <p className="text-editorial text-[#C9A96E] mb-4">Join Us</p>
+              <p className="text-editorial text-[#EA580C] mb-4">Join Us</p>
               <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-[#1A1A1A] font-medium leading-[1.05] mb-6">
                 Start Your
                 <br />

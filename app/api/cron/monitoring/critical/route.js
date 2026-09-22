@@ -6,8 +6,8 @@
 // Protected by CRON_SECRET — only Vercel's cron runner can invoke this.
 
 import { NextResponse } from "next/server";
-import prisma from "@/lib/prisma.js";
-import { evaluateAlerts } from "@/lib/services/alertEngine.js";
+import prisma from "@/lib/prisma";
+import { evaluateAlerts } from "@/lib/services/alertEngine";
 
 export async function GET(request) {
   // Verify cron secret

@@ -174,36 +174,42 @@ async function handleAuthorize(body, userId, requestId) {
     }
   }
 
-  const transaction = await prisma.pspTransaction.create({
-    data: {
-      paymentId,
-      merchantId,
-      userId,
-      amount,
-      capturedAmount: 0,
-      settledAmount: 0,
-      currency,
-      pspStatus: PSP_STATES.PENDING,
-      idempotencyKey: idempotencyKey || `auth_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-    },
+  // Atomic transaction: create PSP transaction + transition to AUTHORIZED + audit log.
+  // All three writes must succeed or all must roll back — a PENDING transaction
+  // without an audit trail, or an audit log without a matching state, is inconsistent.
+  const updated = await prisma.$transaction(async (tx) => {
+    const transaction = await tx.pspTransaction.create({
+      data: {
+        paymentId,
+        merchantId,
+        userId,
+        amount,
+        capturedAmount: 0,
+        settledAmount: 0,
+        currency,
+        pspStatus: PSP_STATES.PENDING,
+        idempotencyKey: idempotencyKey || `auth_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      },
+    });
+
+    // Transition to AUTHORIZED
+    const transition = await transitionPspStatus(tx, transaction.id, PSP_STATES.PENDING, PSP_STATES.AUTHORIZED, transaction.version);
+    if (!transition.applied) {
+      throw new Error("AUTHORIZATION_CONCURRENT_MODIFICATION");
+    }
+
+    await appendAuditLog(tx, {
+      pspTransactionId: transaction.id,
+      actor: userId,
+      action: "authorize",
+      previousState: PSP_STATES.PENDING,
+      newState: PSP_STATES.AUTHORIZED,
+      metadata: { amount, currency, merchantId },
+    });
+
+    return tx.pspTransaction.findUnique({ where: { id: transaction.id } });
   });
 
-  // Transition to AUTHORIZED
-  const transition = await transitionPspStatus(prisma, transaction.id, PSP_STATES.PENDING, PSP_STATES.AUTHORIZED, transaction.version);
-  if (!transition.applied) {
-    return NextResponse.json({ error: "Authorization failed (concurrent modification)." }, { status: 409 });
-  }
-
-  await appendAuditLog(prisma, {
-    pspTransactionId: transaction.id,
-    actor: userId,
-    action: "authorize",
-    previousState: PSP_STATES.PENDING,
-    newState: PSP_STATES.AUTHORIZED,
-    metadata: { amount, currency, merchantId },
-  });
-
-  const updated = await prisma.pspTransaction.findUnique({ where: { id: transaction.id } });
   return NextResponse.json({ transaction: updated });
 }
 
@@ -230,35 +236,41 @@ async function handleCapture(body, userId, requestId) {
     return NextResponse.json({ error: "Capture amount exceeds authorized amount." }, { status: 422 });
   }
 
-  const transition = await transitionPspStatus(prisma, txn.id, PSP_STATES.AUTHORIZED, PSP_STATES.CAPTURED, txn.version);
-  if (!transition.applied) {
-    return NextResponse.json({ error: "Capture failed (concurrent modification)." }, { status: 409 });
-  }
+  // Atomic transaction: state transition + capturedAmount update + ledger entry + audit log.
+  // A captured transaction without a ledger entry, or a ledger entry without the
+  // correct capturedAmount, would break reconciliation.
+  const updated = await prisma.$transaction(async (tx) => {
+    const transition = await transitionPspStatus(tx, txn.id, PSP_STATES.AUTHORIZED, PSP_STATES.CAPTURED, txn.version);
+    if (!transition.applied) {
+      throw new Error("CAPTURE_CONCURRENT_MODIFICATION");
+    }
 
-  await prisma.pspTransaction.update({
-    where: { id: txn.id },
-    data: { capturedAmount: amount },
+    await tx.pspTransaction.update({
+      where: { id: txn.id },
+      data: { capturedAmount: amount },
+    });
+
+    // Record in ledger
+    await recordPaymentCapture(tx, {
+      pspTransactionId: txn.id,
+      amount,
+      description: `Payment captured for transaction ${txn.id}`,
+      referenceType: "psp_transaction",
+      referenceId: txn.id,
+    });
+
+    await appendAuditLog(tx, {
+      pspTransactionId: txn.id,
+      actor: userId,
+      action: "capture",
+      previousState: PSP_STATES.AUTHORIZED,
+      newState: PSP_STATES.CAPTURED,
+      metadata: { amount, requestId },
+    });
+
+    return tx.pspTransaction.findUnique({ where: { id: txn.id } });
   });
 
-  // Record in ledger
-  await recordPaymentCapture(prisma, {
-    pspTransactionId: txn.id,
-    amount,
-    description: `Payment captured for transaction ${txn.id}`,
-    referenceType: "psp_transaction",
-    referenceId: txn.id,
-  });
-
-  await appendAuditLog(prisma, {
-    pspTransactionId: txn.id,
-    actor: userId,
-    action: "capture",
-    previousState: PSP_STATES.AUTHORIZED,
-    newState: PSP_STATES.CAPTURED,
-    metadata: { amount, requestId },
-  });
-
-  const updated = await prisma.pspTransaction.findUnique({ where: { id: txn.id } });
   return NextResponse.json({ transaction: updated });
 }
 
@@ -281,25 +293,30 @@ async function handleFail(body, userId, requestId) {
     return NextResponse.json({ error: `Cannot fail: transaction is ${txn.pspStatus}.` }, { status: 409 });
   }
 
-  const transition = await transitionPspStatus(prisma, txn.id, txn.pspStatus, PSP_STATES.FAILED, txn.version);
-  if (!transition.applied) {
-    return NextResponse.json({ error: "Fail transition failed (concurrent modification)." }, { status: 409 });
-  }
+  // Atomic transaction: state transition + failureReason update + audit log.
+  // A FAILED transaction without a failure reason or audit trail is inconsistent.
+  const updated = await prisma.$transaction(async (tx) => {
+    const transition = await transitionPspStatus(tx, txn.id, txn.pspStatus, PSP_STATES.FAILED, txn.version);
+    if (!transition.applied) {
+      throw new Error("FAIL_CONCURRENT_MODIFICATION");
+    }
 
-  await prisma.pspTransaction.update({
-    where: { id: txn.id },
-    data: { failureReason: reason || "Payment failed" },
+    await tx.pspTransaction.update({
+      where: { id: txn.id },
+      data: { failureReason: reason || "Payment failed" },
+    });
+
+    await appendAuditLog(tx, {
+      pspTransactionId: txn.id,
+      actor: userId,
+      action: "fail",
+      previousState: txn.pspStatus,
+      newState: PSP_STATES.FAILED,
+      metadata: { reason, requestId },
+    });
+
+    return tx.pspTransaction.findUnique({ where: { id: txn.id } });
   });
 
-  await appendAuditLog(prisma, {
-    pspTransactionId: txn.id,
-    actor: userId,
-    action: "fail",
-    previousState: txn.pspStatus,
-    newState: PSP_STATES.FAILED,
-    metadata: { reason, requestId },
-  });
-
-  const updated = await prisma.pspTransaction.findUnique({ where: { id: txn.id } });
   return NextResponse.json({ transaction: updated });
 }

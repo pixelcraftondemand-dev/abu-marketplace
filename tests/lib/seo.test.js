@@ -54,7 +54,8 @@ describe("sitemap.xml", () => {
     ]);
 
     const entries = await sitemap();
-    const locales = ["en", "fr", "pt", "kri", "ha", "yo", "ig", "wo", "ff", "ak"];
+    // Sierra Leone pilot: English plus Krio.
+    const locales = ["en", "kri"];
 
     for (const locale of locales) {
       expect(entries.some((e) => e.url === `${BASE}/${locale}`)).toBe(true);
@@ -77,7 +78,7 @@ describe("sitemap.xml", () => {
 
     const entries = await sitemap();
     expect(entries.length).toBeGreaterThan(0);
-    expect(entries.some((e) => e.url === `${BASE}/fr/services`)).toBe(true);
+    expect(entries.some((e) => e.url === `${BASE}/kri/services`)).toBe(true);
     // No product/store URLs when the DB failed.
     expect(entries.some((e) => e.url.includes("/product/"))).toBe(false);
   });

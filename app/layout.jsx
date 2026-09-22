@@ -1,4 +1,4 @@
-import { Inter, Playfair_Display } from "next/font/google";
+import { Outfit } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "react-hot-toast";
 import StoreProvider from "@/app/StoreProvider";
@@ -11,27 +11,12 @@ import { THEME_INIT_SCRIPT } from '@/components/ThemeToggle'
 import { getPreferredLocaleFromAcceptLanguage, supportedLocales, defaultLocale } from '@/lib/utils/locale'
 import { NextIntlClientProvider } from 'next-intl'
 import en from '@/locales/en/common.json'
-import fr from '@/locales/fr/common.json'
 import kri from '@/locales/kri/common.json'
-import pt from '@/locales/pt/common.json'
-import ha from '@/locales/ha/common.json'
-import yo from '@/locales/yo/common.json'
-import ig from '@/locales/ig/common.json'
-import wo from '@/locales/wo/common.json'
-import ff from '@/locales/ff/common.json'
-import ak from '@/locales/ak/common.json'
 
-const inter = Inter({
+const outfit = Outfit({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
-  variable: "--font-playfair",
+  variable: "--font-outfit",
   display: "swap",
 });
 
@@ -97,7 +82,7 @@ export const metadata = {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#FAF8F5",
+  themeColor: "#FFFFFF",
 };
 
 export default async function RootLayout({ children }) {
@@ -118,19 +103,11 @@ export default async function RootLayout({ children }) {
 
   const messages = {
     en,
-    fr,
     kri,
-    pt,
-    ha,
-    yo,
-    ig,
-    wo,
-    ff,
-    ak,
   }[locale] || en
 
   return (
-    <html lang={lang} className={`${inter.variable} ${playfair.variable}`}>
+    <html lang={lang} className={outfit.variable}>
       <head>
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
         <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
@@ -158,39 +135,39 @@ export default async function RootLayout({ children }) {
           }}
         />
       </head>
-      <body className={`${inter.className} antialiased`}>
+      <body className={`${outfit.className} antialiased text-gray-700`}>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ClerkProvider
           dynamic
           publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
           appearance={{
             elements: {
-              formButtonPrimary: "bg-[#1A1A1A] hover:bg-[#2D2D2D] text-white",
-              footerActionLink: "text-[#C9A96E] hover:text-[#A88B52]",
-              card: "bg-white border border-[#E8E2DB]",
-              headerTitle: "text-[#1A1A1A]",
-              headerSubtitle: "text-[#6B6560]",
-              socialButtonsBlockButton: "border-[#E8E2DB] hover:bg-[#F5F0EB]",
-              socialButtonsBlockButtonText: "text-[#1A1A1A]",
-              formFieldLabel: "text-[#2D2D2D]",
-              formFieldInput: "bg-[#FAF8F5] border-[#E8E2DB] text-[#1A1A1A] focus:border-[#C9A96E]",
-              dividerLine: "bg-[#E8E2DB]",
-              dividerText: "text-[#9B9590]",
-              identityPreviewText: "text-[#1A1A1A]",
-              identityPreviewEditButton: "text-[#C9A96E]",
+              formButtonPrimary: "bg-orange-600 hover:bg-orange-700 text-white",
+              footerActionLink: "text-orange-600 hover:text-orange-700",
+              card: "bg-white border border-gray-200",
+              headerTitle: "text-gray-900",
+              headerSubtitle: "text-gray-500",
+              socialButtonsBlockButton: "border-gray-200 hover:bg-gray-50",
+              socialButtonsBlockButtonText: "text-gray-900",
+              formFieldLabel: "text-gray-800",
+              formFieldInput: "bg-white border-gray-200 text-gray-900 focus:border-orange-500",
+              dividerLine: "bg-gray-200",
+              dividerText: "text-gray-400",
+              identityPreviewText: "text-gray-900",
+              identityPreviewEditButton: "text-orange-600",
               formFieldSuccessText: "text-green-600",
               formFieldErrorText: "text-red-600",
               alertText: "text-red-600",
               alert: "bg-red-50 border-red-100",
             },
             variables: {
-              colorPrimary: "#1A1A1A",
+              colorPrimary: "#EA580C",
               colorBackground: "#FFFFFF",
-              colorText: "#1A1A1A",
-              colorTextSecondary: "#6B6560",
+              colorText: "#111827",
+              colorTextSecondary: "#6B7280",
               colorDanger: "#DC2626",
-              borderRadius: "0px",
-              fontFamily: "var(--font-inter), sans-serif",
+              borderRadius: "0.5rem",
+              fontFamily: "var(--font-outfit), sans-serif",
             },
           }}
         >
@@ -201,15 +178,15 @@ export default async function RootLayout({ children }) {
                 duration: 4000,
                 style: {
                   background: "#FFFFFF",
-                  color: "#1A1A1A",
-                  border: "1px solid #E8E2DB",
-                  borderRadius: "0px",
+                  color: "#111827",
+                  border: "1px solid #E5E7EB",
+                  borderRadius: "0.5rem",
                   padding: "16px 20px",
-                  fontFamily: "var(--font-inter), sans-serif",
+                  fontFamily: "var(--font-outfit), sans-serif",
                   fontSize: "0.875rem",
                 },
                 success: {
-                  iconTheme: { primary: "#C9A96E", secondary: "#FFFFFF" },
+                  iconTheme: { primary: "#EA580C", secondary: "#FFFFFF" },
                 },
                 error: {
                   iconTheme: { primary: "#DC2626", secondary: "#FFFFFF" },
