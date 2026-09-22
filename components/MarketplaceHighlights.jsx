@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTranslation } from "@/lib/i18n";
 import CurrencyAmount from "@/components/CurrencyAmount";
+import { FREE_DELIVERY_THRESHOLD } from "@/lib/paymentOptions";
+import { StaggerReveal, StaggerItem } from "@/components/ScrollReveal";
 
 const MarketplaceHighlights = () => {
     const { t } = useTranslation();
@@ -17,52 +19,56 @@ const MarketplaceHighlights = () => {
     ];
 
     return (
-        <section className="mx-6 my-24">
-            <div className="max-w-7xl mx-auto grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-                <div className="rounded-lg bg-slate-100 p-6 sm:p-10 text-slate-900 shadow-sm ring-1 ring-slate-200">
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <BadgeCheckIcon size={18} className="text-emerald-500" />
-                        {t("highlights.trustBadge")}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-10 sm:my-14">
+            <div className="max-w-7xl mx-auto grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+                {/* Trust features panel */}
+                <div className="rounded-xl bg-[var(--abu-blue-light)] p-6 sm:p-8">
+                    <div className="flex items-center gap-2 text-sm text-[var(--accent)]">
+                        <BadgeCheckIcon size={16} />
+                        <span className="text-editorial">{t("highlights.trustBadge")}</span>
                     </div>
-                    <h2 className="mt-4 max-w-2xl text-3xl font-semibold leading-tight sm:text-4xl">
+                    <h2 className="mt-3 text-xl sm:text-2xl font-bold text-[var(--text-primary)] leading-tight">
                         {t("highlights.headline")}
                     </h2>
-                    <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">
+                    <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
                         {t("highlights.body")}
                     </p>
-                    <div className="mt-8 grid gap-4 sm:grid-cols-2">
+                    <StaggerReveal className="mt-6 grid gap-3 sm:grid-cols-2">
                         {highlights.map((item) => (
-                            <div key={item.title} className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                                <item.icon className="text-emerald-500" size={22} />
-                                <h3 className="mt-3 font-semibold text-slate-900">{item.title}</h3>
-                                <p className="mt-2 text-sm leading-6 text-slate-600">{item.text}</p>
-                            </div>
+                            <StaggerItem key={item.title}>
+                                <div className="rounded-xl border border-gray-100 bg-white p-4 transition-all duration-200 hover:shadow-[0_4px_20px_-4px_rgba(0,0,0,0.06)] hover:border-gray-200 hover:-translate-y-0.5">
+                                    <item.icon className="text-[var(--color-primary)]" size={20} />
+                                    <h3 className="mt-2.5 font-semibold text-sm text-gray-800">{item.title}</h3>
+                                    <p className="mt-1 text-xs text-gray-500 leading-relaxed">{item.text}</p>
+                                </div>
+                            </StaggerItem>
                         ))}
-                    </div>
+                    </StaggerReveal>
                 </div>
 
-                <div className="grid gap-5">
-                    <Link href="/shop" className="group flex min-h-48 items-center justify-between overflow-hidden rounded-lg bg-emerald-50 p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5">
+                {/* Promo cards */}
+                <div className="grid gap-4">
+                    <Link href="/shop" className="group flex min-h-40 items-center justify-between overflow-hidden rounded-2xl bg-gray-50 p-6 border border-gray-100 transition-all duration-300 hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.06)] hover:border-gray-200 hover:-translate-y-0.5">
                         <div>
-                            <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-700 shadow-sm">
-                                <TruckIcon size={14} />
-                                {t("highlights.freeDeliveryOver")} <CurrencyAmount amount={500} />
+                            <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-600">
+                                <TruckIcon size={12} />
+                                {t("highlights.freeDeliveryOver")} <CurrencyAmount amount={FREE_DELIVERY_THRESHOLD} />
                             </div>
-                            <h3 className="mt-5 max-w-52 text-2xl font-semibold text-slate-900">{t("highlights.trustedGadgets")}</h3>
-                            <p className="mt-3 text-sm text-slate-600">{t("highlights.exploreVerified")}</p>
+                            <h3 className="mt-4 text-lg font-bold text-gray-900">{t("highlights.trustedGadgets")}</h3>
+                            <p className="mt-1.5 text-xs text-gray-500">{t("highlights.exploreVerified")}</p>
                         </div>
-                        <Image src={assets.hero_product_img1} alt="Featured gadget" className="w-32 transition group-hover:scale-105 sm:w-40" />
+                        <Image src={assets.hero_product_img1} alt="Featured gadget" className="w-28 transition-transform duration-300 group-hover:scale-110 sm:w-36" />
                     </Link>
-                    <Link href="/pricing" className="group flex min-h-48 items-center justify-between overflow-hidden rounded-lg bg-amber-50 p-6 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5">
+                    <Link href="/pricing" className="group flex min-h-40 items-center justify-between overflow-hidden rounded-2xl bg-gray-50 p-6 border border-gray-100 transition-all duration-300 hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.06)] hover:border-gray-200 hover:-translate-y-0.5">
                         <div>
-                            <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-medium text-amber-700 shadow-sm">
-                                <SparklesIcon size={14} />
+                            <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-2.5 py-1 text-xs font-medium text-orange-600">
+                                <SparklesIcon size={12} />
                                 {t("highlights.memberSavings")}
                             </div>
-                            <h3 className="mt-5 max-w-52 text-2xl font-semibold text-slate-900">{t("highlights.vipPerks")}</h3>
-                            <p className="mt-3 text-sm text-slate-600">{t("highlights.joinForExclusive")}</p>
+                            <h3 className="mt-4 text-lg font-bold text-gray-900">{t("highlights.vipPerks")}</h3>
+                            <p className="mt-1.5 text-xs text-gray-500">{t("highlights.joinForExclusive")}</p>
                         </div>
-                        <Image src={assets.hero_product_img2} alt="Member savings" className="w-32 transition group-hover:scale-105 sm:w-40" />
+                        <Image src={assets.hero_product_img2} alt="Member savings" className="w-28 transition-transform duration-300 group-hover:scale-110 sm:w-36" />
                     </Link>
                 </div>
             </div>

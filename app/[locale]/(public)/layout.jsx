@@ -13,6 +13,8 @@ import { fetchUserRatings } from "@/lib/features/rating/ratingSlice";
 import { hydrateWishlist, loadWishlistFromStorage } from "@/lib/features/wishlist/wishlistSlice";
 import { fetchExchangeRates } from "@/lib/features/currencySlice";
 import VerificationGate from "@/components/VerificationGate";
+import SignInModal from "@/components/SignInModal";
+import { closeSignInModal } from "@/lib/features/signInModalSlice";
 
 export default function PublicLayout({ children }) {
 
@@ -20,6 +22,7 @@ export default function PublicLayout({ children }) {
     const { user } = useUser()
 
     const {cartItems} = useSelector((state)=>state.cart)
+    const signInModalOpen = useSelector((state)=>state.signInModal.open)
 
     useEffect(()=>{
         dispatch(fetchProducts({}))
@@ -53,6 +56,10 @@ export default function PublicLayout({ children }) {
             </VerificationGate>
             <Footer />
             <BottomNav />
+            <SignInModal
+                open={signInModalOpen}
+                onClose={() => dispatch(closeSignInModal())}
+            />
         </>
     );
 }

@@ -15,12 +15,19 @@ Sentry.init({
   // Enable logs to be sent to Sentry
   enableLogs: true,
 
+  // Do NOT inject baggage/sentry-trace meta tags into the HTML — they
+  // expose sentry-public_key, sentry-org_id, and the full commit hash to
+  // every visitor who views source.  Tracing still works via the /monitoring
+  // tunnel route (server-side + XHR/fetch headers).
+  tracePropagationTargets: [],
+
   // Define how likely Replay events are sampled.
   // This sets the sample rate to be 10%. You may want this to be 100% while
   // in development and sample at a lower rate in production
   replaysSessionSampleRate: 0.1,
 
   // Define how likely Replay events are sampled when an error occurs.
+  // This sets the sample rate to be 100% while in development and sample at a lower rate in production
   replaysOnErrorSampleRate: 1.0,
 
   dataCollection: {

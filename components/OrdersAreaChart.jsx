@@ -47,7 +47,7 @@ export default function OrdersAreaChart({ allOrders }) {
                         }}
                     />
                     <Area yAxisId="left" type="monotone" dataKey="orders" stroke="#2F6FEA" fill="#93B9FF" strokeWidth={2} />
-                    <Area yAxisId="right" type="monotone" dataKey="revenue" stroke="#C9A96E" fill="#F0E3D1" strokeWidth={2} />
+                    <Area yAxisId="right" type="monotone" dataKey="revenue" stroke="#EA580C" fill="#FFEDD5" strokeWidth={2} />
                 </AreaChart>
             </ResponsiveContainer>
         </div>

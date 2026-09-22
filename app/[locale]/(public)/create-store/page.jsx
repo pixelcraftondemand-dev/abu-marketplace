@@ -182,7 +182,7 @@ export default function CreateStore() {
         <div className="mx-6 my-16">
             <div className="mx-auto grid max-w-7xl gap-10 xl:grid-cols-[1.3fr_0.9fr]">
                 <section className="space-y-8 rounded-[2rem] bg-[#F9F6F0] p-8 shadow-[0_30px_80px_rgba(34,34,34,0.08)]">
-                    <div className="inline-flex items-center gap-2 rounded-full bg-[#F0E3D1] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7B6446]">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-[#FFEDD5] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7B6446]">
                         Store onboarding
                     </div>
                     <div className="space-y-4">
@@ -235,7 +235,7 @@ export default function CreateStore() {
                         <div className="rounded-3xl bg-[#f7efe5] p-6">
                             <p className="text-xs uppercase tracking-[0.2em] text-[#A2825F]">Store details</p>
                             <h2 className="mt-3 text-2xl font-semibold text-[#1A1A1A]">Submit your application</h2>
-                            <p className="mt-2 text-sm leading-6 text-[#6B6560]">
+                            <p className="mt-2 text-sm leading-6 text-[#6B7280]">
                                 Provide accurate shop information and a logo so the admin can approve your storefront quickly.
                             </p>
                         </div>
@@ -250,7 +250,7 @@ export default function CreateStore() {
                                     type="text"
                                     placeholder="e.g. my_store_123"
                                     maxLength={30}
-                                    className="mt-2 w-full rounded-2xl border border-[#E4D8C6] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#F6E8C6]"
+                                    className="mt-2 w-full rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#FFEDD5]"
                                 />
                                 <span className="mt-2 block text-xs text-[#8C8071]">Lowercase letters, numbers, underscores only.</span>
                             </label>
@@ -264,7 +264,7 @@ export default function CreateStore() {
                                     type="text"
                                     placeholder="Your store name"
                                     maxLength={100}
-                                    className="mt-2 w-full rounded-2xl border border-[#E4D8C6] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#F6E8C6]"
+                                    className="mt-2 w-full rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#FFEDD5]"
                                 />
                             </label>
                         </div>
@@ -292,7 +292,7 @@ export default function CreateStore() {
                                     />
                                     <label
                                         htmlFor="store-logo-input"
-                                        className="inline-flex cursor-pointer rounded-full border border-[#C9A96E] bg-[#F6E0B9] px-4 py-2 text-sm font-semibold text-[#5D4B2C] transition hover:bg-[#E5CA92]"
+                                        className="inline-flex cursor-pointer rounded-full border border-[#EA580C] bg-[#F6E0B9] px-4 py-2 text-sm font-semibold text-[#5D4B2C] transition hover:bg-[#E5CA92]"
                                     >
                                         Choose logo
                                     </label>
@@ -309,7 +309,7 @@ export default function CreateStore() {
                                 rows={5}
                                 placeholder="Tell customers what makes your store special"
                                 maxLength={1000}
-                                className="mt-2 w-full resize-none rounded-3xl border border-[#E4D8C6] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#F6E8C6]"
+                                className="mt-2 w-full resize-none rounded-3xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#FFEDD5]"
                             />
                         </label>
 
@@ -323,7 +323,7 @@ export default function CreateStore() {
                                     type="email"
                                     placeholder="contact@yourstore.com"
                                     maxLength={254}
-                                    className="mt-2 w-full rounded-2xl border border-[#E4D8C6] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#F6E8C6]"
+                                    className="mt-2 w-full rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#FFEDD5]"
                                 />
                             </label>
 
@@ -336,7 +336,7 @@ export default function CreateStore() {
                                     type="text"
                                     placeholder="e.g. +123 456 7890"
                                     maxLength={20}
-                                    className="mt-2 w-full rounded-2xl border border-[#E4D8C6] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#F6E8C6]"
+                                    className="mt-2 w-full rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#FFEDD5]"
                                 />
                             </label>
                         </div>
@@ -350,7 +350,7 @@ export default function CreateStore() {
                                 rows={4}
                                 placeholder="Your store or office address"
                                 maxLength={300}
-                                className="mt-2 w-full resize-none rounded-3xl border border-[#E4D8C6] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#F6E8C6]"
+                                className="mt-2 w-full resize-none rounded-3xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#FFEDD5]"
                             />
                         </label>
                     </div>
@@ -361,7 +361,7 @@ export default function CreateStore() {
                                 type="checkbox"
                                 checked={agreedToTerms}
                                 onChange={() => setAgreedToTerms((prev) => !prev)}
-                                className="mt-1 h-4 w-4 rounded border-[#C9A96E] text-[#1A1A1A] focus:ring-[#C9A96E]"
+                                className="mt-1 h-4 w-4 rounded border-[#EA580C] text-[#1A1A1A] focus:ring-[#EA580C]"
                             />
                             <span>
                                 I confirm that I have reviewed the seller agreement and agree to the standards for operating a store on ABU Marketplace.

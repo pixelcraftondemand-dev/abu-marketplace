@@ -1,13 +1,26 @@
+'use client'
 import React from 'react'
-import Title from './Title'
+import { useTranslation } from '@/lib/i18n'
 
 const Newsletter = () => {
+    const { t } = useTranslation()
     return (
-        <div className='flex flex-col items-center mx-4 my-36'>
-            <Title title="Join Newsletter" description="Subscribe to get exclusive deals, new arrivals, and insider updates delivered straight to your inbox every week." visibleButton={false} />
-            <div className='flex bg-slate-100 text-sm p-1 rounded-full w-full max-w-xl my-10 border-2 border-white ring ring-slate-200'>
-                <input className='flex-1 pl-5 outline-none' type="text" placeholder='Enter your email address' />
-                <button className='font-medium bg-green-500 text-white px-7 py-3 rounded-full hover:scale-103 active:scale-95 transition'>Get Updates</button>
+        <div className="flex flex-col items-center justify-center text-center space-y-2 pt-8 pb-14 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h1 className="md:text-4xl text-2xl font-medium text-gray-900">
+                {t('newsletter.title')}
+            </h1>
+            <p className="md:text-base text-gray-500/80 pb-8 max-w-xl">
+                {t('newsletter.description')}
+            </p>
+            <div className="flex items-center justify-between max-w-2xl w-full md:h-14 h-12">
+                <input
+                    className="border border-gray-500/30 rounded-md h-full border-r-0 outline-none w-full rounded-r-none px-3 text-gray-500"
+                    type="text"
+                    placeholder={t('newsletter.placeholder')}
+                />
+                <button className="md:px-12 px-8 h-full text-white bg-orange-600 rounded-md rounded-l-none hover:bg-orange-700 transition-colors duration-200">
+                    {t('newsletter.cta')}
+                </button>
             </div>
         </div>
     )

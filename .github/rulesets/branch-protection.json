@@ -1,0 +1,95 @@
+{
+  "name": "Main Branch Protection",
+  "target": "branch",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "include": [
+        "refs/heads/main"
+      ],
+      "exclude": []
+    }
+  },
+  "rules": [
+    {
+      "type": "pull_request",
+      "parameters": {
+        "required_approving_review_count": 2,
+        "dismiss_stale_reviews_on_push": true,
+        "require_code_owner_reviews": true,
+        "require_last_push_approval": false
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "required_status_checks": [
+          {
+            "context": "Lint"
+          },
+          {
+            "context": "Typecheck"
+          },
+          {
+            "context": "Tests (vitest)"
+          },
+          {
+            "context": "Security / Dependency Audit"
+          },
+          {
+            "context": "Security / CodeQL Analysis"
+          },
+          {
+            "context": "Security / Secret Scanning"
+          },
+          {
+            "context": "Build (next build)"
+          }
+        ],
+        "strict_required_status_checks_policy": true
+      }
+    },
+    {
+      "type": "required_linear_history",
+      "parameters": {
+        "enabled": true
+      }
+    },
+    {
+      "type": "required_signatures",
+      "parameters": {
+        "require_linear_history": true
+      }
+    },
+    {
+      "type": "non_fast_forward",
+      "parameters": {}
+    },
+    {
+      "type": "required_deployments",
+      "parameters": {
+        "required_deployment_environments": [
+          "staging"
+        ]
+      }
+    },
+    {
+      "type": "commit_message_pattern",
+      "parameters": {
+        "name": "Commit Message Format",
+        "negate": false,
+        "pattern": "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\\(.+\\))?: .{1,80}$",
+        "operator": "regex"
+      }
+    },
+    {
+      "type": "pull_request_pattern",
+      "parameters": {
+        "name": "PR Title Format",
+        "negate": false,
+        "pattern": "^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\\(.+\\))?: .{1,80}$",
+        "operator": "regex"
+      }
+    }
+  ]
+}

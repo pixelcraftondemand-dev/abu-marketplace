@@ -17,7 +17,7 @@ vi.mock("@/lib/serverAuth", () => ({ getSessionFromRequest: vi.fn() }));
 
 vi.mock("@/lib/prisma", () => ({
   default: {
-    product: { findUnique: vi.fn(), findFirst: vi.fn() },
+    product: { findUnique: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
     order: { findFirst: vi.fn(), update: vi.fn() },
     coupon: { findUnique: vi.fn() },
     rating: { create: vi.fn() },
@@ -60,6 +60,7 @@ describe("security hardening", () => {
 
     it("only serves in-stock products from active approved stores", async () => {
       prisma.product.findFirst.mockResolvedValue({ id: "p_1", mrp: 50, price: 40, rating: [] });
+      prisma.product.findMany.mockResolvedValue([]);
       const res = await productGET(new Request("http://localhost:3000/api/products/p_1"), {
         params: { productId: "p_1" },
       });

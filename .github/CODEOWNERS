@@ -1,0 +1,71 @@
+# ─── CODEOWNERS ────────────────────────────────────────────────────────────────
+# Defines code ownership for automatic review assignments.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Patterns use glob syntax:
+#   *       matches any file but /
+#   **      matches everything including /
+#   *.js    matches any .js file
+#   docs/   matches everything in docs/
+#
+# Order matters: later patterns override earlier ones.
+
+# ─── Default Owners ────────────────────────────────────────────────────────────
+# Default reviewers for all files (fallback)
+*                           @fouad
+
+# ─── Frontend ──────────────────────────────────────────────────────────────────
+# React/Next.js components and pages
+app/                        @fouad
+components/                 @fouad
+lib/hooks/                  @fouad
+styles/                     @fouad
+
+# ─── Backend ───────────────────────────────────────────────────────────────────
+# API routes and services
+app/api/                    @fouad
+lib/services/               @fouad
+lib/utils/                  @fouad
+
+# ─── Database ──────────────────────────────────────────────────────────────────
+# Prisma schema and migrations (critical - require review)
+prisma/                     @fouad
+supabase/migrations/        @fouad
+
+# ─── DevOps / Infrastructure ──────────────────────────────────────────────────
+# CI/CD, Docker, Kubernetes (require infrastructure review)
+.github/                    @fouad
+Dockerfile                  @fouad
+docker-compose.yml          @fouad
+k8s/                        @fouad
+
+# ─── Documentation ────────────────────────────────────────────────────────────
+docs/                       @fouad
+*.md                        @fouad
+
+# ─── Configuration ────────────────────────────────────────────────────────────
+# Config files (require careful review)
+*.config.js                 @fouad
+*.config.mjs                @fouad
+*.config.ts                 @fouad
+.env.example                @fouad
+package.json                @fouad
+package-lock.json           @fouad
+tsconfig.json               @fouad
+
+# ─── Security ─────────────────────────────────────────────────────────────────
+# Security-critical files (require security review)
+lib/security.js             @fouad
+lib/serverAuth.js           @fouad
+middleware.ts                @fouad
+
+# ─── Testing ───────────────────────────────────────────────────────────────────
+tests/                      @fouad
+**/*.test.js                @fouad
+**/*.test.ts                @fouad
+**/*.spec.js                @fouad
+**/*.spec.ts                @fouad
+
+# ─── Internationalization ─────────────────────────────────────────────────────
+locales/                    @fouad
+lib/i18n.js                 @fouad

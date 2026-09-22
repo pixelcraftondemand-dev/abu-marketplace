@@ -1,0 +1,296 @@
+# ─── Notifications ─────────────────────────────────────────────────────────────
+# Sends notifications to Slack/Teams for important events:
+#   - PR opened/closed/merged
+#   - CI/CD failures
+#   - Security alerts
+#   - Release published
+#   - Dependency updates
+
+name: Notifications
+
+on:
+  pull_request:
+    types: [opened, closed, reopened, review_requested]
+  pull_request_review:
+    types: [submitted]
+  workflow_run:
+    workflows: ["CI", "Security", "Release"]
+    types: [completed]
+  release:
+    types: [published, created, edited, deleted]
+  schedule:
+    # Daily summary at 09:00 UTC
+    - cron: '0 9 * * *'
+
+concurrency:
+  group: notifications-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── PR Notifications ────────────────────────────────────────────────────────
+  pr-notification:
+    name: PR Notification
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request' || github.event_name == 'pull_request_review'
+    steps:
+      - name: Determine PR event
+        id: event
+        run: |
+          set -euo pipefail
+          
+          EVENT_TYPE="${{ github.event.action }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_URL="${{ github.event.pull_request.html_url }}"
+          AUTHOR="${{ github.event.pull_request.user.login }}"
+          
+          # Build notification message
+          case "$EVENT_TYPE" in
+            opened)
+              EMOJI="🆕"
+              ACTION="opened"
+              ;;
+            closed)
+              if [ "${{ github.event.pull_request.merged }}" == "true" ]; then
+                EMOJI="🎉"
+                ACTION="merged"
+              else
+                EMOJI="❌"
+                ACTION="closed without merging"
+              fi
+              ;;
+            reopened)
+              EMOJI="🔄"
+              ACTION="reopened"
+              ;;
+            review_requested)
+              EMOJI="👀"
+              ACTION="review requested"
+              ;;
+            submitted)
+              REVIEW_STATE="${{ github.event.review.state }}"
+              if [ "$REVIEW_STATE" == "approved" ]; then
+                EMOJI="✅"
+                ACTION="approved"
+              elif [ "$REVIEW_STATE" == "changes_requested" ]; then
+                EMOJI="🔄"
+                ACTION="changes requested"
+              else
+                EMOJI="💬"
+                ACTION="commented on"
+              fi
+              ;;
+            *)
+              EMOJI="📝"
+              ACTION="$EVENT_TYPE"
+              ;;
+          esac
+          
+          # Create message
+          MESSAGE="${EMOJI} PR #${PR_NUMBER} ${ACTION}"
+          MESSAGE="${MESSAGE}\n👤 Author: ${AUTHOR}"
+          MESSAGE="${MESSAGE}\n📄 Title: ${PR_TITLE}"
+          MESSAGE="${MESSAGE}\n🔗 ${PR_URL}"
+          
+          echo "message<<EOF" >> "$GITHUB_OUTPUT"
+          echo -e "$MESSAGE" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "color=$([ "$EVENT_TYPE" == "closed" ] && echo "danger" || echo "good")" >> "$GITHUB_OUTPUT"
+
+      - name: Send Slack notification
+        if: ${{ env.SLACK_WEBHOOK_URL != '' }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{
+              \"text\": \"${{ steps.event.outputs.message }}\",
+              \"attachments\": [{
+                \"color\": \"${{ steps.event.outputs.color }}\",
+                \"fields\": [{
+                  \"title\": \"Repository\",
+                  \"value\": \"${{ github.repository }}\",
+                  \"short\": true
+                }, {
+                  \"title\": \"Branch\",
+                  \"value\": \"${{ github.head_ref }}\",
+                  \"short\": true
+                }]
+              }]
+            }" \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # ─── CI/CD Notifications ────────────────────────────────────────────────────
+  cicd-notification:
+    name: CI/CD Notification
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'workflow_run'
+    steps:
+      - name: Determine workflow status
+        id: status
+        run: |
+          set -euo pipefail
+          
+          WORKFLOW_NAME="${{ github.event.workflow_run.name }}"
+          CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          URL="${{ github.event.workflow_run.html_url }}"
+          
+          if [ "$CONCLUSION" == "success" ]; then
+            EMOJI="✅"
+            COLOR="good"
+            STATUS="succeeded"
+          elif [ "$CONCLUSION" == "failure" ]; then
+            EMOJI="❌"
+            COLOR="danger"
+            STATUS="failed"
+          else
+            EMOJI="⚠️"
+            COLOR="warning"
+            STATUS="$CONCLUSION"
+          fi
+          
+          MESSAGE="${EMOJI} ${WORKFLOW_NAME} ${STATUS}"
+          MESSAGE="${MESSAGE}\n🌿 Branch: ${BRANCH}"
+          MESSAGE="${MESSAGE}\n🔗 ${URL}"
+          
+          echo "message<<EOF" >> "$GITHUB_OUTPUT"
+          echo -e "$MESSAGE" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "color=$COLOR" >> "$GITHUB_OUTPUT"
+
+      - name: Send Slack notification
+        if: ${{ env.SLACK_WEBHOOK_URL != '' }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{
+              \"text\": \"${{ steps.status.outputs.message }}\",
+              \"attachments\": [{
+                \"color\": \"${{ steps.status.outputs.color }}\",
+                \"fields\": [{
+                  \"title\": \"Repository\",
+                  \"value\": \"${{ github.repository }}\",
+                  \"short\": true
+                }]
+              }]
+            }" \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # ─── Release Notifications ──────────────────────────────────────────────────
+  release-notification:
+    name: Release Notification
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'release'
+    steps:
+      - name: Determine release event
+        id: release
+        run: |
+          set -euo pipefail
+          
+          EVENT_TYPE="${{ github.event.action }}"
+          TAG="${{ github.event.release.tag_name }}"
+          NAME="${{ github.event.release.name }}"
+          URL="${{ github.event.release.html_url }}"
+          PRERELEASE="${{ github.event.release.prerelease }}"
+          
+          case "$EVENT_TYPE" in
+            published)
+              if [ "$PRERELEASE" == "true" ]; then
+                EMOJI="🧪"
+                ACTION="pre-release published"
+              else
+                EMOJI="🚀"
+                ACTION="released"
+              fi
+              ;;
+            created)
+              EMOJI="📝"
+              ACTION="created"
+              ;;
+            edited)
+              EMOJI="✏️"
+              ACTION="edited"
+              ;;
+            deleted)
+              EMOJI="🗑️"
+              ACTION="deleted"
+              ;;
+          esac
+          
+          MESSAGE="${EMOJI} ${NAME} (${TAG}) ${ACTION}"
+          MESSAGE="${MESSAGE}\n🔗 ${URL}"
+          
+          echo "message<<EOF" >> "$GITHUB_OUTPUT"
+          echo -e "$MESSAGE" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Send Slack notification
+        if: ${{ env.SLACK_WEBHOOK_URL != '' }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{
+              \"text\": \"${{ steps.release.outputs.message }}\",
+              \"attachments\": [{
+                \"color\": \"good\",
+                \"fields\": [{
+                  \"title\": \"Repository\",
+                  \"value\": \"${{ github.repository }}\",
+                  \"short\": true
+                }]
+              }]
+            }" \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # ─── Daily Summary ──────────────────────────────────────────────────────────
+  daily-summary:
+    name: Daily Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate daily summary
+        id: summary
+        run: |
+          set -euo pipefail
+          
+          # Get yesterday's date
+          YESTERDAY=$(date -d "yesterday" +%Y-%m-%d)
+          
+          # Count commits
+          COMMITS=$(git log --oneline --since="$YESTERDAY" 2>/dev/null | wc -l)
+          
+          # Count merged PRs
+          MERGED_PRS=$(git log --oneline --since="$YESTERDAY" --grep="Merge pull request" 2>/dev/null | wc -l)
+          
+          # Get contributors
+          CONTRIBUTORS=$(git log --since="$YESTERDAY" --format='%an' 2>/dev/null | sort -u | head -5)
+          
+          MESSAGE="📊 Daily Summary for $YESTERDAY"
+          MESSAGE="${MESSAGE}\n\n"
+          MESSAGE="${MESSAGE}🔀 Commits: ${COMMITS}\n"
+          MESSAGE="${MESSAGE}✅ Merged PRs: ${MERGED_PRS}\n"
+          MESSAGE="${MESSAGE}👥 Contributors:\n${CONTRIBUTORS}"
+          
+          echo "message<<EOF" >> "$GITHUB_OUTPUT"
+          echo -e "$MESSAGE" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Send Slack notification
+        if: ${{ env.SLACK_WEBHOOK_URL != '' }}
+        run: |
+          curl -X POST -H 'Content-type: application/json' \
+            --data "{
+              \"text\": \"${{ steps.summary.outputs.message }}\"
+            }" \
+            ${{ secrets.SLACK_WEBHOOK_URL }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

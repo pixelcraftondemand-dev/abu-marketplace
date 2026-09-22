@@ -25,7 +25,6 @@ const paymentRow = {
   status: "PROCESSING",
   amount: 25,
   currency: "USD",
-  providerSessionUrl: "https://checkout.stripe.com/x",
   createdAt: new Date(),
 };
 

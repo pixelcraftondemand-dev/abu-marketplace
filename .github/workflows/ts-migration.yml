@@ -1,0 +1,344 @@
+# ─── TypeScript Migration Safety Pipeline ──────────────────────────────────────
+# Separate pipeline that ensures the TS migration doesn't introduce regressions.
+# Runs on PRs targeting the typescript-migration branch (and the branch itself).
+#
+# Guards:
+#   1. Strict typecheck passes (tsc --noEmit with strict: true)
+#   2. No new .js files are introduced in already-migrated directories (lib/services/, lib/*.ts)
+#   3. All tests pass (same suite as main CI)
+#   4. Migration progress report (JS vs TS file counts, trend over time)
+#   5. No duplicate .js/.ts pairs (common migration footgun)
+
+name: TS Migration Guard
+
+on:
+  pull_request:
+    branches: [typescript-migration]
+  push:
+    branches: [typescript-migration]
+
+concurrency:
+  group: ts-migration-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PUPPETEER_SKIP_DOWNLOAD: "true"
+  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
+  NODE_OPTIONS: "--max-old-space-size=4096"
+
+jobs:
+  # ─── 1. Strict Typecheck ──────────────────────────────────────────────────────
+  strict-typecheck:
+    name: 🏷️ Strict Typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Pin npm 11
+        run: npm install -g npm@11 --no-audit --no-fund
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: "Verify strict mode in tsconfig"
+        run: |
+          STRICT=$(node -p "require('./tsconfig.json').compilerOptions?.strict")
+          if [ "$STRICT" != "true" ]; then
+            echo "::error::tsconfig.json must have strict: true for migration safety"
+            echo "  Current value: strict=$STRICT"
+            exit 1
+          fi
+          echo "✅ strict: true confirmed in tsconfig.json"
+
+      - name: "Run TypeScript strict check"
+        run: |
+          set -euo pipefail
+          echo "Running tsc --noEmit with strict mode..."
+          ERROR_COUNT=$(npx tsc --noEmit 2>&1 | grep -c "error TS" || true)
+          if [ "$ERROR_COUNT" -gt 0 ]; then
+            echo "::error::TypeScript found $ERROR_COUNT type errors"
+            npx tsc --noEmit 2>&1 | grep "error TS" | head -30
+            exit 1
+          fi
+          echo "✅ Zero type errors with strict: true"
+
+  # ─── 2. No New JS in Migrated Directories ────────────────────────────────────
+  no-new-js:
+    name: 🚫 No New JS Files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for new JS files in migrated directories
+        run: |
+          set -euo pipefail
+
+          # Directories that should be fully TypeScript
+          TS_DIRS="lib/services lib/features"
+
+          # Single .ts files in lib/ that should not have a .js counterpart
+          TS_ROOT_FILES="lib/prisma.ts lib/cache.ts lib/csp.ts lib/security.ts lib/emailUtils.ts lib/redis.ts lib/orderEmail.ts"
+
+          FAILED=0
+
+          echo "🔍 Checking for new .js files in migrated directories..."
+          echo ""
+
+          for dir in $TS_DIRS; do
+            if [ ! -d "$dir" ]; then continue; fi
+
+            JS_FILES=$(find "$dir" -name "*.js" -o -name "*.jsx" 2>/dev/null || true)
+            if [ -n "$JS_FILES" ]; then
+              echo "::error::$dir contains .js files that should be migrated to .ts:"
+              echo "$JS_FILES" | while read f; do echo "  - $f"; done
+              FAILED=1
+            else
+              TS_COUNT=$(find "$dir" -name "*.ts" -o -name "*.tsx" 2>/dev/null | wc -l)
+              echo "✅ $dir — $TS_COUNT TypeScript files, 0 JavaScript files"
+            fi
+          done
+
+          echo ""
+          echo "🔍 Checking for duplicate .js/.ts pairs..."
+          echo ""
+
+          # Check lib/ root for duplicate pairs
+          for ts_file in $TS_ROOT_FILES; do
+            if [ ! -f "$ts_file" ]; then continue; fi
+            js_file="${ts_file%.ts}.js"
+            if [ -f "$js_file" ]; then
+              echo "::error::Duplicate file pair found: $ts_file AND $js_file exist"
+              echo "  Delete $js_file — the TypeScript version should be the source of truth"
+              FAILED=1
+            fi
+          done
+
+          # Check all lib/ subdirectories for any .js/.ts duplicates
+          DUPLICATES=$(find lib/ -name "*.ts" | while read ts; do
+            js="${ts%.ts}.js"
+            if [ -f "$js" ]; then
+              echo "  $ts ↔ $js"
+            fi
+          done || true)
+
+          if [ -n "$DUPLICATES" ]; then
+            echo "::error::Duplicate .js/.ts pairs found in lib/:"
+            echo "$DUPLICATES"
+            FAILED=1
+          fi
+
+          if [ "$FAILED" -eq 1 ]; then
+            echo ""
+            echo "::error::Migration safety check failed. Clean up duplicate/JS files before merging."
+            exit 1
+          fi
+
+          echo ""
+          echo "✅ No duplicate .js/.ts pairs found"
+
+  # ─── 3. Tests ────────────────────────────────────────────────────────────────
+  tests:
+    name: 🧪 Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Pin npm 11
+        run: npm install -g npm@11 --no-audit --no-fund
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run tests
+        run: npx vitest run
+
+      - name: Check for new test failures
+        if: failure()
+        run: |
+          echo "::error::Tests failed. Check the output above for details."
+          echo "  If these are pre-existing failures, document them and update this pipeline."
+
+  # ─── 4. Migration Progress Report ────────────────────────────────────────────
+  migration-progress:
+    name: 📊 Migration Progress
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Count JS vs TS files
+        id: count
+        run: |
+          set -euo pipefail
+
+          # Count by directory
+          echo "## 📊 TypeScript Migration Progress" > /tmp/progress.md
+          echo "" >> /tmp/progress.md
+          echo "| Directory | .js/.jsx | .ts/.tsx | Migration % |" >> /tmp/progress.md
+          echo "|-----------|----------|----------|-------------|" >> /tmp/progress.md
+
+          total_js=0
+          total_ts=0
+
+          for dir in lib/components lib/features lib/services lib/utils app/api app/components middleware.ts; do
+            if [ -d "$dir" ]; then
+              js_count=$(find "$dir" -name "*.js" -o -name "*.jsx" 2>/dev/null | wc -l)
+              ts_count=$(find "$dir" -name "*.ts" -o -name "*.tsx" 2>/dev/null | wc -l)
+              total=$((js_count + ts_count))
+              if [ "$total" -gt 0 ]; then
+                pct=$((ts_count * 100 / total))
+                emoji="🔴"
+                if [ "$pct" -ge 80 ]; then emoji="🟢"; elif [ "$pct" -ge 50 ]; then emoji="🟡"; fi
+                echo "| $dir | $js_count | $ts_count | $emoji $pct% |" >> /tmp/progress.md
+                total_js=$((total_js + js_count))
+                total_ts=$((total_ts + ts_count))
+              fi
+            fi
+          done
+
+          # Overall
+          grand_total=$((total_js + total_ts))
+          if [ "$grand_total" -gt 0 ]; then
+            overall_pct=$((total_ts * 100 / grand_total))
+            echo "| **Total** | **$total_js** | **$total_ts** | **$overall_pct%** |" >> /tmp/progress.md
+          fi
+
+          echo "" >> /tmp/progress.md
+
+          # Key files status
+          echo "### Key Files" >> /tmp/progress.md
+          echo "" >> /tmp/progress.md
+
+          KEY_FILES="lib/prisma.ts lib/cache.ts lib/services/amberPayService.ts lib/services/walletService.ts lib/services/paymentService.ts lib/services/cardPaymentService.ts lib/services/pspStateMachine.ts lib/services/ledger.ts lib/services/settlement.ts"
+
+          for f in $KEY_FILES; do
+            if [ -f "$f" ]; then
+              echo "- ✅ \`$f\`" >> /tmp/progress.md
+            else
+              js_f="${f%.ts}.js"
+              if [ -f "$js_f" ]; then
+                echo "- ❌ \`$js_f\` (not yet migrated)" >> /tmp/progress.md
+              fi
+            fi
+          done
+
+          echo "" >> /tmp/progress.md
+
+          # Duplicate check
+          DUPLICATES=$(find lib/ -name "*.ts" 2>/dev/null | while read ts; do
+            js="${ts%.ts}.js"
+            if [ -f "$js" ]; then echo "$ts ↔ $js"; fi
+          done || true)
+
+          if [ -n "$DUPLICATES" ]; then
+            echo "### ⚠️ Duplicate Pairs" >> /tmp/progress.md
+            echo "" >> /tmp/progress.md
+            echo "$DUPLICATES" | while read d; do echo "- \`$d\`" >> /tmp/progress.md; done
+          fi
+
+          echo "" >> /tmp/progress.md
+          echo "---" >> /tmp/progress.md
+          echo "*Generated by TS Migration Guard*" >> /tmp/progress.md
+
+          echo "progress_file=/tmp/progress.md" >> "$GITHUB_OUTPUT"
+          echo "overall_pct=$overall_pct" >> "$GITHUB_OUTPUT"
+          echo "total_js=$total_js" >> "$GITHUB_OUTPUT"
+          echo "total_ts=$total_ts" >> "$GITHUB_OUTPUT"
+
+      - name: Post migration report on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('${{ steps.count.outputs.progress_file }}', 'utf8');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c => c.body.includes('TypeScript Migration Progress'));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
+
+  # ─── 5. Summary ──────────────────────────────────────────────────────────────
+  migration-summary:
+    name: ✅ Migration Guard Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [strict-typecheck, no-new-js, tests]
+    if: always()
+    steps:
+      - name: Evaluate gate
+        run: |
+          echo "🔒 TypeScript Migration Guard — Final Report"
+          echo "============================================"
+          echo ""
+          echo "  🏷️ Strict Typecheck: ${{ needs.strict-typecheck.result }}"
+          echo "  🚫 No New JS Files: ${{ needs.no-new-js.result }}"
+          echo "  🧪 Tests:           ${{ needs.tests.result }}"
+          echo ""
+
+          if [[ "${{ needs.strict-typecheck.result }}" == "failure" ]]; then
+            echo "::error::TypeScript strict check failed — fix type errors before merging"
+            exit 1
+          fi
+
+          if [[ "${{ needs.no-new-js.result }}" == "failure" ]]; then
+            echo "::error::New JS files found in migrated directories — complete the migration"
+            exit 1
+          fi
+
+          if [[ "${{ needs.tests.result }}" == "failure" ]]; then
+            echo "::error::Tests failed — check for regressions introduced by migration"
+            exit 1
+          fi
+
+          echo "✅ All migration safety checks passed"

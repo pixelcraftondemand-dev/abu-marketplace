@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1A1A1A"/>
+      <stop offset="1" stop-color="#2A2A2A"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1200" height="10" fill="#C9A96E"/>
+  <circle cx="600" cy="315" r="240" fill="none" stroke="#C9A96E" stroke-opacity="0.35" stroke-width="1.5"/>
+  <circle cx="600" cy="315" r="200" fill="none" stroke="#C9A96E" stroke-opacity="0.18" stroke-width="1"/>
+  <text x="600" y="280" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="116" font-weight="700" fill="#FFFFFF" letter-spacing="26">ABU</text>
+  <text x="600" y="345" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="600" fill="#C9A96E" letter-spacing="20">MARKETPLACE</text>
+  <rect x="545" y="380" width="110" height="3" fill="#C9A96E"/>
+  <text x="600" y="430" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="27" fill="#E8E2DB">Trusted online shopping in Sierra Leone</text>
+  <text x="600" y="560" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="18" fill="#9B9590" letter-spacing="2">abumarketplace.shop</text>
+</svg>

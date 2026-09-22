@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Send, Sparkles, ArrowUpRight } from "lucide-react";
+import { Send, ArrowUpRight } from "lucide-react";
+import { Bubble, BubbleContent } from "@/components/ui/bubble";
 
 const quickPrompts = [
   "Track my order",
@@ -10,9 +11,29 @@ const quickPrompts = [
   "Help with delivery",
 ];
 
+function TypingDots() {
+  return (
+    <span className="flex items-center gap-1">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="h-1.5 w-1.5 rounded-full bg-stone-400"
+          style={{ animation: "abu-bounce 1.1s ease-in-out infinite", animationDelay: `${i * 0.15}s` }}
+        />
+      ))}
+      <style jsx>{`
+        @keyframes abu-bounce {
+          0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+          30% { transform: translateY(-4px); opacity: 1; }
+        }
+      `}</style>
+    </span>
+  );
+}
+
 export default function AbuChat() {
   const [messages, setMessages] = useState([
-    { from: "abu", text: "Hi — I’m ABU, your support assistant. I can help with orders, returns, payments, and delivery questions." },
+    { from: "abu", text: "Hi — I'm ABU, your support assistant. I can help with orders, returns, payments, and delivery questions." },
   ]);
   const [ticketId, setTicketId] = useState(null);
   const [accessToken, setAccessToken] = useState(null);
@@ -43,10 +64,15 @@ export default function AbuChat() {
       const reply = data.reply || data.error || "Sorry, something went wrong.";
       if (data.ticketId) setTicketId(data.ticketId);
       if (data.accessToken) setAccessToken(data.accessToken);
+      if (!res.ok) {
+        const prefix = res.status === 503 ? "" : "Sorry — ";
+        setMessages((m) => [...m, { from: "abu", text: `${prefix}${reply}.` }]);
+        return;
+      }
       setMessages((m) => [...m, { from: "abu", text: reply }]);
     } catch (e) {
       console.error(e);
-      setMessages((m) => [...m, { from: "abu", text: "Sorry — I couldn’t reach support right now. Please try again shortly." }]);
+      setMessages((m) => [...m, { from: "abu", text: "Sorry — I couldn't reach support right now. Please try again shortly." }]);
     } finally {
       setLoading(false);
       setTimeout(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }), 50);
@@ -82,48 +108,46 @@ export default function AbuChat() {
   };
 
   return (
-    <div className="mt-4 rounded-[1.25rem] border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-      <div className="mb-3 flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F7E7C9] font-bold text-[#7a4d13]">ABU</div>
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900">ABU Support Assistant</h3>
-          <p className="text-xs text-slate-500">Orders, returns, payments, and delivery help</p>
-        </div>
-      </div>
-
-      <div className="mb-3 flex flex-wrap gap-2">
+    <div className="flex flex-col">
+      <div className="mb-3 flex flex-wrap gap-1.5">
         {quickPrompts.map((prompt) => (
           <button
             key={prompt}
             onClick={() => send(prompt)}
-            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-[#C9A96E] hover:bg-[#FFF7E8]"
+            className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:border-[#EA580C] hover:bg-[#FFF7ED] hover:text-stone-900"
           >
             {prompt}
           </button>
         ))}
       </div>
 
-      <div ref={listRef} className="mb-3 max-h-64 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <div
+        ref={listRef}
+        className="mb-3 flex max-h-[340px] min-h-[220px] flex-col gap-2.5 overflow-y-auto rounded-2xl bg-stone-50/70 p-3.5"
+      >
         {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.from === "abu" ? "justify-start" : "justify-end"}`}>
-            <div className={`${m.from === "abu" ? "bg-white text-slate-800" : "bg-[#C9A96E] text-[#1A1A1A]"} max-w-[82%] rounded-2xl px-3 py-2 text-sm leading-6 shadow-sm`}>
+          <Bubble key={i} align={m.from === "abu" ? "start" : "end"}>
+            <BubbleContent
+              className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[13.5px] leading-relaxed shadow-sm ${
+                m.from === "abu"
+                  ? "rounded-bl-md border border-stone-200 bg-white text-stone-800"
+                  : "rounded-br-md border-transparent bg-gradient-to-br from-[#F97316] to-[#C2410C] text-white"
+              }`}
+            >
               {m.text}
-            </div>
-          </div>
+            </BubbleContent>
+          </Bubble>
         ))}
         {loading && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500">
-              <div className="flex items-center gap-2">
-                <Sparkles size={14} className="text-[#C9A96E]" />
-                ABU is typing…
-              </div>
-            </div>
-          </div>
+          <Bubble align="start">
+            <BubbleContent className="rounded-2xl rounded-bl-md border border-stone-200 bg-white px-3.5 py-2.5 text-stone-500">
+              <TypingDots />
+            </BubbleContent>
+          </Bubble>
         )}
       </div>
 
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex items-center gap-2 rounded-full border border-stone-300 bg-white pl-4 pr-1.5 py-1.5 transition focus-within:border-[#EA580C] focus-within:ring-2 focus-within:ring-[#EA580C]/20">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -131,18 +155,27 @@ export default function AbuChat() {
             if (e.key === "Enter") send();
           }}
           placeholder="Describe your issue..."
-          className="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none ring-0 focus:border-[#C9A96E]"
+          className="flex-1 bg-transparent text-sm text-stone-800 outline-none placeholder:text-stone-400"
         />
-        <button onClick={() => send()} disabled={loading} className="flex items-center justify-center gap-2 rounded-xl bg-[#C9A96E] px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-[#b18d45] disabled:opacity-70">
+        <button
+          onClick={() => send()}
+          disabled={loading || !input.trim()}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EA580C] text-white transition hover:bg-[#C2410C] disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-400"
+          aria-label="Send message"
+        >
           <Send size={15} />
-          {loading ? "Thinking" : "Send"}
         </button>
       </div>
 
-      <button onClick={escalate} disabled={loading} className="mt-2 flex items-center gap-2 text-sm text-slate-600 transition hover:text-slate-900">
+      <button
+        onClick={escalate}
+        disabled={loading}
+        className="mt-2.5 flex items-center gap-1 self-start text-xs font-medium text-stone-500 transition hover:text-stone-900"
+      >
         Escalate to human support
-        <ArrowUpRight size={14} />
+        <ArrowUpRight size={13} />
       </button>
     </div>
   );
 }
+

@@ -27,6 +27,8 @@ describe("data minimization (no sensitive data leakage)", () => {
     vi.resetAllMocks();
     getSessionFromRequest.mockResolvedValue({ user: { id: "usr_seller" } });
     authSeller.mockResolvedValue("st_1");
+    // The product-detail route also loads related products (same category).
+    prisma.product.findMany.mockResolvedValue([]);
   });
 
   it("store/orders: sellers receive only fulfilment fields, never the full user record", async () => {
