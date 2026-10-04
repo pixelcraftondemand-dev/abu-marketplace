@@ -78,11 +78,28 @@ model Product {
   rating     Rating[]
 }
 
+// Fulfilment lifecycle. The Sierra Leone pilot vocabulary is:
+//   ORDER_PLACED (placed) → CONFIRMED → OUT_FOR_DELIVERY → DELIVERED → PAID
+// plus CANCELLED as a terminal branch.
+//
+// PROCESSING and SHIPPED are legacy values retained so historical rows still
+// read correctly. New writes never use them: the application treats them as
+// aliases of CONFIRMED and OUT_FOR_DELIVERY respectively (see
+// app/api/store/orders/route.js). The additive migration
+// (supabase/migrations/*_pilot_marketplace.sql) adds the new values but does
+// not rewrite historical rows, because data-mutating statements are blocked by
+// the repository migration guard. Removing the legacy values would require
+// recreating the Postgres enum type and is intentionally avoided.
 enum OrderStatus {
   ORDER_PLACED
+  CONFIRMED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  PAID
+  CANCELLED
+  // Legacy — retained for historical rows only.
   PROCESSING
   SHIPPED
-  DELIVERED
 }
 
 enum PaymentMethod {
@@ -478,6 +495,10 @@ model Store {
   logo           String
   email          String
   contact        String
+  // Vendor WhatsApp number in international format with no plus or spaces
+  // (e.g. "23276123456"). Normalized/validated on save (default country code
+  // 232 = Sierra Leone). Null means the vendor has not supplied one.
+  whatsappNumber String?
   halalCertified Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

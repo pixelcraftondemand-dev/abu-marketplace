@@ -93,6 +93,57 @@ describe("security hardening", () => {
       );
     });
 
+    it("advances along the pilot lifecycle (CONFIRMED -> OUT_FOR_DELIVERY)", async () => {
+      prisma.order.findFirst.mockResolvedValue({ id: "o_1", status: "CONFIRMED" });
+      const res = await storeOrdersPOST(
+        buildJSON("http://localhost:3000/api/store/orders", { orderId: "o_1", status: "OUT_FOR_DELIVERY" })
+      );
+      expect(res.status).toBe(200);
+      expect(prisma.order.update).toHaveBeenCalledWith(
+        { where: { id: "o_1" }, data: { status: "OUT_FOR_DELIVERY" } }
+      );
+    });
+
+    it("marks a delivered order paid (DELIVERED -> PAID)", async () => {
+      prisma.order.findFirst.mockResolvedValue({ id: "o_1", status: "DELIVERED" });
+      const res = await storeOrdersPOST(
+        buildJSON("http://localhost:3000/api/store/orders", { orderId: "o_1", status: "PAID" })
+      );
+      expect(res.status).toBe(200);
+      expect(prisma.order.update).toHaveBeenCalledWith(
+        { where: { id: "o_1" }, data: { status: "PAID" } }
+      );
+    });
+
+    it("cancels an unpaid order and treats CANCELLED as terminal", async () => {
+      prisma.order.findFirst.mockResolvedValue({ id: "o_1", status: "CONFIRMED" });
+      const cancel = await storeOrdersPOST(
+        buildJSON("http://localhost:3000/api/store/orders", { orderId: "o_1", status: "CANCELLED" })
+      );
+      expect(cancel.status).toBe(200);
+      expect(prisma.order.update).toHaveBeenCalledWith(
+        { where: { id: "o_1" }, data: { status: "CANCELLED" } }
+      );
+
+      // A cancelled order cannot be reopened.
+      prisma.order.update.mockClear();
+      prisma.order.findFirst.mockResolvedValue({ id: "o_1", status: "CANCELLED" });
+      const reopen = await storeOrdersPOST(
+        buildJSON("http://localhost:3000/api/store/orders", { orderId: "o_1", status: "ORDER_PLACED" })
+      );
+      expect(reopen.status).toBe(422);
+      expect(prisma.order.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses to cancel a paid order", async () => {
+      prisma.order.findFirst.mockResolvedValue({ id: "o_1", status: "PAID" });
+      const res = await storeOrdersPOST(
+        buildJSON("http://localhost:3000/api/store/orders", { orderId: "o_1", status: "CANCELLED" })
+      );
+      expect(res.status).toBe(422);
+      expect(prisma.order.update).not.toHaveBeenCalled();
+    });
+
     it("treats an unknown order as not found (never cross-store access)", async () => {
       prisma.order.findFirst.mockResolvedValue(null);
       const res = await storeOrdersPOST(
