@@ -88,6 +88,8 @@ export const viewport = {
 export default async function RootLayout({ children }) {
   let locale = defaultLocale
   let lang = 'en'
+  let clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_CLERK_TEST_PUBLISHABLE_KEY || "pk_test_00000000000000000000000000000000"
+
   try {
     const cookieStore = await cookies()
     const headerStore = await headers()
@@ -107,7 +109,7 @@ export default async function RootLayout({ children }) {
   }[locale] || en
 
   return (
-    <html lang={lang} className={outfit.variable}>
+    <html lang={lang} className={outfit.variable} suppressHydrationWarning>
       <head>
         <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
         <meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
@@ -138,66 +140,66 @@ export default async function RootLayout({ children }) {
       <body className={`${outfit.className} antialiased text-gray-700`}>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ClerkProvider
-          dynamic
-          publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
-          appearance={{
-            elements: {
-              formButtonPrimary: "bg-orange-600 hover:bg-orange-700 text-white",
-              footerActionLink: "text-orange-600 hover:text-orange-700",
-              card: "bg-white border border-gray-200",
-              headerTitle: "text-gray-900",
-              headerSubtitle: "text-gray-500",
-              socialButtonsBlockButton: "border-gray-200 hover:bg-gray-50",
-              socialButtonsBlockButtonText: "text-gray-900",
-              formFieldLabel: "text-gray-800",
-              formFieldInput: "bg-white border-gray-200 text-gray-900 focus:border-orange-500",
-              dividerLine: "bg-gray-200",
-              dividerText: "text-gray-400",
-              identityPreviewText: "text-gray-900",
-              identityPreviewEditButton: "text-orange-600",
-              formFieldSuccessText: "text-green-600",
-              formFieldErrorText: "text-red-600",
-              alertText: "text-red-600",
-              alert: "bg-red-50 border-red-100",
-            },
-            variables: {
-              colorPrimary: "#EA580C",
-              colorBackground: "#FFFFFF",
-              colorText: "#111827",
-              colorTextSecondary: "#6B7280",
-              colorDanger: "#DC2626",
-              borderRadius: "0.5rem",
-              fontFamily: "var(--font-outfit), sans-serif",
-            },
-          }}
-        >
-          <StoreProvider>
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: "#FFFFFF",
-                  color: "#111827",
-                  border: "1px solid #E5E7EB",
-                  borderRadius: "0.5rem",
-                  padding: "16px 20px",
-                  fontFamily: "var(--font-outfit), sans-serif",
-                  fontSize: "0.875rem",
-                },
-                success: {
-                  iconTheme: { primary: "#EA580C", secondary: "#FFFFFF" },
-                },
-                error: {
-                  iconTheme: { primary: "#DC2626", secondary: "#FFFFFF" },
-                },
-              }}
-            />
-            {children}
-            <CookieConsentBanner />
-            <AbuChatBubble />
-            <AddedToCartSheet />
-          </StoreProvider>
+            dynamic
+            publishableKey={clerkPublishableKey}
+            appearance={{
+              elements: {
+                formButtonPrimary: "bg-orange-600 hover:bg-orange-700 text-white",
+                footerActionLink: "text-orange-600 hover:text-orange-700",
+                card: "bg-white border border-gray-200",
+                headerTitle: "text-gray-900",
+                headerSubtitle: "text-gray-500",
+                socialButtonsBlockButton: "border-gray-200 hover:bg-gray-50",
+                socialButtonsBlockButtonText: "text-gray-900",
+                formFieldLabel: "text-gray-800",
+                formFieldInput: "bg-white border-gray-200 text-gray-900 focus:border-orange-500",
+                dividerLine: "bg-gray-200",
+                dividerText: "text-gray-400",
+                identityPreviewText: "text-gray-900",
+                identityPreviewEditButton: "text-orange-600",
+                formFieldSuccessText: "text-green-600",
+                formFieldErrorText: "text-red-600",
+                alertText: "text-red-600",
+                alert: "bg-red-50 border-red-100",
+              },
+              variables: {
+                colorPrimary: "#EA580C",
+                colorBackground: "#FFFFFF",
+                colorText: "#111827",
+                colorTextSecondary: "#6B7280",
+                colorDanger: "#DC2626",
+                borderRadius: "0.5rem",
+                fontFamily: "var(--font-outfit), sans-serif",
+              },
+            }}
+          >
+            <StoreProvider>
+              <Toaster
+                position="top-right"
+                toastOptions={{
+                  duration: 4000,
+                  style: {
+                    background: "#FFFFFF",
+                    color: "#111827",
+                    border: "1px solid #E5E7EB",
+                    borderRadius: "0.5rem",
+                    padding: "16px 20px",
+                    fontFamily: "var(--font-outfit), sans-serif",
+                    fontSize: "0.875rem",
+                  },
+                  success: {
+                    iconTheme: { primary: "#EA580C", secondary: "#FFFFFF" },
+                  },
+                  error: {
+                    iconTheme: { primary: "#DC2626", secondary: "#FFFFFF" },
+                  },
+                }}
+              />
+              {children}
+              <CookieConsentBanner />
+              <AbuChatBubble />
+              <AddedToCartSheet />
+            </StoreProvider>
           </ClerkProvider>
         </NextIntlClientProvider>
       </body>

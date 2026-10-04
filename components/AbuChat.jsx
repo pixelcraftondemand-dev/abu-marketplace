@@ -108,13 +108,13 @@ export default function AbuChat() {
   };
 
   return (
-    <div className="flex flex-col">
+    <div className="flex w-full flex-col">
       <div className="mb-3 flex flex-wrap gap-1.5">
         {quickPrompts.map((prompt) => (
           <button
             key={prompt}
             onClick={() => send(prompt)}
-            className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:border-[#EA580C] hover:bg-[#FFF7ED] hover:text-stone-900"
+            className="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-[11px] font-medium text-stone-600 transition hover:border-[#EA580C] hover:bg-[#FFF7ED] hover:text-stone-900 sm:text-xs"
           >
             {prompt}
           </button>
@@ -123,7 +123,7 @@ export default function AbuChat() {
 
       <div
         ref={listRef}
-        className="mb-3 flex max-h-[340px] min-h-[220px] flex-col gap-2.5 overflow-y-auto rounded-2xl bg-stone-50/70 p-3.5"
+        className="mb-3 flex max-h-[240px] min-h-[180px] w-full flex-col gap-2.5 overflow-y-auto rounded-2xl bg-stone-50/70 p-2.5 sm:max-h-[320px] sm:min-h-[220px] sm:p-3.5"
       >
         {messages.map((m, i) => (
           <Bubble key={i} align={m.from === "abu" ? "start" : "end"}>
@@ -147,7 +147,7 @@ export default function AbuChat() {
         )}
       </div>
 
-      <div className="flex items-center gap-2 rounded-full border border-stone-300 bg-white pl-4 pr-1.5 py-1.5 transition focus-within:border-[#EA580C] focus-within:ring-2 focus-within:ring-[#EA580C]/20">
+      <div className="flex items-center gap-2 rounded-full border border-stone-300 bg-white pl-3.5 pr-1.5 py-1.5 transition focus-within:border-[#EA580C] focus-within:ring-2 focus-within:ring-[#EA580C]/20 sm:pl-4">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}

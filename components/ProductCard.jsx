@@ -61,13 +61,13 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
 
     return (
         <div
-            className="group relative flex flex-col bg-white border border-gray-100 rounded-xl overflow-hidden transition-all duration-300 ease-out hover:shadow-[0_8px_30px_-4px_rgba(0,0,0,0.08),0_2px_8px_-2px_rgba(0,0,0,0.04)] hover:border-gray-200 hover:-translate-y-0.5"
+            className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-[0_10px_28px_-18px_rgba(15,23,42,0.35)]"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
-            <Link href={`/product/${product.id}`} className="block">
+            <Link href={`/product/${product.id}`} className="block flex h-full flex-col touch-manipulation">
                 {/* Image Container */}
-                <div className="relative aspect-square overflow-hidden bg-gray-50">
+                <div className="relative aspect-square overflow-hidden bg-[radial-gradient(circle_at_top,_#fff,_#f8fafc_55%,_#f1f5f9_100%)]">
                     {/* Discount badge */}
                     {discount > 0 && (
                         <span className="absolute left-2.5 top-2.5 z-10 rounded-md bg-[var(--sale-red)] px-2 py-0.5 text-[10px] font-bold text-white leading-none shadow-sm">
@@ -96,7 +96,7 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
                     <button
                         onClick={handleWishlist}
                         className={`absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 backdrop-blur-sm shadow-sm transition-all duration-300 ${
-                            isHovered || isWishlisted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'
+                            isHovered || isWishlisted ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1 sm:opacity-0 sm:-translate-y-1'
                         } hover:scale-110 active:scale-95`}
                         aria-label={isWishlisted ? t('product.removedFromWishlist') : t('product.addedToWishlist')}
                     >
@@ -108,9 +108,9 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
                 </div>
 
                 {/* Content */}
-                <div className="p-3 flex flex-col gap-1 min-w-0">
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-2.5 sm:p-3">
                     {/* Title */}
-                    <p className="line-clamp-2 text-[13px] leading-snug text-gray-800 font-medium group-hover:text-[var(--color-primary)] transition-colors duration-200">
+                    <p className="line-clamp-2 text-[12.5px] leading-snug text-gray-800 transition-colors duration-200 group-hover:text-[var(--color-primary)] sm:text-[13px]">
                         {product.name}
                     </p>
 
@@ -163,7 +163,7 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
                         addedToCart
                             ? 'bg-green-500 text-white scale-110'
                             : 'bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-orange-500/25'
-                    } ${isHovered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}
+                    } ${isHovered ? 'opacity-100 translate-y-0' : 'opacity-100 translate-y-0 sm:opacity-0 sm:translate-y-2'}`}
                     aria-label={addedToCart ? t('product.addedToCart') : t('product.quickAdd')}
                 >
                     {addedToCart ? (
@@ -178,7 +178,7 @@ const ProductCard = ({ product, showQuickAdd = true }) => {
             {product.store && (
                 <Link
                     href={`/shop/${product.store.username}`}
-                    className="px-3 pb-2.5 flex items-center gap-1 text-[10px] font-medium text-gray-400 transition-colors duration-200 hover:text-[var(--color-primary)]"
+                    className="flex items-center gap-1 px-2.5 pb-2.5 text-[10px] font-medium text-gray-400 transition-colors duration-200 hover:text-[var(--color-primary)] sm:px-3"
                 >
                     <BadgeCheck size={10} className="shrink-0 text-green-500" />
                     <span className="truncate min-w-0">{product.store.name}</span>

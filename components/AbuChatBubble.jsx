@@ -12,6 +12,11 @@ const PANEL_WIDTH = 380;
 const PANEL_HEIGHT_ESTIMATE = 560; // used only for the initial placement, before we can measure
 const PANEL_GAP = 14;
 
+function getResponsivePanelWidth() {
+  if (typeof window === "undefined") return PANEL_WIDTH;
+  return Math.min(PANEL_WIDTH, window.innerWidth - 16);
+}
+
 const BUBBLE_STORAGE_KEY = "abu-chat-bubble-pos";
 const PANEL_STORAGE_KEY = "abu-chat-panel-pos";
 
@@ -68,7 +73,7 @@ export default function AbuChatBubble() {
       setPanelPos((current) => {
         if (!current) return current;
         const height = panelRef.current?.offsetHeight || PANEL_HEIGHT_ESTIMATE;
-        return clampRectToViewport({ ...current, width: PANEL_WIDTH, height });
+        return clampRectToViewport({ ...current, width: getResponsivePanelWidth(), height });
       });
     };
     window.addEventListener("resize", onResize);
@@ -86,15 +91,15 @@ export default function AbuChatBubble() {
     }
     const anchor = bubblePos || defaultBubblePosition();
     if (!anchor) return;
+    const panelWidth = getResponsivePanelWidth();
     setPanelPos(
       clampRectToViewport({
-        x: anchor.x + BUBBLE_SIZE - PANEL_WIDTH,
+        x: anchor.x + BUBBLE_SIZE - panelWidth,
         y: anchor.y - PANEL_GAP - PANEL_HEIGHT_ESTIMATE,
-        width: PANEL_WIDTH,
+        width: panelWidth,
         height: PANEL_HEIGHT_ESTIMATE,
       })
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // ─── Bubble drag ────────────────────────────────────────────────────────────
@@ -168,11 +173,12 @@ export default function AbuChatBubble() {
     if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
     drag.moved = true;
     const height = panelRef.current?.offsetHeight || PANEL_HEIGHT_ESTIMATE;
+    const width = getResponsivePanelWidth();
     setPanelPos(
       clampRectToViewport({
         x: drag.origin.x + dx,
         y: drag.origin.y + dy,
-        width: PANEL_WIDTH,
+        width,
         height,
       })
     );
@@ -195,6 +201,8 @@ export default function AbuChatBubble() {
     panelDragRef.current = null;
   };
 
+  const panelWidth = getResponsivePanelWidth();
+
   return (
     <>
       {open && panelPos && (
@@ -203,8 +211,8 @@ export default function AbuChatBubble() {
           id="abu-support-chat"
           role="dialog"
           aria-label="ABU support chat"
-          className="fixed z-50 w-[380px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.75rem] border border-stone-200/80 bg-white/95 shadow-[0_24px_70px_-12px_rgba(28,25,23,0.35)] backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200"
-          style={{ left: panelPos.x, top: panelPos.y }}
+          className="fixed z-50 overflow-hidden rounded-[1.75rem] border border-stone-200/80 bg-white/95 shadow-[0_24px_70px_-12px_rgba(28,25,23,0.35)] backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200"
+          style={{ left: panelPos.x, top: panelPos.y, width: panelWidth, maxWidth: "calc(100vw - 1rem)" }}
         >
           <div
             onPointerDown={handlePanelPointerDown}
