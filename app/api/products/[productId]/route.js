@@ -29,7 +29,7 @@ export async function GET(request, { params }) {
         store: {
           select: {
             id: true, name: true, username: true, logo: true,
-            description: true, halalCertified: true,
+            description: true, halalCertified: true, whatsappNumber: true,
           }
         },
         // Public review surface only — never expose who rated (userId/orderId).

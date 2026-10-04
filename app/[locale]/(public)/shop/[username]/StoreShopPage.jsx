@@ -2,10 +2,11 @@
 import ProductCard from "@/components/ProductCard"
 import { useParams } from "next/navigation"
 import { useEffect, useState } from "react"
-import { MailIcon, MapPinIcon, RotateCcw, BadgeCheck, Star, Package } from "lucide-react"
+import { MailIcon, MapPinIcon, RotateCcw, BadgeCheck, Star, Package, MessageCircle } from "lucide-react"
 import Loading from "@/components/Loading"
 import Image from "next/image"
 import axios from "axios"
+import { buildWhatsAppLink } from "@/lib/utils/whatsapp"
 
 export default function StoreShopPage() {
 
@@ -35,6 +36,14 @@ export default function StoreShopPage() {
     const allRatings = products.flatMap((p) => Array.isArray(p.rating) ? p.rating : [])
     const avgRating = allRatings.length
         ? (allRatings.reduce((acc, r) => acc + (Number(r.rating) || 0), 0) / allRatings.length).toFixed(1)
+        : null
+
+    // Vendors may or may not have supplied a WhatsApp number.
+    const whatsappLink = storeInfo
+        ? buildWhatsAppLink(
+            storeInfo.whatsappNumber,
+            `Hello ${storeInfo.name}, I found your store on ABU Marketplace and would like to ask about your products.`
+          )
         : null
 
     useEffect(() => {
@@ -106,6 +115,17 @@ export default function StoreShopPage() {
                                     <span>{storeInfo.email}</span>
                                 </div>
                             </div>
+                            {whatsappLink && (
+                                <a
+                                    href={whatsappLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
+                                >
+                                    <MessageCircle size={16} />
+                                    Chat on WhatsApp
+                                </a>
+                            )}
                         </div>
                     </div>
                 )}

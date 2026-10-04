@@ -23,6 +23,7 @@ import {
   Zap,
   BadgeCheck,
   ShoppingBag,
+  MessageCircle,
 } from "lucide-react";
 import Loading from "@/components/Loading";
 import { addToCart } from "@/lib/features/cart/cartSlice";
@@ -31,6 +32,7 @@ import { emitAddedToCart } from "@/lib/cartEvents";
 import { getProductDiscount } from "@/lib/productUtils";
 import { FREE_DELIVERY_THRESHOLD } from "@/lib/paymentOptions";
 import ProductCard from "@/components/ProductCard";
+import { buildWhatsAppLink } from "@/lib/utils/whatsapp";
 
 export default function ProductDetailPage({ product: serverProduct }) {
   const { productId } = useParams();
@@ -167,6 +169,10 @@ export default function ProductDetailPage({ product: serverProduct }) {
     if (r.rating >= 1 && r.rating <= 5) reviewDist[r.rating - 1]++;
   });
   const totalReviews = product.reviews?.length || 0;
+  const sellerWhatsappLink = buildWhatsAppLink(
+    product.store?.whatsappNumber,
+    `Hi ${product.store?.name || "there"}, I am interested in "${product.name}" on ABU Marketplace.`
+  );
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -413,6 +419,17 @@ export default function ProductDetailPage({ product: serverProduct }) {
                       View Store
                     </Link>
                   </div>
+                  {sellerWhatsappLink && (
+                    <a
+                      href={sellerWhatsappLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
+                    >
+                      <MessageCircle size={15} />
+                      Chat on WhatsApp
+                    </a>
+                  )}
                 </div>
               )}
             </div>

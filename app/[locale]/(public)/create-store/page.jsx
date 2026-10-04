@@ -24,6 +24,7 @@ const EMPTY_FORM = {
     description: "",
     email: "",
     contact: "",
+    whatsappNumber: "",
     address: "",
     image: null,
 }
@@ -103,6 +104,7 @@ export default function CreateStore() {
         if (!storeInfo.description.trim() || storeInfo.description.length < 10) return "Description must be at least 10 characters."
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(storeInfo.email)) return "Please enter a valid store email address."
         if (!storeInfo.contact.trim()) return "Contact number is required."
+        if (storeInfo.whatsappNumber.trim() && !/^[+]?[0-9\s\-().]{8,20}$/.test(storeInfo.whatsappNumber.trim())) return "Please enter a valid WhatsApp number, or leave it blank."
         if (!storeInfo.address.trim() || storeInfo.address.length < 5) return "Please enter a full store address."
         if (!agreedToTerms) return "Please confirm that you agree to the seller agreement."
         return null
@@ -124,6 +126,7 @@ export default function CreateStore() {
             formData.append("description", storeInfo.description.trim())
             formData.append("email", storeInfo.email.trim())
             formData.append("contact", storeInfo.contact.trim())
+            formData.append("whatsappNumber", storeInfo.whatsappNumber.trim())
             formData.append("address", storeInfo.address.trim())
             formData.append("image", storeInfo.image)
 
@@ -334,10 +337,25 @@ export default function CreateStore() {
                                     onChange={onChangeHandler}
                                     value={storeInfo.contact}
                                     type="text"
-                                    placeholder="e.g. +123 456 7890"
+                                    placeholder="e.g. +232 76 123 456"
                                     maxLength={20}
                                     className="mt-2 w-full rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#FFEDD5]"
                                 />
+                            </label>
+
+                            <label className="block text-sm font-medium text-[#4B4538]">
+                                WhatsApp number <span className="font-normal text-[#8C8071]">(optional)</span>
+                                <input
+                                    name="whatsappNumber"
+                                    onChange={onChangeHandler}
+                                    value={storeInfo.whatsappNumber}
+                                    type="tel"
+                                    inputMode="tel"
+                                    placeholder="e.g. 076 123 456"
+                                    maxLength={20}
+                                    className="mt-2 w-full rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#FFEDD5]"
+                                />
+                                <span className="mt-2 block text-xs text-[#8C8071]">Buyers can message you about your products.</span>
                             </label>
                         </div>
 

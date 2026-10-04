@@ -27,6 +27,7 @@ async function getPublicProduct(productId) {
             logo: true,
             description: true,
             halalCertified: true,
+            whatsappNumber: true,
           },
         },
         rating: {

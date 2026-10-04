@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import getImageKit from "@/configs/imageKit";
 import { sniffImageMagicBytes, sanitizeText, storeCreateRateLimiter } from "@/lib/security";
 import { getSessionFromRequest } from "@/lib/serverAuth";
+import { isValidWhatsAppNumber, normalizeWhatsAppNumber } from "@/lib/utils/whatsapp";
 import { NextResponse } from "next/server";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -113,7 +114,14 @@ export async function POST(request) {
         const address     = sanitize(formData.get("address")     ?? "", 300);
         const imageFile   = formData.get("image");
 
+        // WhatsApp is optional, but when supplied it must be a usable number.
+        const whatsappRaw = String(formData.get("whatsappNumber") ?? "").trim();
+        const whatsappNumber = normalizeWhatsAppNumber(whatsappRaw);
+
         const errors = validateFields({ name, username, description, email, contact, address });
+        if (whatsappRaw && !isValidWhatsAppNumber(whatsappRaw)) {
+            errors.push("WhatsApp number must be a valid phone number.");
+        }
         if (errors.length) {
             return NextResponse.json({ error: errors.join(" ") }, { status: 422 });
         }
@@ -178,6 +186,7 @@ export async function POST(request) {
                 email,
                 contact,
                 address,
+                whatsappNumber,
                 logo:     upload.url,
                 status:   "pending",
                 isActive: false,

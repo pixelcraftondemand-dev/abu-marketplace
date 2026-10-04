@@ -24,6 +24,7 @@ export async function GET(request){
                 address: true,
                 logo: true,
                 contact: true,
+                whatsappNumber: true,
                 halalCertified: true,
                 Product: {
                     where: { inStock: true },
