@@ -3,25 +3,32 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const CONSENT_KEY = "abu_cookie_consent";
+import { getTrackingConsent, setTrackingConsent, trackEvent } from "@/lib/trackingConsent";
 
 export default function CookieConsentBanner() {
   const [visible, setVisible] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
-    const stored = localStorage.getItem(CONSENT_KEY);
-    if (!stored) setVisible(true);
+    const consent = getTrackingConsent();
+    if (!consent) {
+      setVisible(true);
+      return;
+    }
+
+    setVisible(false);
   }, []);
 
   const handleChoice = (choice) => {
-    localStorage.setItem(
-      CONSENT_KEY,
-      JSON.stringify({ choice, timestamp: new Date().toISOString() })
-    );
-    // Only load analytics / marketing scripts after "accept".
-    // Example: if (choice === "accept") loadAnalytics();
+    const accepted = setTrackingConsent(choice);
+    if (!accepted) {
+      return;
+    }
+
+    if (choice === "accept") {
+      trackEvent("cookie_consent_accepted");
+    }
+
     setVisible(false);
   };
 
