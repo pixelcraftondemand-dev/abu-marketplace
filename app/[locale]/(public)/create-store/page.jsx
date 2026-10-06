@@ -14,7 +14,7 @@ import axios from "axios"
 
 const STATUS_COPY = {
     approved: "Your store has been approved! You can now add products from your dashboard.",
-    rejected: "Your store request has been rejected. Please contact the admin for more details.",
+    rejected: "Your store request needs changes before we can approve it.",
     pending: "Your store request is pending. Please wait for admin to approve your store.",
 }
 
@@ -41,6 +41,10 @@ export default function CreateStore() {
     const [storeInfo, setStoreInfo] = useState(EMPTY_FORM)
     const [previewUrl, setPreviewUrl] = useState("")
     const [agreedToTerms, setAgreedToTerms] = useState(false)
+    // Set when the admin rejected the application: the reason to fix, and the
+    // existing logo so a resubmission doesn't force another upload.
+    const [rejectionReason, setRejectionReason] = useState("")
+    const [existingLogo, setExistingLogo] = useState("")
 
     const fetchStatus = async () => {
         try {
@@ -52,6 +56,22 @@ export default function CreateStore() {
             if (data.status && ["approved", "rejected", "pending"].includes(data.status)) {
                 setStatus(data.status)
                 setAlreadySubmitted(true)
+                setRejectionReason(data.rejectionReason || "")
+                setExistingLogo(data.store?.logo || "")
+                // Everything the seller already wrote is loaded back, so fixing
+                // a rejected application is an edit rather than a retype.
+                if (data.canResubmit && data.store) {
+                    setStoreInfo((prev) => ({
+                        ...prev,
+                        name:        data.store.name || "",
+                        username:    data.store.username || "",
+                        description: data.store.description || "",
+                        email:       data.store.email || "",
+                        contact:     data.store.contact || "",
+                        whatsappNumber: data.store.whatsappNumber || "",
+                        address:     data.store.address || "",
+                    }))
+                }
                 if (data.status === "approved") {
                     setTimeout(() => router.push(data.storeUsername ? `/shop/${data.storeUsername}` : "/store"), 5000)
                 }
@@ -97,7 +117,8 @@ export default function CreateStore() {
     }
 
     const validate = () => {
-        if (!storeInfo.image) return "Please upload a store logo."
+        // On a resubmission the existing logo is kept unless a new file is chosen.
+        if (!storeInfo.image && !(status === "rejected" && existingLogo)) return "Please upload a store logo."
         if (storeInfo.image.size > 2 * 1024 * 1024) return "Logo must be under 2 MB."
         if (!storeInfo.name.trim() || storeInfo.name.length < 2) return "Store name must be at least 2 characters."
         if (!/^[a-z0-9_]{3,30}$/.test(storeInfo.username)) return "Username must be 3–30 characters: lowercase letters, numbers, and underscores only."
@@ -128,7 +149,7 @@ export default function CreateStore() {
             formData.append("contact", storeInfo.contact.trim())
             formData.append("whatsappNumber", storeInfo.whatsappNumber.trim())
             formData.append("address", storeInfo.address.trim())
-            formData.append("image", storeInfo.image)
+            if (storeInfo.image) formData.append("image", storeInfo.image)
 
             const { data } = await axios.post("/api/store/create", formData, {
                 headers: { Authorization: `Bearer ${token}` },
@@ -136,6 +157,7 @@ export default function CreateStore() {
 
             toast.success(data.message)
             setStatus("pending")
+            setRejectionReason("")
             setAlreadySubmitted(true)
         } catch (error) {
             toast.error(error?.response?.data?.error || error.message)
@@ -166,11 +188,43 @@ export default function CreateStore() {
                 <div className="max-w-2xl rounded-[2rem] border border-[#E8DCC8] bg-white p-8 text-center shadow-[0_25px_70px_rgba(34,34,34,0.08)]">
                     <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#A2825F]">Application status</p>
                     <h1 className="mt-3 text-3xl font-semibold text-[#1A1A1A]">{STATUS_COPY[status]}</h1>
+                    {status === "rejected" && rejectionReason && (
+                        <div className="mt-6 rounded-2xl border border-[#E8B98A] bg-[#FFF7ED] p-5 text-left">
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9A5B1E]">
+                                What to fix
+                            </p>
+                            <p className="mt-2 text-sm leading-6 text-[#5B5245]">{rejectionReason}</p>
+                        </div>
+                    )}
+
                     <div className="mt-6 rounded-3xl bg-[#FCF7EE] p-6 text-left text-sm leading-7 text-[#5B5245]">
-                        <p>• Your submission is now with the admin team for review.</p>
-                        <p>• You will receive a decision once your store details have been verified.</p>
-                        <p>• Approved stores can start adding products immediately from the seller dashboard.</p>
+                        {status === "rejected" ? (
+                            <>
+                                <p>• Fix the details above and resubmit — nothing is lost, your application stays on file.</p>
+                                <p>• Your logo is kept unless you choose a new one.</p>
+                                <p>• You&apos;ll get an email as soon as the decision is made.</p>
+                            </>
+                        ) : (
+                            <>
+                                <p>• Your submission is now with the admin team for review.</p>
+                                <p>• You will receive a decision once your store details have been verified.</p>
+                                <p>• Approved stores can start adding products immediately from the seller dashboard.</p>
+                            </>
+                        )}
                     </div>
+
+                    {status === "rejected" && (
+                        <button
+                            onClick={() => {
+                                setAlreadySubmitted(false)
+                                setPreviewUrl("")
+                            }}
+                            className="mt-6 rounded-full bg-[#1A1A1A] px-8 py-3 text-sm font-semibold text-[#F6E0B9] transition hover:bg-[#333]"
+                        >
+                            Fix and resubmit
+                        </button>
+                    )}
+
                     {status === "approved" && (
                         <p className="mt-6 text-sm text-[#6A6053]">
                             Redirecting to your dashboard in <span className="font-semibold">5 seconds</span>…

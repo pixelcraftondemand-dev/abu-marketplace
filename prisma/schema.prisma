@@ -500,6 +500,11 @@ model Store {
   // 232 = Sierra Leone). Null means the vendor has not supplied one.
   whatsappNumber String?
   halalCertified Boolean  @default(false)
+  // Admin review trail. `rejectionReason` is shown back to the seller so a
+  // rejected application can be fixed and resubmitted instead of dead-ending.
+  rejectionReason String?
+  reviewedAt      DateTime?
+  reviewedBy      String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
