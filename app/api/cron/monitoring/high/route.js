@@ -1,4 +1,4 @@
-// High-tier monitoring cron job — runs every hour via Vercel Cron.
+// High-tier monitoring cron job — runs daily at 07:00 UTC via Vercel Cron.
 //
 // Evaluates high-tier alerts: refund rate spikes, fraud distribution shifts,
 // webhook processing lag. Notifies within business hours.

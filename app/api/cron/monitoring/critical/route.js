@@ -1,4 +1,4 @@
-// Critical monitoring cron job — runs every 5 minutes via Vercel Cron.
+// Critical monitoring cron job — runs daily at 06:00 UTC via Vercel Cron.
 //
 // Evaluates critical-tier alerts: ledger imbalances, settlement failures,
 // payment success rate drops. These page someone immediately.
