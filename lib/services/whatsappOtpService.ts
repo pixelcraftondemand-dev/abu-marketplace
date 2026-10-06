@@ -1,4 +1,4 @@
-/**
+﻿/**
  * WhatsApp OTP sign-in for ABU Marketplace.
  *
  * Flow: buyer enters their WhatsApp number -> we generate a 6-digit code and
@@ -9,7 +9,7 @@
  * Why our own OTP instead of Clerk's phone factor: Clerk only sends SMS. The
  * Sierra Leone pilot is WhatsApp-first, so the code has to arrive inside
  * WhatsApp. Codes therefore live in the existing `verification` table with a
- * `whatsapp:<e164-digits>` identifier — same single-live-code + atomic-consume
+ * `whatsapp:<e164-digits>` identifier â€” same single-live-code + atomic-consume
  * guarantees as the email flow, no schema change.
  *
  * Security properties:
@@ -18,7 +18,7 @@
  *    trivially reversible in a 10^6 keyspace from a DB dump).
  *  - One live code per number: issuing a new one deletes the previous.
  *  - The code is consumed inside the same transaction that returns success, so
- *    a code can never be replayed — even by two racing requests.
+ *    a code can never be replayed â€” even by two racing requests.
  *  - Wrong-code attempts are counted in the same rate-limit bucket as the
  *    verify endpoint, so a 6-digit space cannot be walked.
  *  - In production, `WHATSAPP_OTP_PROVIDER=mock` is refused, so a misconfigured
@@ -36,14 +36,14 @@ const GRAPH_API_VERSION = "v21.0";
 
 export const WHATSAPP_OTP_IDENTIFIER_PREFIX = "whatsapp:";
 
-/** 3 codes per number per 10 minutes — an SMS/WhatsApp pumping ceiling. */
+/** 3 codes per number per 10 minutes â€” an SMS/WhatsApp pumping ceiling. */
 export const whatsappOtpSendRateLimiter = createDistributedRateLimiter({
   windowMs: 10 * 60_000,
   max: 3,
   name: "whatsapp-otp-send",
 });
 
-/** 10 verify attempts per number per 10 minutes — bounds code guessing. */
+/** 10 verify attempts per number per 10 minutes â€” bounds code guessing. */
 export const whatsappOtpVerifyRateLimiter = createDistributedRateLimiter({
   windowMs: 10 * 60_000,
   max: 10,
@@ -87,7 +87,7 @@ export function generateWhatsappOtp(): string {
     .padStart(OTP_LENGTH, "0");
 }
 
-/** HMAC-SHA256 of a code — the only form ever persisted. */
+/** HMAC-SHA256 of a code â€” the only form ever persisted. */
 export function hashWhatsappOtp(code: string): string {
   if (!code || typeof code !== "string") {
     throw new Error("WhatsApp OTP code is required.");
@@ -114,7 +114,7 @@ export function isWhatsappIdentifier(identifier: string): boolean {
   return identifier.startsWith(WHATSAPP_OTP_IDENTIFIER_PREFIX);
 }
 
-// ─── Meta WhatsApp Business Cloud API ───────────────────────────────────────
+// â”€â”€â”€ Meta WhatsApp Business Cloud API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface MetaSendResult {
   ok: boolean;
@@ -126,7 +126,7 @@ interface MetaSendResult {
  * Send the authentication template through the Cloud API.
  *
  * The template must be an approved `authentication` template whose body takes
- * one parameter (the code) — create it in Meta Business Manager and set its
+ * one parameter (the code) â€” create it in Meta Business Manager and set its
  * name in WHATSAPP_OTP_TEMPLATE.
  */
 export async function sendWhatsappOtpMessage(
@@ -137,6 +137,8 @@ export async function sendWhatsappOtpMessage(
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
   const templateName = process.env.WHATSAPP_OTP_TEMPLATE || "abu_signin_code";
   const templateLang = process.env.WHATSAPP_OTP_TEMPLATE_LANG || "en_US";
+  const copyCodeText = String(process.env.WHATSAPP_OTP_BUTTON_TEXT || "Copy Code").trim().slice(0, 25);
+  const codeExpirationMinutes = Number(process.env.WHATSAPP_OTP_EXPIRATION_MINUTES || 5);
 
   if (!phoneNumberId || !accessToken) {
     return {
@@ -159,7 +161,25 @@ export async function sendWhatsappOtpMessage(
       components: [
         {
           type: "body",
+          add_security_recommendation: true,
           parameters: [{ type: "text", text: code }],
+        },
+        {
+          type: "footer",
+          code_expiration_minutes:
+            Number.isFinite(codeExpirationMinutes) && codeExpirationMinutes > 0
+              ? Math.min(codeExpirationMinutes, 15)
+              : 5,
+        },
+        {
+          type: "buttons",
+          buttons: [
+            {
+              type: "otp",
+              otp_type: "copy_code",
+              text: copyCodeText || "Copy Code",
+            },
+          ],
         },
       ],
     },
@@ -176,7 +196,7 @@ export async function sendWhatsappOtpMessage(
     });
 
     if (!res.ok) {
-      // Never echo the code or the token into logs — just the provider's error.
+      // Never echo the code or the token into logs â€” just the provider's error.
       const text = await res.text().catch(() => "");
       console.error("[whatsappOtp] Cloud API rejected the send", {
         status: res.status,
@@ -199,7 +219,7 @@ export async function sendWhatsappOtpMessage(
   }
 }
 
-// ─── Issue + verify ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Issue + verify â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type IssueWhatsappOtpResult =
   | { sent: true; expiresInMinutes: number; devCode?: string }
@@ -208,7 +228,7 @@ export type IssueWhatsappOtpResult =
 /**
  * Issue (and deliver) a sign-in code for a WhatsApp number.
  *
- * Rate limiting is the caller's job — the route checks both the number and the
+ * Rate limiting is the caller's job â€” the route checks both the number and the
  * request IP, because this endpoint is unauthenticated by definition.
  */
 export async function issueWhatsappOtp(
@@ -262,7 +282,7 @@ export async function issueWhatsappOtp(
   if (provider === "mock" && isProduction()) {
     await prisma.verification.deleteMany({ where: { identifier } });
     console.error(
-      "[whatsappOtp] WHATSAPP_OTP_PROVIDER is 'mock' in production — refusing to issue a code."
+      "[whatsappOtp] WHATSAPP_OTP_PROVIDER is 'mock' in production â€” refusing to issue a code."
     );
     return { sent: false, reason: "provider_error", message: "WhatsApp sign-in is unavailable." };
   }
@@ -270,7 +290,7 @@ export async function issueWhatsappOtp(
   if (provider === "mock") {
     // Development only: log so a dev can complete the flow without Meta access.
     console.warn(
-      `[whatsappOtp] mock provider — sign-in code for ${digits} is ${code}`
+      `[whatsappOtp] mock provider â€” sign-in code for ${digits} is ${code}`
     );
     return { sent: true, expiresInMinutes, devCode: code };
   }

@@ -24,14 +24,16 @@ jobs:
     name: Run PR Agent review
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
     steps:
-      # Skip until the OPENAI_KEY secret is configured, so this check is never
-      # red before the secret exists (first push of this workflow). The secrets
-      # context is not allowed in `if:`, so it is mapped to step env instead.
+      - name: Explain how to enable AI review
+        if: ${{ env.OPENAI_KEY == '' }}
+        run: echo "::notice::Add the OPENAI_KEY Actions secret in repository Settings > Secrets and variables > Actions to enable AI reviews."
+
       # Pinned to the exact v0.42.0 commit (supply-chain safe; no @main).
       - name: PR Agent action step
         if: ${{ env.OPENAI_KEY != '' }}
         uses: the-pr-agent/pr-agent@f6af7d77554ff8d26adffded077e6461329e92fa
         env:
-          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
