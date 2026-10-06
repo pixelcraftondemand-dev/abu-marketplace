@@ -4,6 +4,7 @@ import { Toaster } from "react-hot-toast";
 import StoreProvider from "@/app/StoreProvider";
 import CookieConsentBanner from "@/components/CookieConsent";
 import AbuChatBubble from "@/components/AbuChatBubble";
+import WhatsAppBubble from "@/components/WhatsAppBubble";
 import AddedToCartSheet from "@/components/AddedToCartSheet";
 import "./globals.css";
 import { cookies, headers } from 'next/headers'
@@ -198,6 +199,7 @@ export default async function RootLayout({ children }) {
               {children}
               <CookieConsentBanner />
               <AbuChatBubble />
+              <WhatsAppBubble />
               <AddedToCartSheet />
             </StoreProvider>
           </ClerkProvider>

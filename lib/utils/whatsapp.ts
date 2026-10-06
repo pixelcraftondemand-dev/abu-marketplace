@@ -36,3 +36,60 @@ export function buildWhatsAppLink(raw: unknown, message?: string): string | null
   const base = `https://wa.me/${digits}`;
   return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 }
+
+/**
+ * The marketplace's own WhatsApp line (support + "arrange payment" handoff).
+ * Public by design — BuyNow SL publishes theirs in the footer — so it lives in
+ * a NEXT_PUBLIC_ var and the site-wide bubble simply hides when it is unset.
+ */
+export function getSupportWhatsAppNumber(): string {
+  return process.env.NEXT_PUBLIC_WHATSAPP_SUPPORT_NUMBER || "";
+}
+
+/** wa.me link to the marketplace line, or null when it is not configured. */
+export function buildSupportWhatsAppLink(message?: string): string | null {
+  return buildWhatsAppLink(getSupportWhatsAppNumber(), message);
+}
+
+/**
+ * Opening message for the site-wide bubble — short, and tells support what to
+ * reply with (availability + how to pay).
+ */
+export function buildSupportMessage(context?: { productName?: string; url?: string }): string {
+  if (context?.productName) {
+    const lines = [
+      `Hi ABU Marketplace, I have a question about "${context.productName}".`,
+    ];
+    if (context.url) lines.push(context.url);
+    lines.push("Please tell me if it's available and how to pay.");
+    return lines.join("\n");
+  }
+  return "Hi ABU Marketplace, I'd like help with an order or a payment.";
+}
+
+/**
+ * Prefilled text a buyer sends when they want to close an order on WhatsApp.
+ * Mirrors the per-product message already used on the product page so the
+ * seller sees the same shape whether the buyer taps the card or the bubble.
+ */
+export function buildOrderMessage({
+  productName,
+  storeName,
+  priceLabel,
+  url,
+}: {
+  productName?: string;
+  storeName?: string;
+  priceLabel?: string;
+  url?: string;
+}): string {
+  const lines = ["Hi ABU Marketplace, I'd like to order:"];
+  if (productName) {
+    const price = priceLabel ? ` — ${priceLabel}` : "";
+    lines.push(`• ${productName}${price}`);
+  }
+  if (storeName) lines.push(`From: ${storeName}`);
+  if (url) lines.push(url);
+  lines.push("Please confirm availability and how to pay.");
+  return lines.join("\n");
+}

@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  buildSupportMessage,
+  buildSupportWhatsAppLink,
   buildWhatsAppLink,
+  getSupportWhatsAppNumber,
   isValidWhatsAppNumber,
   normalizeWhatsAppNumber,
 } from "@/lib/utils/whatsapp";
@@ -52,5 +55,47 @@ describe("buildWhatsAppLink", () => {
     expect(buildWhatsAppLink("")).toBeNull();
     expect(buildWhatsAppLink(null)).toBeNull();
     expect(buildWhatsAppLink("123")).toBeNull();
+  });
+});
+
+describe("site-wide support line", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("is unset by default, so the bubble stays hidden", () => {
+    expect(getSupportWhatsAppNumber()).toBe("");
+    expect(buildSupportWhatsAppLink("Hi")).toBeNull();
+  });
+
+  it("builds a prefilled link from the configured number", () => {
+    vi.stubEnv("NEXT_PUBLIC_WHATSAPP_SUPPORT_NUMBER", "23279069045");
+    expect(getSupportWhatsAppNumber()).toBe("23279069045");
+    expect(buildSupportWhatsAppLink("Hi ABU")).toBe(
+      "https://wa.me/23279069045?text=Hi%20ABU"
+    );
+  });
+
+  it("normalises a locally-formatted support number too", () => {
+    vi.stubEnv("NEXT_PUBLIC_WHATSAPP_SUPPORT_NUMBER", "079 069 045");
+    expect(buildSupportWhatsAppLink()).toBe("https://wa.me/23279069045");
+  });
+});
+
+describe("buildSupportMessage", () => {
+  it("asks for human help when there is no product context", () => {
+    expect(buildSupportMessage()).toBe(
+      "Hi ABU Marketplace, I'd like help with an order or a payment."
+    );
+  });
+
+  it("names the product and asks about availability when given context", () => {
+    const message = buildSupportMessage({
+      productName: "Smart watch white",
+      url: "https://abumarketplace.shop/en/product/abc",
+    });
+    expect(message).toContain('"Smart watch white"');
+    expect(message).toContain("https://abumarketplace.shop/en/product/abc");
+    expect(message).toMatch(/available/i);
   });
 });
