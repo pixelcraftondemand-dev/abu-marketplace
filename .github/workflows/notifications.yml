@@ -39,12 +39,6 @@ jobs:
         run: |
           set -euo pipefail
           
-          EVENT_TYPE="${{ github.event.action }}"
-          PR_NUMBER="${{ github.event.pull_request.number }}"
-          PR_TITLE="${{ github.event.pull_request.title }}"
-          PR_URL="${{ github.event.pull_request.html_url }}"
-          AUTHOR="${{ github.event.pull_request.user.login }}"
-          
           # Build notification message
           case "$EVENT_TYPE" in
             opened)
@@ -52,7 +46,7 @@ jobs:
               ACTION="opened"
               ;;
             closed)
-              if [ "${{ github.event.pull_request.merged }}" == "true" ]; then
+                if [ "$PR_MERGED" == "true" ]; then
                 EMOJI="🎉"
                 ACTION="merged"
               else
@@ -69,8 +63,7 @@ jobs:
               ACTION="review requested"
               ;;
             submitted)
-              REVIEW_STATE="${{ github.event.review.state }}"
-              if [ "$REVIEW_STATE" == "approved" ]; then
+                if [ "$REVIEW_STATE" == "approved" ]; then
                 EMOJI="✅"
                 ACTION="approved"
               elif [ "$REVIEW_STATE" == "changes_requested" ]; then
@@ -99,29 +92,32 @@ jobs:
             echo "EOF"
             echo "color=$([ "$EVENT_TYPE" == "closed" ] && echo "danger" || echo "good")"
           } >> "$GITHUB_OUTPUT"
+        env:
+          EVENT_TYPE: ${{ github.event.action }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+          REVIEW_STATE: ${{ github.event.review.state }}
 
       - name: Send Slack notification
         if: ${{ env.SLACK_WEBHOOK_URL != '' }}
         run: |
+          payload=$(jq -n \
+            --arg text "$PR_MESSAGE" \
+            --arg color "$PR_COLOR" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg branch "$PR_BRANCH" \
+            '{text: $text, attachments: [{color: $color, fields: [{title: "Repository", value: $repository, short: true}, {title: "Branch", value: $branch, short: true}]}]}')
           curl -X POST -H 'Content-type: application/json' \
-            --data "{
-              \"text\": \"${{ steps.event.outputs.message }}\",
-              \"attachments\": [{
-                \"color\": \"${{ steps.event.outputs.color }}\",
-                \"fields\": [{
-                  \"title\": \"Repository\",
-                  \"value\": \"${{ github.repository }}\",
-                  \"short\": true
-                }, {
-                  \"title\": \"Branch\",
-                  \"value\": \"${{ github.head_ref }}\",
-                  \"short\": true
-                }]
-              }]
-            }" \
-            ${{ secrets.SLACK_WEBHOOK_URL }}
+            --data "$payload" \
+            "$SLACK_WEBHOOK_URL"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          PR_MESSAGE: ${{ steps.event.outputs.message }}
+          PR_COLOR: ${{ steps.event.outputs.color }}
+          PR_BRANCH: ${{ github.head_ref }}
 
   # ─── CI/CD Notifications ────────────────────────────────────────────────────
   cicd-notification:

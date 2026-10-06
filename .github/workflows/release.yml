@@ -137,6 +137,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: [build]
+    outputs:
+      tag: ${{ steps.meta.outputs.version }}
     permissions:
       contents: read
       packages: write
