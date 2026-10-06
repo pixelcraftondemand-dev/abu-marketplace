@@ -51,13 +51,13 @@ jobs:
           # Check if coverage report exists
           if [ -f "coverage/coverage-summary.json" ]; then
             echo "📊 Coverage Summary:"
-            cat coverage/coverage-summary.json | jq '.total'
+            jq '.total' coverage/coverage-summary.json
             
             # Extract percentages
-            STATEMENTS=$(cat coverage/coverage-summary.json | jq '.total.statements.pct')
-            BRANCHES=$(cat coverage/coverage-summary.json | jq '.total.branches.pct')
-            FUNCTIONS=$(cat coverage/coverage-summary.json | jq '.total.functions.pct')
-            LINES=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+            STATEMENTS=$(jq '.total.statements.pct' coverage/coverage-summary.json)
+            BRANCHES=$(jq '.total.branches.pct' coverage/coverage-summary.json)
+            FUNCTIONS=$(jq '.total.functions.pct' coverage/coverage-summary.json)
+            LINES=$(jq '.total.lines.pct' coverage/coverage-summary.json)
             
             echo ""
             echo "📈 Coverage Metrics:"

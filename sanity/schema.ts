@@ -1,4 +1,6 @@
-export const homePage = {
+import { defineType } from 'sanity'
+
+export const homePage = defineType({
   name: 'homePage',
   title: 'Home Page',
   type: 'document',
@@ -62,9 +64,9 @@ export const homePage = {
       type: 'text',
     },
   ],
-}
+})
 
-export const siteSettings = {
+export const siteSettings = defineType({
   name: 'siteSettings',
   title: 'Site Settings',
   type: 'document',
@@ -81,4 +83,4 @@ export const siteSettings = {
       type: 'string',
     },
   ],
-}
+})

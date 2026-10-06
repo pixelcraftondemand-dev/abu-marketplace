@@ -93,10 +93,12 @@ jobs:
           MESSAGE="${MESSAGE}\n📄 Title: ${PR_TITLE}"
           MESSAGE="${MESSAGE}\n🔗 ${PR_URL}"
           
-          echo "message<<EOF" >> "$GITHUB_OUTPUT"
-          echo -e "$MESSAGE" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-          echo "color=$([ "$EVENT_TYPE" == "closed" ] && echo "danger" || echo "good")" >> "$GITHUB_OUTPUT"
+          {
+            echo "message<<EOF"
+            echo -e "$MESSAGE"
+            echo "EOF"
+            echo "color=$([ "$EVENT_TYPE" == "closed" ] && echo "danger" || echo "good")"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Send Slack notification
         if: ${{ env.SLACK_WEBHOOK_URL != '' }}
@@ -156,10 +158,12 @@ jobs:
           MESSAGE="${MESSAGE}\n🌿 Branch: ${BRANCH}"
           MESSAGE="${MESSAGE}\n🔗 ${URL}"
           
-          echo "message<<EOF" >> "$GITHUB_OUTPUT"
-          echo -e "$MESSAGE" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-          echo "color=$COLOR" >> "$GITHUB_OUTPUT"
+          {
+            echo "message<<EOF"
+            echo -e "$MESSAGE"
+            echo "EOF"
+            echo "color=$COLOR"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Send Slack notification
         if: ${{ env.SLACK_WEBHOOK_URL != '' }}
@@ -225,9 +229,11 @@ jobs:
           MESSAGE="${EMOJI} ${NAME} (${TAG}) ${ACTION}"
           MESSAGE="${MESSAGE}\n🔗 ${URL}"
           
-          echo "message<<EOF" >> "$GITHUB_OUTPUT"
-          echo -e "$MESSAGE" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          {
+            echo "message<<EOF"
+            echo -e "$MESSAGE"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Send Slack notification
         if: ${{ env.SLACK_WEBHOOK_URL != '' }}
@@ -280,9 +286,11 @@ jobs:
           MESSAGE="${MESSAGE}✅ Merged PRs: ${MERGED_PRS}\n"
           MESSAGE="${MESSAGE}👥 Contributors:\n${CONTRIBUTORS}"
           
-          echo "message<<EOF" >> "$GITHUB_OUTPUT"
-          echo -e "$MESSAGE" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          {
+            echo "message<<EOF"
+            echo -e "$MESSAGE"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Send Slack notification
         if: ${{ env.SLACK_WEBHOOK_URL != '' }}
