@@ -8,6 +8,7 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default function Page() {
-  return <HomePage />;
+export default async function Page({ params }) {
+  const { locale } = await params;
+  return <HomePage locale={locale} />;
 }

@@ -1,4 +1,3 @@
-'use client'
 import BestSelling from "@/components/BestSelling";
 import Hero from "@/components/Hero";
 import Newsletter from "@/components/Newsletter";
@@ -8,13 +7,23 @@ import MarketplaceHighlights from "@/components/MarketplaceHighlights";
 import TrustStrip from "@/components/TrustStrip";
 import CategoryQuickLinks from "@/components/CategoryQuickLinks";
 import ScrollReveal from "@/components/ScrollReveal";
+import { getHomePageContent, urlFor } from "@/lib/cms";
 
-export default function HomePage() {
+export default async function HomePage({ locale = "en" }) {
+    const cmsContent = await getHomePageContent(locale);
+    const heroImage = cmsContent?.heroImage ? urlFor(cmsContent.heroImage)?.url() : null;
+
     return (
         <div>
             {/* Hero — Full-width promotional carousel */}
             <ScrollReveal direction="none" duration={0.7}>
-                <Hero />
+                <Hero cmsContent={cmsContent ? {
+                    heroTitle: cmsContent.heroTitle,
+                    heroSubtitle: cmsContent.heroSubtitle,
+                    heroCtaText: cmsContent.heroCtaText,
+                    heroCtaHref: cmsContent.heroCtaHref,
+                    image: heroImage,
+                } : null} />
             </ScrollReveal>
 
             {/* Trust Strip — 4 icons: delivery, quality, returns, secure */}
