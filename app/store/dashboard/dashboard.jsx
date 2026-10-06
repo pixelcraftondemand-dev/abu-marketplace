@@ -178,7 +178,7 @@ export default function StoreDashboard() {
                 <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#94A3B8", fontSize: 12 }} />
                 <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94A3B8", fontSize: 12 }} />
                     <Tooltip formatter={(value) => [<CurrencyAmount key="revenue" amount={value} />, "Revenue"]} />
-                <Bar dataKey="revenue" radius={[10, 10, 0, 0]} fill="#C9A96E" />
+                <Bar dataKey="revenue" radius={[10, 10, 0, 0]} fill="#EA580C" />
               </BarChart>
             </ResponsiveContainer>
           </div>

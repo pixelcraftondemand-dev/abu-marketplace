@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/monitoring/critical",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/monitoring/high",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/monitoring/digest",
+      "schedule": "0 8 * * *"
+    }
+  ]
+}

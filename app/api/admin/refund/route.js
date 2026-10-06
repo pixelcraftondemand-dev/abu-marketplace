@@ -3,9 +3,7 @@ import authAdmin from "@/middlewares/authAdmin";
 import { getSessionFromRequest } from "@/lib/serverAuth";
 import { refundRateLimiter } from "@/lib/security";
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
 import { z } from "zod";
-import { transitionPaymentStatus, toCents } from "@/lib/services/paymentService";
 import { PAYMENT_STATES } from "@/lib/services/paymentState";
 import { logPayment, getRequestId } from "@/lib/paymentLog";
 
@@ -19,8 +17,9 @@ const refundSchema = z.object({
 /**
  * Idempotent, admin-only refunds:
  *  - a Refund ledger row is created (PENDING) before calling the provider;
- *  - Stripe is called with an idempotency key tied to the refund row, so a
- *    retried request can never issue a second refund;
+ *  - AMBER PAY wallet refunds are internal ledger operations (no external call).
+ *    request can never issue a second refund (the provider refund is async —
+ *    it settles in the dashboard over 3-15 working days);
  *  - the total of SUCCEEDED refunds can never exceed the captured amount;
  *  - the payment transitions atomically (SUCCEEDED -> REFUNDED /
  *    PARTIALLY_REFUNDED).
@@ -84,49 +83,54 @@ export async function POST(request) {
       data: { paymentId: payment.id, amount, reason: parsed.data.reason || null, status: "PENDING" },
     });
 
-    const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
     try {
-      const providerRefund = await stripe.refunds.create(
-        {
-          payment_intent: payment.providerPaymentIntentId,
-          amount: toCents(amount),
-          metadata: { appId: "abu-marketplace", paymentId: payment.id, refundId: refund.id },
-        },
-        { idempotencyKey: `refund_${refund.id}` } // provider-side dedup for retries
-      );
+      // Atomic transaction: mark refund succeeded + transition payment status.
+      // All three writes (refund update, payment transition) must succeed or
+      // all must roll back — a succeeded refund on a still-SUCCEEDED payment
+      // would allow over-refunds on retry.
+      const txResult = await prisma.$transaction(async (tx) => {
+        // Mark refund as succeeded (no external provider to call — wallet/COD refunds
+        // are internal ledger operations).
+        await tx.refund.updateMany({
+          where: { id: refund.id, status: "PENDING" },
+          data: { status: "SUCCEEDED" },
+        });
 
-      await prisma.refund.updateMany({
-        where: { id: refund.id, status: "PENDING" },
-        data: { status: "SUCCEEDED", providerRefundId: providerRefund.id },
+        const succeededRefunds = await tx.refund.findMany({
+          where: { paymentId: payment.id, status: "SUCCEEDED" },
+          select: { amount: true },
+        });
+        const totalRefunded = succeededRefunds.reduce((sum, r) => sum + r.amount, 0);
+        const next =
+          totalRefunded >= payment.amount - 0.001
+            ? PAYMENT_STATES.REFUNDED
+            : PAYMENT_STATES.PARTIALLY_REFUNDED;
+
+        if (next !== payment.status) {
+          const transitionResult = await tx.payment.updateMany({
+            where: { id: payment.id, status: payment.status },
+            data: { status: next },
+          });
+          if (transitionResult.count !== 1) {
+            throw new Error("PAYMENT_STATE_CHANGED");
+          }
+        }
+
+        return { next };
       });
-
-      const succeededRefunds = await prisma.refund.findMany({
-        where: { paymentId: payment.id, status: "SUCCEEDED" },
-        select: { amount: true },
-      });
-      const totalRefunded = succeededRefunds.reduce((sum, r) => sum + r.amount, 0);
-      const next =
-        totalRefunded >= payment.amount - 0.001
-          ? PAYMENT_STATES.REFUNDED
-          : PAYMENT_STATES.PARTIALLY_REFUNDED;
-
-      if (next !== payment.status) {
-        await transitionPaymentStatus(prisma, payment.id, payment.status, next);
-      }
 
       logPayment({
         event: "refund.succeeded",
         refundId: refund.id,
         paymentId: payment.id,
-        providerRefundId: providerRefund.id,
         amount,
         currency: payment.currency,
         requestId,
       });
 
       return NextResponse.json({
-        refund: { id: refund.id, amount, status: "SUCCEEDED", providerRefundId: providerRefund.id },
-        paymentStatus: next,
+        refund: { id: refund.id, amount, status: "SUCCEEDED" },
+        paymentStatus: txResult.next,
       });
     } catch (error) {
       await prisma.refund.updateMany({

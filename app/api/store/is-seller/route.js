@@ -35,6 +35,7 @@ export async function GET(request) {
                 logo: true,
                 email: true,
                 contact: true,
+                whatsappNumber: true,
                 createdAt: true,
             },
         });

@@ -1,6 +1,28 @@
 import CommerceInfoPage from "@/components/CommerceInfoPage";
 import { Mail, Phone, Send, Store } from "lucide-react";
 
+export async function generateMetadata({ params }) {
+  const { locale } = await params;
+  return {
+    title: "Contact Us",
+    description:
+      "Get in touch with ABU Marketplace for order support, seller inquiries, and partnership questions.",
+    alternates: { canonical: `https://www.abumarketplace.shop/${locale}/contact` },
+    openGraph: {
+      title: "Contact Us — ABU Marketplace",
+      description:
+        "Get in touch with ABU Marketplace for order support, seller inquiries, and partnership questions.",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Contact Us — ABU Marketplace",
+      description:
+        "Get in touch with ABU Marketplace for order support, seller inquiries, and partnership questions.",
+    },
+  };
+}
+
 const highlights = [
   {
     title: "Email support",

@@ -8,6 +8,17 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+// The Store model requires a User owner (userId is required + unique), so the
+// demo store needs a demo user first. Reused across runs (upsert-style).
+const DEMO_USER = {
+  id: "demo_user_seed",
+  name: "ABU Demo Seller",
+  email: "demo@abumarketplace.shop",
+  image: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=400",
+  cart: {},
+  emailVerified: true,
+};
+
 const STORE = {
   name: "ABU Demo Store",
   description:
@@ -30,9 +41,9 @@ const PRODUCTS = [
     mrp: 199,
     price: 149,
     halalCertified: true,
-    images: JSON.stringify([
+    images: [
       "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600",
-    ]),
+    ],
     category: "electronics",
   },
   {
@@ -42,9 +53,9 @@ const PRODUCTS = [
     mrp: 120,
     price: 89,
     halalCertified: true,
-    images: JSON.stringify([
+    images: [
       "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600",
-    ]),
+    ],
     category: "electronics",
   },
   {
@@ -54,9 +65,9 @@ const PRODUCTS = [
     mrp: 65,
     price: 45,
     halalCertified: false,
-    images: JSON.stringify([
+    images: [
       "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600",
-    ]),
+    ],
     category: "home",
   },
   {
@@ -66,9 +77,9 @@ const PRODUCTS = [
     mrp: 95,
     price: 72,
     halalCertified: true,
-    images: JSON.stringify([
+    images: [
       "https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?w=600",
-    ]),
+    ],
     category: "fashion",
   },
   {
@@ -78,9 +89,9 @@ const PRODUCTS = [
     mrp: 129,
     price: 99,
     halalCertified: false,
-    images: JSON.stringify([
+    images: [
       "https://images.unsplash.com/photo-1606220945770-b5b6c2c55bf1?w=600",
-    ]),
+    ],
     category: "electronics",
   },
   {
@@ -90,14 +101,22 @@ const PRODUCTS = [
     mrp: 110,
     price: 84,
     halalCertified: false,
-    images: JSON.stringify([
+    images: [
       "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=600",
-    ]),
+    ],
     category: "accessories",
   },
 ];
 
 async function main() {
+  // Ensure the demo user exists (idempotent).
+  await prisma.user.upsert({
+    where: { id: DEMO_USER.id },
+    update: {},
+    create: DEMO_USER,
+  });
+  console.log(`User "${DEMO_USER.id}" ready.`);
+
   const existing = await prisma.store.findUnique({
     where: { username: STORE.username },
   });
@@ -107,7 +126,9 @@ async function main() {
     store = existing;
     console.log(`Store "${STORE.username}" already exists, reusing it.`);
   } else {
-    store = await prisma.store.create({ data: STORE });
+    store = await prisma.store.create({
+      data: { ...STORE, userId: DEMO_USER.id },
+    });
     console.log(`Created store "${STORE.username}" (${store.id}).`);
   }
 

@@ -3,11 +3,8 @@ import authAdmin from "@/middlewares/authAdmin";
 import { adminActionRateLimiter } from "@/lib/security";
 import { getSessionFromRequest } from "@/lib/serverAuth";
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
 import { reconcilePayment, reconcileAllStuck } from "@/lib/services/paymentReconciliation";
 import { getRequestId } from "@/lib/paymentLog";
-
-const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY);
 
 /**
  * Admin payment reconciliation.
@@ -28,7 +25,7 @@ export async function GET(request) {
       return NextResponse.json({ error: "Not authorized." }, { status: 403 });
     }
 
-    // Reconciliation hits the Stripe API — bound it per admin.
+    // Reconciliation checks internal AMBER PAY ledger — bound it per admin.
     const rl = await adminActionRateLimiter.check(userId);
     if (!rl.allowed) {
       return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429, headers: { "Retry-After": String(rl.retryAfter || 600) } });
@@ -38,11 +35,9 @@ export async function GET(request) {
     const paymentId = searchParams.get("paymentId");
     const scope = searchParams.get("scope") || "stuck";
 
-    const stripe = getStripe();
-
     const results = paymentId
-      ? [await reconcilePayment({ paymentId, prisma, stripe })]
-      : await reconcileAllStuck({ prisma, stripe, take: 50 });
+      ? [await reconcilePayment({ paymentId, prisma })]
+      : await reconcileAllStuck({ prisma, take: 50 });
 
     const reconciled = results.filter((r) => r.status === "reconciled").length;
     const issues = results.filter((r) => r.status !== "ok" && r.status !== "consistent" && r.status !== "reconciled");

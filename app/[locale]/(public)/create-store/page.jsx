@@ -14,7 +14,7 @@ import axios from "axios"
 
 const STATUS_COPY = {
     approved: "Your store has been approved! You can now add products from your dashboard.",
-    rejected: "Your store request has been rejected. Please contact the admin for more details.",
+    rejected: "Your store request needs changes before we can approve it.",
     pending: "Your store request is pending. Please wait for admin to approve your store.",
 }
 
@@ -24,6 +24,7 @@ const EMPTY_FORM = {
     description: "",
     email: "",
     contact: "",
+    whatsappNumber: "",
     address: "",
     image: null,
 }
@@ -40,6 +41,10 @@ export default function CreateStore() {
     const [storeInfo, setStoreInfo] = useState(EMPTY_FORM)
     const [previewUrl, setPreviewUrl] = useState("")
     const [agreedToTerms, setAgreedToTerms] = useState(false)
+    // Set when the admin rejected the application: the reason to fix, and the
+    // existing logo so a resubmission doesn't force another upload.
+    const [rejectionReason, setRejectionReason] = useState("")
+    const [existingLogo, setExistingLogo] = useState("")
 
     const fetchStatus = async () => {
         try {
@@ -51,6 +56,22 @@ export default function CreateStore() {
             if (data.status && ["approved", "rejected", "pending"].includes(data.status)) {
                 setStatus(data.status)
                 setAlreadySubmitted(true)
+                setRejectionReason(data.rejectionReason || "")
+                setExistingLogo(data.store?.logo || "")
+                // Everything the seller already wrote is loaded back, so fixing
+                // a rejected application is an edit rather than a retype.
+                if (data.canResubmit && data.store) {
+                    setStoreInfo((prev) => ({
+                        ...prev,
+                        name:        data.store.name || "",
+                        username:    data.store.username || "",
+                        description: data.store.description || "",
+                        email:       data.store.email || "",
+                        contact:     data.store.contact || "",
+                        whatsappNumber: data.store.whatsappNumber || "",
+                        address:     data.store.address || "",
+                    }))
+                }
                 if (data.status === "approved") {
                     setTimeout(() => router.push(data.storeUsername ? `/shop/${data.storeUsername}` : "/store"), 5000)
                 }
@@ -96,13 +117,15 @@ export default function CreateStore() {
     }
 
     const validate = () => {
-        if (!storeInfo.image) return "Please upload a store logo."
+        // On a resubmission the existing logo is kept unless a new file is chosen.
+        if (!storeInfo.image && !(status === "rejected" && existingLogo)) return "Please upload a store logo."
         if (storeInfo.image.size > 2 * 1024 * 1024) return "Logo must be under 2 MB."
         if (!storeInfo.name.trim() || storeInfo.name.length < 2) return "Store name must be at least 2 characters."
         if (!/^[a-z0-9_]{3,30}$/.test(storeInfo.username)) return "Username must be 3–30 characters: lowercase letters, numbers, and underscores only."
         if (!storeInfo.description.trim() || storeInfo.description.length < 10) return "Description must be at least 10 characters."
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(storeInfo.email)) return "Please enter a valid store email address."
         if (!storeInfo.contact.trim()) return "Contact number is required."
+        if (storeInfo.whatsappNumber.trim() && !/^[+]?[0-9\s\-().]{8,20}$/.test(storeInfo.whatsappNumber.trim())) return "Please enter a valid WhatsApp number, or leave it blank."
         if (!storeInfo.address.trim() || storeInfo.address.length < 5) return "Please enter a full store address."
         if (!agreedToTerms) return "Please confirm that you agree to the seller agreement."
         return null
@@ -124,8 +147,9 @@ export default function CreateStore() {
             formData.append("description", storeInfo.description.trim())
             formData.append("email", storeInfo.email.trim())
             formData.append("contact", storeInfo.contact.trim())
+            formData.append("whatsappNumber", storeInfo.whatsappNumber.trim())
             formData.append("address", storeInfo.address.trim())
-            formData.append("image", storeInfo.image)
+            if (storeInfo.image) formData.append("image", storeInfo.image)
 
             const { data } = await axios.post("/api/store/create", formData, {
                 headers: { Authorization: `Bearer ${token}` },
@@ -133,6 +157,7 @@ export default function CreateStore() {
 
             toast.success(data.message)
             setStatus("pending")
+            setRejectionReason("")
             setAlreadySubmitted(true)
         } catch (error) {
             toast.error(error?.response?.data?.error || error.message)
@@ -163,11 +188,43 @@ export default function CreateStore() {
                 <div className="max-w-2xl rounded-[2rem] border border-[#E8DCC8] bg-white p-8 text-center shadow-[0_25px_70px_rgba(34,34,34,0.08)]">
                     <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[#A2825F]">Application status</p>
                     <h1 className="mt-3 text-3xl font-semibold text-[#1A1A1A]">{STATUS_COPY[status]}</h1>
+                    {status === "rejected" && rejectionReason && (
+                        <div className="mt-6 rounded-2xl border border-[#E8B98A] bg-[#FFF7ED] p-5 text-left">
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9A5B1E]">
+                                What to fix
+                            </p>
+                            <p className="mt-2 text-sm leading-6 text-[#5B5245]">{rejectionReason}</p>
+                        </div>
+                    )}
+
                     <div className="mt-6 rounded-3xl bg-[#FCF7EE] p-6 text-left text-sm leading-7 text-[#5B5245]">
-                        <p>• Your submission is now with the admin team for review.</p>
-                        <p>• You will receive a decision once your store details have been verified.</p>
-                        <p>• Approved stores can start adding products immediately from the seller dashboard.</p>
+                        {status === "rejected" ? (
+                            <>
+                                <p>• Fix the details above and resubmit — nothing is lost, your application stays on file.</p>
+                                <p>• Your logo is kept unless you choose a new one.</p>
+                                <p>• You&apos;ll get an email as soon as the decision is made.</p>
+                            </>
+                        ) : (
+                            <>
+                                <p>• Your submission is now with the admin team for review.</p>
+                                <p>• You will receive a decision once your store details have been verified.</p>
+                                <p>• Approved stores can start adding products immediately from the seller dashboard.</p>
+                            </>
+                        )}
                     </div>
+
+                    {status === "rejected" && (
+                        <button
+                            onClick={() => {
+                                setAlreadySubmitted(false)
+                                setPreviewUrl("")
+                            }}
+                            className="mt-6 rounded-full bg-[#1A1A1A] px-8 py-3 text-sm font-semibold text-[#F6E0B9] transition hover:bg-[#333]"
+                        >
+                            Fix and resubmit
+                        </button>
+                    )}
+
                     {status === "approved" && (
                         <p className="mt-6 text-sm text-[#6A6053]">
                             Redirecting to your dashboard in <span className="font-semibold">5 seconds</span>…
@@ -182,7 +239,7 @@ export default function CreateStore() {
         <div className="mx-6 my-16">
             <div className="mx-auto grid max-w-7xl gap-10 xl:grid-cols-[1.3fr_0.9fr]">
                 <section className="space-y-8 rounded-[2rem] bg-[#F9F6F0] p-8 shadow-[0_30px_80px_rgba(34,34,34,0.08)]">
-                    <div className="inline-flex items-center gap-2 rounded-full bg-[#F0E3D1] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7B6446]">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-[#FFEDD5] px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-[#7B6446]">
                         Store onboarding
                     </div>
                     <div className="space-y-4">
@@ -235,7 +292,7 @@ export default function CreateStore() {
                         <div className="rounded-3xl bg-[#f7efe5] p-6">
                             <p className="text-xs uppercase tracking-[0.2em] text-[#A2825F]">Store details</p>
                             <h2 className="mt-3 text-2xl font-semibold text-[#1A1A1A]">Submit your application</h2>
-                            <p className="mt-2 text-sm leading-6 text-[#6B6560]">
+                            <p className="mt-2 text-sm leading-6 text-[#6B7280]">
                                 Provide accurate shop information and a logo so the admin can approve your storefront quickly.
                             </p>
                         </div>
@@ -250,7 +307,7 @@ export default function CreateStore() {
                                     type="text"
                                     placeholder="e.g. my_store_123"
                                     maxLength={30}
-                                    className="mt-2 w-full rounded-2xl border border-[#E4D8C6] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#F6E8C6]"
+                                    className="mt-2 w-full rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#FFEDD5]"
                                 />
                                 <span className="mt-2 block text-xs text-[#8C8071]">Lowercase letters, numbers, underscores only.</span>
                             </label>
@@ -264,7 +321,7 @@ export default function CreateStore() {
                                     type="text"
                                     placeholder="Your store name"
                                     maxLength={100}
-                                    className="mt-2 w-full rounded-2xl border border-[#E4D8C6] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#F6E8C6]"
+                                    className="mt-2 w-full rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#FFEDD5]"
                                 />
                             </label>
                         </div>
@@ -292,7 +349,7 @@ export default function CreateStore() {
                                     />
                                     <label
                                         htmlFor="store-logo-input"
-                                        className="inline-flex cursor-pointer rounded-full border border-[#C9A96E] bg-[#F6E0B9] px-4 py-2 text-sm font-semibold text-[#5D4B2C] transition hover:bg-[#E5CA92]"
+                                        className="inline-flex cursor-pointer rounded-full border border-[#EA580C] bg-[#F6E0B9] px-4 py-2 text-sm font-semibold text-[#5D4B2C] transition hover:bg-[#E5CA92]"
                                     >
                                         Choose logo
                                     </label>
@@ -309,7 +366,7 @@ export default function CreateStore() {
                                 rows={5}
                                 placeholder="Tell customers what makes your store special"
                                 maxLength={1000}
-                                className="mt-2 w-full resize-none rounded-3xl border border-[#E4D8C6] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#F6E8C6]"
+                                className="mt-2 w-full resize-none rounded-3xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#FFEDD5]"
                             />
                         </label>
 
@@ -323,7 +380,7 @@ export default function CreateStore() {
                                     type="email"
                                     placeholder="contact@yourstore.com"
                                     maxLength={254}
-                                    className="mt-2 w-full rounded-2xl border border-[#E4D8C6] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#F6E8C6]"
+                                    className="mt-2 w-full rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#FFEDD5]"
                                 />
                             </label>
 
@@ -334,10 +391,25 @@ export default function CreateStore() {
                                     onChange={onChangeHandler}
                                     value={storeInfo.contact}
                                     type="text"
-                                    placeholder="e.g. +123 456 7890"
+                                    placeholder="e.g. +232 76 123 456"
                                     maxLength={20}
-                                    className="mt-2 w-full rounded-2xl border border-[#E4D8C6] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#F6E8C6]"
+                                    className="mt-2 w-full rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#FFEDD5]"
                                 />
+                            </label>
+
+                            <label className="block text-sm font-medium text-[#4B4538]">
+                                WhatsApp number <span className="font-normal text-[#8C8071]">(optional)</span>
+                                <input
+                                    name="whatsappNumber"
+                                    onChange={onChangeHandler}
+                                    value={storeInfo.whatsappNumber}
+                                    type="tel"
+                                    inputMode="tel"
+                                    placeholder="e.g. 076 123 456"
+                                    maxLength={20}
+                                    className="mt-2 w-full rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#FFEDD5]"
+                                />
+                                <span className="mt-2 block text-xs text-[#8C8071]">Buyers can message you about your products.</span>
                             </label>
                         </div>
 
@@ -350,7 +422,7 @@ export default function CreateStore() {
                                 rows={4}
                                 placeholder="Your store or office address"
                                 maxLength={300}
-                                className="mt-2 w-full resize-none rounded-3xl border border-[#E4D8C6] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#F6E8C6]"
+                                className="mt-2 w-full resize-none rounded-3xl border border-[#E5E7EB] bg-white px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#EA580C] focus:ring-2 focus:ring-[#FFEDD5]"
                             />
                         </label>
                     </div>
@@ -361,7 +433,7 @@ export default function CreateStore() {
                                 type="checkbox"
                                 checked={agreedToTerms}
                                 onChange={() => setAgreedToTerms((prev) => !prev)}
-                                className="mt-1 h-4 w-4 rounded border-[#C9A96E] text-[#1A1A1A] focus:ring-[#C9A96E]"
+                                className="mt-1 h-4 w-4 rounded border-[#EA580C] text-[#1A1A1A] focus:ring-[#EA580C]"
                             />
                             <span>
                                 I confirm that I have reviewed the seller agreement and agree to the standards for operating a store on ABU Marketplace.

@@ -41,7 +41,7 @@ export default function AdminDashboard() {
     }, [user])
 
     const summaryCards = [
-        { title: 'Total products', value: dashboardData.products.toLocaleString(), icon: ShoppingBasketIcon, accent: 'from-[#F4DFA7] to-[#C9A96E]' },
+        { title: 'Total products', value: dashboardData.products.toLocaleString(), icon: ShoppingBasketIcon, accent: 'from-[#F4DFA7] to-[#EA580C]' },
         { title: 'Revenue', value: dashboardData.revenue, icon: CircleDollarSignIcon, accent: 'from-[#D7F7E3] to-[#56C27A]' },
         { title: 'Orders', value: dashboardData.orders.toLocaleString(), icon: TagsIcon, accent: 'from-[#D9E7FF] to-[#5D83F8]' },
         { title: 'Stores', value: dashboardData.stores.toLocaleString(), icon: StoreIcon, accent: 'from-[#F5DDE7] to-[#C275A8]' },
@@ -54,7 +54,7 @@ export default function AdminDashboard() {
             <div className="rounded-[2rem] border border-slate-200 bg-gradient-to-br from-[#1A1A1A] via-[#232323] to-[#2D2D2D] p-8 text-white shadow-[0_25px_80px_rgba(0,0,0,0.14)]">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div>
-                        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#C9A96E]">Admin command center</p>
+                        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-[#EA580C]">Admin command center</p>
                         <h1 className="mt-3 text-3xl font-semibold">Marketplace performance at a glance</h1>
                         <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
                             Track store activity, revenue momentum, and approvals in one clean view so you can make faster decisions.

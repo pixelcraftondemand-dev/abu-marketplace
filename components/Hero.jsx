@@ -1,67 +1,133 @@
 'use client'
-import { assets } from '@/assets/assets'
-import { ArrowRightIcon, ChevronRightIcon } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import React from 'react'
-import CategoriesMarquee from './CategoriesMarquee'
-import { useSelector } from 'react-redux'
-import CurrencyAmount from '@/components/CurrencyAmount'
+import { assets } from '@/assets/assets'
 import { useTranslation } from '@/lib/i18n'
 
-const Hero = () => {
+const slides = [
+  {
+    id: 1,
+    offerKey: 'hero.discounts',
+    headlineKey: 'hero.headline',
+    ctaKey: 'hero.shopNow',
+    ctaHref: '/shop',
+    image: assets.hero_model_img,
+  },
+  {
+    id: 2,
+    offerKey: 'home.eyebrowBestSelling',
+    headlineKey: 'hero.bestProducts',
+    ctaKey: 'hero.shopNow',
+    ctaHref: '/shop?sort=popular',
+    image: assets.hero_product_img1,
+  },
+  {
+    id: 3,
+    offerKey: 'categories.flashDeals',
+    headlineKey: 'hero.discounts',
+    ctaKey: 'hero.shopNow',
+    ctaHref: '/shop?deals=flash',
+    image: assets.hero_product_img2,
+  },
+]
 
-    const { t } = useTranslation()
+const Hero = ({ cmsContent = null }) => {
+  const { t } = useTranslation()
+  const [currentSlide, setCurrentSlide] = useState(0)
 
-    return (
-        <div className='mx-3 sm:mx-6'>
-            <div className='mx-auto my-4 flex max-w-7xl flex-col gap-4 xl:flex-row xl:gap-6'>
-                <div className='group relative flex flex-1 flex-col overflow-hidden rounded-[1.5rem] bg-[linear-gradient(135deg,#e8f8df_0%,#f9fce9_100%)] md:min-h-[280px] lg:min-h-[340px]'>
-                    <div className='relative z-10 flex h-full flex-col justify-between p-5 sm:p-8 lg:p-10'>
-                        <div>
-                            <div className='inline-flex items-center gap-3 rounded-full bg-green-300/80 p-1 pr-4 text-xs text-green-700 sm:text-sm'>
-                                <span className='ml-1 rounded-full bg-green-600 px-3 py-1 text-xs text-white'>{t('hero.news')}</span> {t('hero.freeDelivery')} <CurrencyAmount amount={500} />
-                                <ChevronRightIcon className='transition-all group-hover:ml-1' size={16} />
-                            </div>
-                            <h2 className='my-3 max-w-[14rem] bg-gradient-to-r from-slate-700 to-[#7fbf4b] bg-clip-text text-3xl font-medium leading-tight text-transparent sm:max-w-md sm:text-4xl'>
-                                {t('hero.headline')}
-                            </h2>
-                            <div className='mt-4 text-sm font-medium text-slate-700 sm:mt-6'>
-                                <p>{t('hero.startsFrom')}</p>
-                                <p className='text-2xl sm:text-3xl'><CurrencyAmount amount={4.9} /></p>
-                            </div>
-                        </div>
-                        <div className='mt-5 flex flex-wrap gap-2'>
-                            {['hero.phones','hero.audio','hero.home'].map((key) => (
-                                <span key={key} className='rounded-full border border-slate-300/70 bg-white/80 px-3 py-1 text-xs font-medium text-slate-700'>
-                                    {t(key)}
-                                </span>
-                            ))}
-                        </div>
-                        <Link href="/shop" className='mt-4 inline-flex w-fit items-center gap-2 rounded-md bg-slate-800 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-slate-900 sm:mt-6 sm:px-8 sm:py-3'>{t('hero.shopNow')} <ArrowRightIcon className='size-4' /></Link>
-                    </div>
-                    <Image className='mt-4 w-full max-w-[180px] self-center object-contain sm:absolute sm:bottom-0 sm:right-4 sm:mt-0 sm:max-w-[240px] lg:max-w-[280px]' src={assets.hero_model_img} alt="Featured gadget offers" priority />
+  const contentSlides = cmsContent
+    ? [
+        {
+          ...slides[0],
+          image: cmsContent.image || slides[0].image,
+          offerKey: 'custom',
+          headlineKey: 'custom',
+          ctaKey: 'custom',
+          customOffer: cmsContent.heroSubtitle || t(slides[0].offerKey),
+          customHeadline: cmsContent.heroTitle || t(slides[0].headlineKey),
+          customCta: cmsContent.heroCtaText || t(slides[0].ctaKey),
+          ctaHref: cmsContent.heroCtaHref || slides[0].ctaHref,
+        },
+        ...slides.slice(1),
+      ]
+    : slides
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % contentSlides.length)
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [contentSlides.length])
+
+  const handleSlideChange = (index) => {
+    setCurrentSlide(index)
+  }
+
+  return (
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+      <div className="overflow-hidden relative w-full">
+        <div
+          className="flex transition-transform duration-700 ease-in-out"
+          style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+        >
+          {contentSlides.map((s, index) => (
+            <div
+              key={s.id}
+              className="flex flex-col-reverse md:flex-row items-center justify-between bg-[#E6E9F2] py-8 md:py-10 md:px-14 px-5 mt-2 rounded-xl min-w-full"
+            >
+              <div className="md:pl-8 mt-6 md:mt-0 text-center md:text-left">
+                <p className="md:text-base text-orange-600 pb-1 font-medium">
+                  {s.customOffer ?? t(s.offerKey)}
+                </p>
+                <h1 className="max-w-lg md:text-[38px] md:leading-[46px] text-2xl font-semibold text-gray-900">
+                  {s.customHeadline ?? t(s.headlineKey)}
+                </h1>
+                <div className="flex items-center mt-4 md:mt-6 justify-center md:justify-start">
+                  <Link
+                    href={s.ctaHref}
+                    className="md:px-10 px-7 md:py-2.5 py-2 bg-orange-600 hover:bg-orange-700 rounded-full text-white text-sm font-medium transition-colors duration-200"
+                  >
+                    {s.customCta ?? t(s.ctaKey)}
+                  </Link>
+                  <Link
+                    href="/shop"
+                    className="group hidden sm:flex items-center gap-2 px-6 py-2.5 font-medium text-gray-800 hover:text-orange-600 transition-colors duration-200"
+                  >
+                    {t('home.viewMore')}
+                    <span aria-hidden className="transition-transform duration-200 group-hover:translate-x-1">→</span>
+                  </Link>
                 </div>
-                <div className='flex w-full flex-col gap-3 text-sm text-slate-600 md:flex-row xl:max-w-[320px] xl:flex-col'>
-                    <Link href="/shop" className='group flex flex-1 items-center justify-between rounded-[1.5rem] bg-orange-200 p-4 sm:p-5'>
-                        <div>
-                            <p className='max-w-36 bg-gradient-to-r from-slate-800 to-[#FFAD51] bg-clip-text text-2xl font-medium text-transparent sm:text-3xl'>{t('hero.bestProducts')}</p>
-                            <p className='mt-3 flex items-center gap-1'>{t('hero.viewMore')} <ArrowRightIcon className='transition-all group-hover:ml-1' size={18} /> </p>
-                        </div>
-                        <Image className='w-24 sm:w-28' src={assets.hero_product_img1} alt="" />
-                    </Link>
-                    <Link href="/shop?deals=flash" className='group flex flex-1 items-center justify-between rounded-[1.5rem] bg-blue-200 p-4 sm:p-5'>
-                        <div>
-                            <p className='max-w-36 bg-gradient-to-r from-slate-800 to-[#78B2FF] bg-clip-text text-2xl font-medium text-transparent sm:text-3xl'>{t('hero.discounts')}</p>
-                            <p className='mt-3 flex items-center gap-1'>{t('hero.viewMore')} <ArrowRightIcon className='transition-all group-hover:ml-1' size={18} /> </p>
-                        </div>
-                        <Image className='w-24 sm:w-28' src={assets.hero_product_img2} alt="" />
-                    </Link>
-                </div>
+              </div>
+              <div className="flex items-center flex-1 justify-center">
+                <Image
+                  className="md:w-64 w-44 h-auto object-contain"
+                  src={s.image}
+                  alt={`Slide ${index + 1}`}
+                  width={400}
+                  height={400}
+                  priority={index === 0}
+                />
+              </div>
             </div>
-            <CategoriesMarquee />
+          ))}
         </div>
-    )
+
+        <div className="flex items-center justify-center gap-2 mt-6">
+          {contentSlides.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => handleSlideChange(index)}
+              aria-label={`Go to slide ${index + 1}`}
+              className={`h-2 w-2 rounded-full cursor-pointer transition-colors duration-200 ${
+                currentSlide === index ? 'bg-orange-600' : 'bg-gray-500/30 hover:bg-gray-500/50'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
 }
 
 export default Hero

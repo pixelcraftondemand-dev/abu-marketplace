@@ -34,7 +34,7 @@ export default function CommerceInfoPage({
                 {primaryAction && (
                   <Link
                     href={primaryAction.href}
-                    className="inline-flex items-center gap-2 rounded-full bg-[#C9A96E] px-5 py-3 text-sm font-semibold text-[#1A1A1A] transition hover:bg-[#d9b77b]"
+                    className="inline-flex items-center gap-2 rounded-full bg-[#EA580C] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#C2410C]"
                   >
                     {primaryAction.label}
                     <ArrowRight size={16} />
@@ -88,7 +88,7 @@ export default function CommerceInfoPage({
             {sections.map((section) => (
               <div key={section.title} className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck size={18} className="text-[#C9A96E]" />
+                  <ShieldCheck size={18} className="text-[#EA580C]" />
                   <h2 className="text-xl font-semibold text-slate-900">{section.title}</h2>
                 </div>
                 {section.description && <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">{section.description}</p>}
@@ -96,7 +96,7 @@ export default function CommerceInfoPage({
                   <div className="mt-6 grid gap-3 md:grid-cols-2">
                     {section.items.map((item) => (
                       <div key={item} className="flex items-start gap-2 rounded-2xl border border-slate-100 bg-[#fcfaf7] p-4 text-sm text-slate-700">
-                        <BadgeCheck size={16} className="mt-0.5 shrink-0 text-[#C9A96E]" />
+                        <BadgeCheck size={16} className="mt-0.5 shrink-0 text-[#EA580C]" />
                         <span>{item}</span>
                       </div>
                     ))}
@@ -112,7 +112,7 @@ export default function CommerceInfoPage({
         <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm lg:p-10">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <p className="mb-2 inline-flex items-center gap-2 text-sm font-medium uppercase tracking-[0.24em] text-[#C9A96E]">
+              <p className="mb-2 inline-flex items-center gap-2 text-sm font-medium uppercase tracking-[0.24em] text-[#EA580C]">
                 <Truck size={15} />
                 Built for modern commerce
               </p>

@@ -1,24 +1,14 @@
-'use client'
-import BestSelling from "@/components/BestSelling";
-import Hero from "@/components/Hero";
-import Newsletter from "@/components/Newsletter";
-import OurSpecs from "@/components/OurSpec";
-import LatestProducts from "@/components/LatestProducts";
-import MarketplaceHighlights from "@/components/MarketplaceHighlights";
-import FlashDealsSection from "@/components/FlashDealsSection";
-import HalalCertifiedSection from "@/components/HalalCertifiedSection";
+import HomePage from "./HomePage";
 
-export default function Home() {
-    return (
-        <div>
-            <Hero />
-            <FlashDealsSection />
-            <HalalCertifiedSection />
-            <LatestProducts />
-            <MarketplaceHighlights />
-            <BestSelling />
-            <OurSpecs />
-            <Newsletter />
-        </div>
-    );
+export async function generateMetadata({ params }) {
+  const { locale } = await params;
+  return {
+    // Title/description fall through to the root layout's defaults.
+    alternates: { canonical: `https://www.abumarketplace.shop/${locale}` },
+  };
+}
+
+export default async function Page({ params }) {
+  const { locale } = await params;
+  return <HomePage locale={locale} />;
 }

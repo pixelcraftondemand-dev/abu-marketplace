@@ -8,13 +8,56 @@ import Loading from "@/components/Loading"
 import CurrencyAmount from '@/components/CurrencyAmount'
 import { XIcon, ClipboardListIcon } from "lucide-react"
 
-const STATUS_OPTIONS = ['ORDER_PLACED', 'PROCESSING', 'SHIPPED', 'DELIVERED']
+// Canonical pilot fulfilment flow. CANCELLED is a terminal branch.
+const STATUS_FLOW = ['ORDER_PLACED', 'CONFIRMED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'PAID']
+const CANCELLED = 'CANCELLED'
+
+// Historical rows may still carry the pre-pilot values; keep them readable and
+// aligned with their position on the flow.
+const LEGACY_STATUS_ALIASES = { PROCESSING: 'CONFIRMED', SHIPPED: 'OUT_FOR_DELIVERY' }
+
+const STATUS_LABELS = {
+    ORDER_PLACED:    'Order placed',
+    CONFIRMED:       'Confirmed',
+    OUT_FOR_DELIVERY:'Out for delivery',
+    DELIVERED:       'Delivered',
+    PAID:            'Paid',
+    CANCELLED:       'Cancelled',
+    PROCESSING:      'Processing (legacy)',
+    SHIPPED:         'Shipped (legacy)',
+}
 
 const STATUS_STYLES = {
-    ORDER_PLACED: 'bg-blue-50 text-blue-700',
-    PROCESSING:   'bg-amber-50 text-amber-700',
-    SHIPPED:      'bg-purple-50 text-purple-700',
-    DELIVERED:    'bg-green-50 text-green-700',
+    ORDER_PLACED:    'bg-blue-50 text-blue-700',
+    CONFIRMED:       'bg-indigo-50 text-indigo-700',
+    OUT_FOR_DELIVERY:'bg-purple-50 text-purple-700',
+    DELIVERED:       'bg-teal-50 text-teal-700',
+    PAID:            'bg-green-50 text-green-700',
+    CANCELLED:       'bg-red-50 text-red-700',
+    PROCESSING:      'bg-amber-50 text-amber-700',
+    SHIPPED:         'bg-purple-50 text-purple-700',
+}
+
+function canonicalStatus(status) {
+    return LEGACY_STATUS_ALIASES[status] || status
+}
+
+// Only offer transitions the seller is actually allowed to make: forward along
+// the flow (plus CANCELLED), never backwards. Legacy rows also show their
+// current value so the select does not render blank.
+function statusOptionsFor(current) {
+    const canonical = canonicalStatus(current)
+    if (canonical === CANCELLED) return [CANCELLED]
+    if (canonical === 'PAID') return ['PAID']
+
+    const index = STATUS_FLOW.indexOf(canonical)
+    const forward = STATUS_FLOW.slice(index < 0 ? 0 : index)
+    const options = LEGACY_STATUS_ALIASES[current] ? [current, ...forward] : forward
+    return [...options, CANCELLED]
+}
+
+function statusLabel(status) {
+    return STATUS_LABELS[status] || status.replace(/_/g, ' ')
 }
 
 export default function StoreOrders() {
@@ -109,7 +152,7 @@ export default function StoreOrders() {
                                                 onChange={e => updateStatus(order.id, e.target.value)}
                                                 className={`text-xs px-2 py-1 rounded-lg border-0 font-medium outline-none cursor-pointer ${STATUS_STYLES[order.status] || 'bg-slate-100 text-slate-600'}`}
                                             >
-                                                {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                                                {statusOptionsFor(order.status).map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
                                             </select>
                                         </td>
                                         <td className="px-5 py-3 hidden md:table-cell text-slate-400 text-xs">
@@ -184,7 +227,7 @@ export default function StoreOrders() {
                                     onChange={e => updateStatus(selected.id, e.target.value)}
                                     className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-green-400 bg-white"
                                 >
-                                    {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+                                    {statusOptionsFor(selected.status).map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
                                 </select>
                             </div>
 

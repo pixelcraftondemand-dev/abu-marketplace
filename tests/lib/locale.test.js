@@ -12,42 +12,44 @@ import {
 } from "@/lib/utils/locale";
 
 describe("locale utilities", () => {
-  it("exposes all ten supported locales with English as default", () => {
-    expect(supportedLocales).toEqual([
-      "en", "fr", "pt", "kri", "ha", "yo", "ig", "wo", "ff", "ak",
-    ]);
+  it("exposes the supported locales with English as default", () => {
+    // Sierra Leone pilot: English plus Krio only.
+    expect(supportedLocales).toEqual(["en", "kri"]);
     expect(defaultLocale).toBe("en");
   });
 
   it("reads the locale prefix from a path", () => {
-    expect(getLocaleFromPath("/fr/shop")).toBe("fr");
+    expect(getLocaleFromPath("/kri/shop")).toBe("kri");
     expect(getLocaleFromPath("/en")).toBe("en");
     expect(getLocaleFromPath("/shop")).toBe(null);
     expect(getLocaleFromPath("/")).toBe(null);
     expect(getLocaleFromPath("/store/orders")).toBe(null);
+    // Locales outside the pilot are not recognized.
+    expect(getLocaleFromPath("/fr/shop")).toBe(null);
   });
 
   it("strips the locale prefix from a path", () => {
-    expect(stripLocaleFromPath("/fr/shop")).toBe("/shop");
+    expect(stripLocaleFromPath("/kri/shop")).toBe("/shop");
     expect(stripLocaleFromPath("/en")).toBe("/");
-    expect(stripLocaleFromPath("/fr")).toBe("/");
+    expect(stripLocaleFromPath("/kri")).toBe("/");
     expect(stripLocaleFromPath("/shop")).toBe("/shop");
     expect(stripLocaleFromPath("/")).toBe("/");
-    expect(stripLocaleFromPath("/fr/product/abc")).toBe("/product/abc");
+    expect(stripLocaleFromPath("/kri/product/abc")).toBe("/product/abc");
   });
 
   it("builds locale-prefixed paths without double prefixes", () => {
-    expect(buildLocalizedPath("/shop", "fr")).toBe("/fr/shop");
-    expect(buildLocalizedPath("/", "pt")).toBe("/pt");
-    expect(buildLocalizedPath("/fr/shop", "en")).toBe("/en/shop");
-    expect(buildLocalizedPath("/fr/product/abc", "kri")).toBe("/kri/product/abc");
+    expect(buildLocalizedPath("/shop", "kri")).toBe("/kri/shop");
+    expect(buildLocalizedPath("/", "en")).toBe("/en");
+    expect(buildLocalizedPath("/kri/shop", "en")).toBe("/en/shop");
+    expect(buildLocalizedPath("/kri/product/abc", "en")).toBe("/en/product/abc");
   });
 
   it("maps between language display names and locale codes", () => {
-    expect(getLocaleForLanguage("French")).toBe("fr");
-    expect(getLocaleForLanguage("Twi")).toBe("ak");
+    expect(getLocaleForLanguage("English")).toBe("en");
+    expect(getLocaleForLanguage("Krio")).toBe("kri");
+    expect(getLocaleForLanguage("French")).toBe("en");
     expect(getLocaleForLanguage("Unknown")).toBe("en");
-    expect(getLanguageForLocale("fr")).toBe("French");
+    expect(getLanguageForLocale("kri")).toBe("Krio");
     expect(getLanguageForLocale("zz")).toBe("English");
   });
 
@@ -59,18 +61,17 @@ describe("locale utilities", () => {
 
   describe("getPreferredLocaleFromAcceptLanguage", () => {
     it("prefers explicit supported locale codes over region codes", () => {
-      expect(getPreferredLocaleFromAcceptLanguage("fr-FR,fr;q=0.9,en;q=0.8")).toBe("fr");
       expect(getPreferredLocaleFromAcceptLanguage("en-US,en;q=0.9")).toBe("en");
-      expect(getPreferredLocaleFromAcceptLanguage("pt-BR,pt;q=0.9")).toBe("pt");
+      expect(getPreferredLocaleFromAcceptLanguage("en-GB,en;q=0.8")).toBe("en");
+      expect(getPreferredLocaleFromAcceptLanguage("kri,en;q=0.9")).toBe("kri");
     });
 
     it("maps recognized browser language codes to marketplace locales", () => {
-      expect(getPreferredLocaleFromAcceptLanguage("yo-NG")).toBe("yo");
-      expect(getPreferredLocaleFromAcceptLanguage("ha-NG")).toBe("ha");
-      expect(getPreferredLocaleFromAcceptLanguage("ig-NG")).toBe("ig");
-      expect(getPreferredLocaleFromAcceptLanguage("ak-GH")).toBe("ak");
-      expect(getPreferredLocaleFromAcceptLanguage("wo-SN")).toBe("wo");
-      expect(getPreferredLocaleFromAcceptLanguage("ff-SN")).toBe("ff");
+      expect(getPreferredLocaleFromAcceptLanguage("en-US")).toBe("en");
+      expect(getPreferredLocaleFromAcceptLanguage("en")).toBe("en");
+      expect(getPreferredLocaleFromAcceptLanguage("kri")).toBe("kri");
+      // Unsupported marketplace locales fall back to English.
+      expect(getPreferredLocaleFromAcceptLanguage("fr-FR")).toBe("en");
     });
 
     it("falls back to the default locale when nothing matches", () => {
