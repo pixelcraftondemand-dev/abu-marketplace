@@ -1,20 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MessageCircle, X, GripHorizontal } from "lucide-react";
-import AbuChat from "@/components/AbuChat";
+import { X, GripHorizontal } from "lucide-react";
+import AbuChat, { AbuMascot } from "@/components/AbuChat";
 
 const BUBBLE_SIZE = 56; // h-14 w-14
 const EDGE_PADDING = 16;
 const DRAG_THRESHOLD = 6; // px of movement before a press becomes a drag
 
 const PANEL_WIDTH = 380;
-const PANEL_HEIGHT_ESTIMATE = 560; // used only for the initial placement, before we can measure
+const PANEL_HEIGHT_ESTIMATE = 640; // used only for the initial placement, before we can measure
 const PANEL_GAP = 14;
 
 function getResponsivePanelWidth() {
   if (typeof window === "undefined") return PANEL_WIDTH;
-  return Math.min(PANEL_WIDTH, window.innerWidth - 16);
+  return Math.min(PANEL_WIDTH, Math.max(0, window.innerWidth - EDGE_PADDING * 2));
 }
 
 const BUBBLE_STORAGE_KEY = "abu-chat-bubble-pos";
@@ -58,6 +58,7 @@ export default function AbuChatBubble() {
   const [bubblePos, setBubblePos] = useState(null);
   const [panelPos, setPanelPos] = useState(null);
   const bubbleDragRef = useRef(null);
+  const lastBubbleDragAtRef = useRef(0);
   const panelDragRef = useRef(null);
   const panelRef = useRef(null);
 
@@ -112,7 +113,11 @@ export default function AbuChatBubble() {
       origin: bubblePos || defaultBubblePosition(),
       moved: false,
     };
-    e.currentTarget.setPointerCapture(e.pointerId);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Pointer capture is best-effort; opening the chat must still work.
+    }
   };
 
   const handleBubblePointerMove = (e) => {
@@ -136,15 +141,18 @@ export default function AbuChatBubble() {
     const drag = bubbleDragRef.current;
     if (!drag) return;
     bubbleDragRef.current = null;
-    if (!drag.moved) {
-      setOpen((current) => !current);
-      return;
-    }
+    if (!drag.moved) return;
+    lastBubbleDragAtRef.current = Date.now();
     try {
       window.localStorage.setItem(BUBBLE_STORAGE_KEY, JSON.stringify(bubblePos));
     } catch {
       // Storage unavailable (private mode, quota) — position just won't persist.
     }
+  };
+
+  const handleBubbleClick = () => {
+    if (Date.now() - lastBubbleDragAtRef.current < 500) return;
+    setOpen((current) => !current);
   };
 
   const handleBubblePointerCancel = () => {
@@ -162,7 +170,11 @@ export default function AbuChatBubble() {
       origin: panelPos,
       moved: false,
     };
-    e.currentTarget.setPointerCapture(e.pointerId);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Pointer capture is best-effort; panel dragging must not block controls.
+    }
   };
 
   const handlePanelPointerMove = (e) => {
@@ -202,70 +214,78 @@ export default function AbuChatBubble() {
   };
 
   const panelWidth = getResponsivePanelWidth();
+  const bubblePosition = bubblePos
+    ? clampRectToViewport({ ...bubblePos, width: BUBBLE_SIZE, height: BUBBLE_SIZE })
+    : null;
+  const panelHeight = panelRef.current?.offsetHeight || PANEL_HEIGHT_ESTIMATE;
+  const panelPosition = panelPos
+    ? clampRectToViewport({ ...panelPos, width: panelWidth, height: panelHeight })
+    : null;
 
   return (
     <>
-      {open && panelPos && (
+      {open && panelPosition && (
         <div
           ref={panelRef}
           id="abu-support-chat"
           role="dialog"
           aria-label="ABU support chat"
-          className="fixed z-50 overflow-hidden rounded-[1.75rem] border border-stone-200/80 bg-white/95 shadow-[0_24px_70px_-12px_rgba(28,25,23,0.35)] backdrop-blur-sm animate-in fade-in zoom-in-95 duration-200"
-          style={{ left: panelPos.x, top: panelPos.y, width: panelWidth, maxWidth: "calc(100vw - 1rem)" }}
+          className="fixed z-50 overflow-hidden rounded-lg border border-stone-200 bg-white shadow-[0_24px_70px_-12px_rgba(28,25,23,0.35)] animate-in fade-in zoom-in-95 duration-200"
+          style={{ left: panelPosition.x, top: panelPosition.y, width: panelWidth, height: "min(680px, calc(100dvh - 32px))", maxWidth: "calc(100vw - 1rem)" }}
         >
           <div
             onPointerDown={handlePanelPointerDown}
             onPointerMove={handlePanelPointerMove}
             onPointerUp={handlePanelPointerUp}
             onPointerCancel={handlePanelPointerCancel}
-            className="flex cursor-grab touch-none items-center justify-between gap-3 border-b border-stone-200/80 bg-gradient-to-r from-[#EA580C] to-[#C2410C] px-4 py-3.5 active:cursor-grabbing"
+            className="flex h-16 cursor-grab touch-none items-center justify-between gap-3 border-b border-[#D9E2DF] bg-[#F5F8F6] px-4 active:cursor-grabbing"
           >
             <div className="flex items-center gap-3">
-              <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-sm font-bold text-white ring-2 ring-white/30">
-                ABU
-                <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#EA580C] bg-emerald-400" />
-              </div>
+              <AbuMascot />
               <div>
-                <p className="text-sm font-semibold text-white">ABU Support</p>
-                <p className="text-[11px] text-white/80">Usually replies in a minute</p>
+                <p className="text-sm font-semibold text-[#172A27]">ABU Support</p>
+                <p className="text-[11px] text-[#64736F]">Your marketplace assistant</p>
               </div>
             </div>
-            <div className="flex items-center gap-1 text-white/70">
-              <GripHorizontal size={16} className="opacity-70" />
+            <div className="flex items-center gap-1 text-[#64736F]">
+              <span className="mr-1 flex items-center gap-1.5 text-[11px] text-[#246B60]">
+                <span className="h-2 w-2 rounded-full bg-[#43A77D]" /> Online
+              </span>
+              <GripHorizontal size={16} className="opacity-70" aria-hidden="true" />
               <button
                 onClick={() => setOpen(false)}
-                className="rounded-full p-1.5 text-white transition hover:bg-white/20"
+                className="rounded p-1.5 transition hover:bg-[#E4EBE7]"
                 aria-label="Close ABU support chat"
               >
                 <X size={18} />
               </button>
             </div>
           </div>
-          <div className="p-3.5">
-            <AbuChat />
+          <div className="h-[calc(100%-4rem)]">
+            <AbuChat embedded />
           </div>
         </div>
       )}
 
       <div
         className={`fixed z-50 ${bubblePos ? "" : "right-4 bottom-4"}`}
-        style={bubblePos ? { left: bubblePos.x, top: bubblePos.y } : undefined}
+        style={bubblePosition ? { left: bubblePosition.x, top: bubblePosition.y } : undefined}
       >
         <button
+          onClick={handleBubbleClick}
           onPointerDown={handleBubblePointerDown}
           onPointerMove={handleBubblePointerMove}
           onPointerUp={handleBubblePointerUp}
           onPointerCancel={handleBubblePointerCancel}
-          className="group relative flex h-14 w-14 cursor-grab touch-none items-center justify-center rounded-full bg-gradient-to-br from-[#F97316] to-[#C2410C] text-white shadow-[0_10px_30px_-6px_rgba(184,147,90,0.7)] transition-transform duration-150 select-none hover:scale-105 active:cursor-grabbing active:scale-95"
+          className="group relative flex h-14 w-14 cursor-grab touch-none items-center justify-center rounded-full border-2 border-white bg-[#17483F] text-white shadow-[0_10px_30px_-6px_rgba(23,72,63,0.5)] transition-transform duration-150 select-none hover:scale-105 active:cursor-grabbing active:scale-95"
           aria-label="Open ABU chat"
           aria-expanded={open}
           aria-controls="abu-support-chat"
           title="Drag to move · click to open"
         >
-          {open ? <X size={24} /> : <MessageCircle size={24} />}
+          {open ? <X size={24} /> : <AbuMascot />}
           {!open && (
-            <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-400" />
+            <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-[#43A77D]" />
           )}
         </button>
       </div>
