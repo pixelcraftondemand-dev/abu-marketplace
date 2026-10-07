@@ -16,13 +16,12 @@ import {
   ClipboardListIcon,
   TrendingUp,
   ArrowUpRight,
-  ArrowDownRight,
   Eye,
   BadgeCheck,
 } from "lucide-react";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
-function StatCard({ label, value, icon: Icon, trend, trendUp, delay = 0 }) {
+function StatCard({ label, value, icon: Icon, delay = 0 }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -39,12 +38,6 @@ function StatCard({ label, value, icon: Icon, trend, trendUp, delay = 0 }) {
         </div>
       </div>
       <p className="mb-2 text-3xl font-bold text-white">{value}</p>
-      {trend && (
-        <div className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium ${trendUp ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>
-          {trendUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
-          {trend}
-        </div>
-      )}
     </div>
   );
 }
@@ -98,24 +91,29 @@ export default function StoreDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
+    store: null,
     totalProducts: 0,
-    totalEarnings: 0,
+    totalSales: 0,
     totalOrders: 0,
     averageRating: 0,
-    monthlyRevenue: 0,
+    monthlySales: 0,
     monthlyOrders: 0,
+    pendingOrders: 0,
     averageOrderValue: 0,
     ratings: [],
     recentOrders: [],
     topCategory: "General",
-    revenueSeries: [],
+    salesSeries: [],
   });
 
   useEffect(() => {
     const fetch = async () => {
       try {
         const res = await axios.get("/api/store/dashboard");
-        setData(res.data.dashboardData);
+        if (!res.data?.dashboardData) {
+          throw new Error("Dashboard data was not returned.");
+        }
+        setData((current) => ({ ...current, ...res.data.dashboardData }));
       } catch (err) {
         toast.error(err?.response?.data?.error || err.message);
       } finally {
@@ -132,23 +130,28 @@ export default function StoreDashboard() {
   if (loading) return <Loading />;
 
   const stats = [
-    { label: "Total Products", value: data.totalProducts.toLocaleString(), icon: ShoppingBasketIcon, trend: "+12%", trendUp: true },
-    { label: "Total Earnings", value: <CurrencyAmount amount={data.totalEarnings} />, icon: CircleDollarSignIcon, trend: "+8.5%", trendUp: true },
-    { label: "Monthly Orders", value: data.monthlyOrders.toLocaleString(), icon: TagsIcon, trend: "+4.2%", trendUp: true },
-    { label: "Average Rating", value: data.averageRating.toFixed(1), icon: StarIcon, trend: data.averageRating > 0 ? "+0.3" : "0.0", trendUp: data.averageRating > 0 },
+    { label: "Total Products", value: data.totalProducts.toLocaleString(), icon: ShoppingBasketIcon },
+    { label: "Order Value", value: <CurrencyAmount amount={data.totalSales} />, icon: CircleDollarSignIcon },
+    { label: "Monthly Orders", value: data.monthlyOrders.toLocaleString(), icon: TagsIcon },
+    { label: "Average Rating", value: data.averageRating.toFixed(1), icon: StarIcon },
   ];
 
   return (
     <div className="space-y-8 pb-20">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Seller <span className="text-amber-500">Dashboard</span></h1>
-          <p className="mt-1 text-sm text-slate-500">Your store performance, orders, and customer signals in one place.</p>
+          <h1 className="text-2xl font-bold text-white">
+            {data.store?.name ? `${data.store.name} ` : "Seller "}
+            <span className="text-amber-500">Dashboard</span>
+          </h1>
+          <p className="mt-1 text-sm text-slate-500">Your store performance, orders, and customer feedback in one place.</p>
         </div>
         <div className="rounded-2xl border border-white/[0.06] bg-[#111827]/60 px-4 py-3 text-sm text-slate-400">
           <div className="flex items-center gap-2">
             <BadgeCheck size={16} className="text-amber-500" />
-            <span>Top category: {data.topCategory}</span>
+            <span>
+              {data.totalProducts ? `Top category: ${data.topCategory}` : "Start by adding a product"}
+            </span>
           </div>
         </div>
       </div>
@@ -163,22 +166,22 @@ export default function StoreDashboard() {
         <div className="rounded-[2rem] border border-white/[0.06] bg-[#111827]/60 p-6 backdrop-blur-sm">
           <div className="mb-6 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-white">Revenue overview</h2>
-              <p className="text-sm text-slate-500">This month: <CurrencyAmount amount={data.monthlyRevenue} /></p>
+              <h2 className="text-lg font-semibold text-white">Order value overview</h2>
+              <p className="text-sm text-slate-500">This month: <CurrencyAmount amount={data.monthlySales} /></p>
             </div>
-            <div className="flex items-center gap-2 text-sm text-slate-500">
-              <TrendingUp size={16} className="text-green-400" />
-              <span className="text-green-400">Healthy momentum</span>
+            <div className="hidden items-center gap-2 text-sm text-slate-500 sm:flex">
+              <TrendingUp size={16} className="text-amber-500" />
+              <span>Excludes cancelled orders</span>
             </div>
           </div>
           <div className="h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.revenueSeries}>
+              <BarChart data={data.salesSeries}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#2B3447" />
                 <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#94A3B8", fontSize: 12 }} />
                 <YAxis tickLine={false} axisLine={false} tick={{ fill: "#94A3B8", fontSize: 12 }} />
-                    <Tooltip formatter={(value) => [<CurrencyAmount key="revenue" amount={value} />, "Revenue"]} />
-                <Bar dataKey="revenue" radius={[10, 10, 0, 0]} fill="#EA580C" />
+                <Tooltip formatter={(value) => [<CurrencyAmount key="sales" amount={value} />, "Order value"]} />
+                <Bar dataKey="sales" radius={[10, 10, 0, 0]} fill="#EA580C" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -198,7 +201,7 @@ export default function StoreDashboard() {
               </button>
               <button onClick={() => router.push("/store/orders")} className="group flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.04] px-4 py-3 text-sm font-medium text-white transition hover:bg-white/[0.08]">
                 <ClipboardListIcon size={18} />
-                Review Orders
+                Review Orders{data.pendingOrders > 0 ? ` · ${data.pendingOrders}` : ""}
                 <ArrowUpRight size={16} className="ml-auto opacity-0 transition-opacity group-hover:opacity-100" />
               </button>
             </div>
@@ -229,9 +232,6 @@ export default function StoreDashboard() {
       <div>
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">Recent Reviews</h2>
-          {data.ratings.length > 0 && (
-            <button onClick={() => router.push("/store/reviews")} className="text-sm text-amber-500 transition hover:text-amber-400">View All</button>
-          )}
         </div>
 
         {data.ratings.length === 0 ? (

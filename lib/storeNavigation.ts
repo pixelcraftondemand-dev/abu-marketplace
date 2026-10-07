@@ -1,21 +1,16 @@
 interface StoreLinkParams {
   isSignedIn: boolean;
   isSeller: boolean;
-  storeUsername?: string | null;
 }
 
-export function getStoreLinkTarget({ isSignedIn, isSeller, storeUsername }: StoreLinkParams): string {
+export function getStoreLinkTarget({ isSignedIn, isSeller }: StoreLinkParams): string {
   if (!isSignedIn) {
-    return "/sign-in";
+    return "/create-store";
   }
 
   if (!isSeller) {
     return "/create-store";
   }
 
-  if (storeUsername) {
-    return `/shop/${storeUsername}`;
-  }
-
-  return "/store";
+  return "/store/dashboard";
 }

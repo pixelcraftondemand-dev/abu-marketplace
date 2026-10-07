@@ -7,15 +7,13 @@ import {
     PackageIcon,
     ShoppingCartIcon,
     SettingsIcon,
-    ImageIcon,
 } from "lucide-react"
 
 const navItems = [
-    { label: "Dashboard",       href: "/store",                icon: LayoutDashboardIcon },
+    { label: "Dashboard",       href: "/store/dashboard",      icon: LayoutDashboardIcon },
     { label: "Add Product",     href: "/store/add-product",    icon: PackagePlusIcon     },
     { label: "Products",        href: "/store/manage-product", icon: PackageIcon         },
     { label: "Orders",          href: "/store/orders",         icon: ShoppingCartIcon    },
-    { label: "Customise Store", href: "/store/customise",      icon: ImageIcon           },
     { label: "Settings",        href: "/store/settings",       icon: SettingsIcon        },
 ]
 
@@ -39,7 +37,28 @@ const StoreSidebar = ({ storeInfo }) => {
     }
 
     return (
-        <aside className="hidden md:flex flex-col w-56 shrink-0 h-full border-r border-slate-100 bg-white pt-6 pb-4 px-3">
+        <>
+            <nav aria-label="Seller navigation" className="flex gap-2 overflow-x-auto border-b border-slate-200 bg-white px-3 py-2 md:hidden">
+                {navItems.map((item) => {
+                    const NavIcon = item.icon
+                    return (
+                        <Link
+                            key={item.href}
+                            href={item.href}
+                            aria-current={checkActive(item.href) ? "page" : undefined}
+                            className={`inline-flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                                checkActive(item.href)
+                                    ? "bg-green-50 text-green-700"
+                                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                            }`}
+                        >
+                            <NavIcon size={15} />
+                            {item.label}
+                        </Link>
+                    )
+                })}
+            </nav>
+            <aside className="hidden h-full w-56 shrink-0 flex-col border-r border-slate-100 bg-white px-3 pb-4 pt-6 md:flex">
             {storeInfo && (
                 <div className="flex flex-col items-center gap-2 mb-6 px-2">
                     {storeInfo.logo ? (
@@ -72,7 +91,8 @@ const StoreSidebar = ({ storeInfo }) => {
                     )
                 })}
             </nav>
-        </aside>
+            </aside>
+        </>
     )
 }
 
