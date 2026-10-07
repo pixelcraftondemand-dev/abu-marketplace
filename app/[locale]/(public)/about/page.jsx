@@ -1,4 +1,5 @@
 import CommerceInfoPage from "@/components/CommerceInfoPage";
+import MarketplaceBenefits from "@/components/MarketplaceBenefits";
 import { HeartHandshake, Landmark, Sparkles, Target } from "lucide-react";
 
 export async function generateMetadata({ params }) {
@@ -68,12 +69,7 @@ export default function AboutPage() {
       eyebrow="About ABU"
       title="A marketplace designed for trusted, everyday shopping."
       description="We bring together verified sellers, quality products, and a smooth buying experience that gives customers confidence from browse to delivery."
-      stats={[
-        { value: "1", label: "Unified marketplace vision" },
-        { value: "100%", label: "Focus on customer confidence" },
-        { value: "Fast", label: "Support and fulfillment coordination" },
-        { value: "Secure", label: "Checkout across every touchpoint" },
-      ]}
+      heroAside={<MarketplaceBenefits />}
       highlights={highlights}
       sections={sections}
       footerTitle="Commerce that feels trusted, fast, and reliable."

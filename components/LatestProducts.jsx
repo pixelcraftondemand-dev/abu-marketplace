@@ -4,16 +4,15 @@ import Title from './Title'
 import { useTranslation } from '@/lib/i18n'
 import ProductCard from './ProductCard'
 import { useSelector } from 'react-redux'
-import { productDummyData } from '@/assets/assets'
 import { StaggerReveal, StaggerItem } from '@/components/ScrollReveal'
 
 const LatestProducts = () => {
     const { t } = useTranslation()
     const displayQuantity = 4
     const products = useSelector((state) => state.product.list)
-    const sourceProducts = products.length ? products : productDummyData
+    if (products.length === 0) return null
 
-    const latestProducts = sourceProducts
+    const latestProducts = products
         .slice()
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, displayQuantity)
@@ -23,7 +22,7 @@ const LatestProducts = () => {
             <Title
                 eyebrow={t('home.eyebrowLatest')}
                 title={t('home.latestProducts')}
-                description={t('home.showingProducts', { count: latestProducts.length, total: sourceProducts.length })}
+                description={t('home.showingProducts', { count: latestProducts.length, total: products.length })}
                 href='/shop'
             />
             <StaggerReveal className='mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 sm:gap-3'>

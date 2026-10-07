@@ -22,7 +22,6 @@ import {
 import { setLanguage, setCurrency } from '@/lib/features/preferencesSlice'
 import BrandLogo from "@/components/BrandLogo";
 import CurrencyAmount from "@/components/CurrencyAmount";
-import useWalletBalance from "@/lib/hooks/useWalletBalance";
 import { useTranslation } from "@/lib/i18n";
 import { getStoreLinkTarget } from "@/lib/storeNavigation";
 import { FREE_DELIVERY_THRESHOLD } from "@/lib/paymentOptions";
@@ -63,7 +62,6 @@ const megaMenuGroups = [
     title: "Services",
     items: [
       { label: "Browse Services", href: "/services" },
-      { label: "Open a Store", href: "/create-store" },
     ],
   },
 ];
@@ -72,7 +70,7 @@ const popularSearches = [
   "Smart watch",
   "Wireless headphones",
   "Home theater",
-  "African fashion",
+  "Fashion",
 ];
 
 export default function Navbar() {
@@ -89,8 +87,7 @@ export default function Navbar() {
   const [megaMenuOpen, setMegaMenuOpen] = useState(false);
   const [searchSuggestionsOpen, setSearchSuggestionsOpen] = useState(false);
   const [searchCategory, setSearchCategory] = useState("");
-  const [storeHref, setStoreHref] = useState("/sign-in");
-  const [storeLabelKey, setStoreLabelKey] = useState("nav.signIn");
+  const [storeHref, setStoreHref] = useState("/create-store");
 
   const dispatch = useDispatch();
   const { t } = useTranslation();
@@ -101,29 +98,31 @@ export default function Navbar() {
   };
 
   useEffect(() => {
+    let cancelled = false;
+
     const resolveStoreHref = async () => {
       if (!isLoaded) return;
       if (!user) {
-        setStoreHref("/sign-in");
-        setStoreLabelKey("nav.signIn");
+        setStoreHref(getStoreLinkTarget({ isSignedIn: false, isSeller: false }));
         return;
       }
       try {
         const { data } = await axios.get("/api/store/is-seller");
-        setStoreHref(
-          getStoreLinkTarget({
+        if (!cancelled) {
+          setStoreHref(getStoreLinkTarget({
             isSignedIn: true,
             isSeller: Boolean(data.isSeller),
-            storeUsername: data.storeInfo?.username || null,
-          })
-        );
-        setStoreLabelKey(data.isSeller ? "nav.myStore" : "nav.openStore");
+          }));
+        }
       } catch (error) {
-        setStoreHref("/create-store");
-        setStoreLabelKey("nav.openStore");
+        console.error("[Navbar] Unable to resolve seller navigation", error);
+        if (!cancelled) setStoreHref("/create-store");
       }
     };
     resolveStoreHref();
+    return () => {
+      cancelled = true;
+    };
   }, [isLoaded, user]);
 
   const selectedLanguage = useSelector((state) => state.preferences.selectedLanguage);
@@ -193,6 +192,22 @@ export default function Navbar() {
     const current = stripLocaleFromPath(pathname);
     if (path === "/") return current === "/";
     return current === path || current.startsWith(`${path}/`);
+  };
+
+  const primaryNavItems = [
+    { key: "buy", label: t("nav.buy"), href: "/shop" },
+    { key: "sell", label: t("nav.sell"), href: storeHref },
+    { key: "wishlist", label: t("nav.wishlist"), href: "/wishlist" },
+    { key: "cart", label: t("nav.cart"), href: "/cart" },
+    { key: "account", label: t("nav.account"), href: "/account" },
+  ];
+
+  const isPrimaryNavActive = (key, href) => {
+    if (key === "sell") {
+      const current = stripLocaleFromPath(pathname);
+      return current.startsWith("/store") || current === "/create-store";
+    }
+    return isActive(href);
   };
 
   return (
@@ -498,6 +513,23 @@ export default function Navbar() {
                 </div>
               </div>
 
+              <nav aria-label="Primary navigation" className="flex shrink-0 items-center gap-3 border-l border-gray-200 pl-5">
+                {primaryNavItems.map(({ key, label, href }) => (
+                  <Link
+                    key={key}
+                    href={href}
+                    aria-current={isPrimaryNavActive(key, href) ? "page" : undefined}
+                    className={`whitespace-nowrap text-xs font-semibold transition-colors duration-200 ${
+                      isPrimaryNavActive(key, href)
+                        ? "text-[var(--color-primary)]"
+                        : "text-gray-600 hover:text-[var(--color-primary)]"
+                    }`}
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </nav>
+
               {/* Quick category links */}
               <div className="flex items-center gap-5 overflow-x-auto no-scrollbar">
                 {[
@@ -570,37 +602,39 @@ export default function Navbar() {
             </form>
 
             {/* Links */}
-            <div className="space-y-0.5">
-              {[
-                { label: "Home", href: "/" },
-                { label: "Shop All", href: "/shop" },
-                { label: "Flash Deals ⚡", href: "/shop?deals=flash" },
-                { label: "Services", href: "/services" },
-              ].map((link) => (
+            <nav aria-label="Primary navigation" className="space-y-0.5">
+              {primaryNavItems.map(({ key, label, href }) => (
                 <Link
-                  key={link.href}
-                  href={link.href}
+                  key={key}
+                  href={href}
                   onClick={() => setMobileMenuOpen(false)}
                   className={`block py-2.5 px-3 text-sm font-medium rounded-lg transition-all duration-200 ${
-                    isActive(link.href)
+                    isPrimaryNavActive(key, href)
                       ? "bg-orange-50 text-[var(--color-primary)]"
                       : "text-gray-700 hover:bg-gray-50"
                   }`}
                 >
-                  {link.label}
+                  <span className="flex items-center justify-between">
+                    {label}
+                    {key === "cart" && cartCount > 0 && (
+                      <span className="text-[10px] font-bold text-white bg-[var(--color-primary)] px-1.5 py-0.5 rounded-full">{cartCount}</span>
+                    )}
+                    {key === "wishlist" && wishlistCount > 0 && (
+                      <span className="text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full">{wishlistCount}</span>
+                    )}
+                  </span>
                 </Link>
               ))}
-            </div>
+            </nav>
 
             {/* Divider */}
             <div className="border-t border-gray-100 my-4" />
 
-            {/* Quick links */}
+            {/* More links */}
             <div className="space-y-0.5">
               {[
-                { label: "Wishlist", href: "/wishlist" },
-                { label: "Cart", href: "/cart" },
-                { label: "My Account", href: "/account" },
+                { label: "Flash Deals", href: "/shop?deals=flash" },
+                { label: "Services", href: "/services" },
                 { label: "Orders", href: "/orders" },
               ].map((link) => (
                 <Link
@@ -614,12 +648,6 @@ export default function Navbar() {
                   }`}
                 >
                   {link.label}
-                  {(link.href === '/cart' && cartCount > 0) && (
-                    <span className="text-[10px] font-bold text-white bg-[var(--color-primary)] px-1.5 py-0.5 rounded-full">{cartCount}</span>
-                  )}
-                  {(link.href === '/wishlist' && wishlistCount > 0) && (
-                    <span className="text-[10px] font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full">{wishlistCount}</span>
-                  )}
                 </Link>
               ))}
             </div>

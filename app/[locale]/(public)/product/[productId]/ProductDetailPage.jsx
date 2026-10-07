@@ -427,7 +427,7 @@ export default function ProductDetailPage({ product: serverProduct }) {
                       className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
                     >
                       <MessageCircle size={15} />
-                      Chat on WhatsApp
+                      Contact vendor on WhatsApp
                     </a>
                   )}
                 </div>
@@ -450,7 +450,7 @@ export default function ProductDetailPage({ product: serverProduct }) {
       <section className="border-t border-gray-100 bg-white mt-4">
         <div className="max-w-7xl mx-auto px-4 lg:px-8">
           <div className="flex border-b border-gray-100 overflow-x-auto no-scrollbar">
-            {["description", "specifications", "reviews", "shipping"].map((tab) => (
+            {["description", "specifications", "reviews", "delivery"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -546,7 +546,7 @@ export default function ProductDetailPage({ product: serverProduct }) {
                           <Check size={10} strokeWidth={3} /> Verified
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 leading-relaxed">{review.text}</p>
+                      <p className="text-sm text-gray-600 leading-relaxed">{review.review}</p>
                     </div>
                   ))}
                   {(!product.reviews || product.reviews.length === 0) && (
@@ -557,7 +557,7 @@ export default function ProductDetailPage({ product: serverProduct }) {
                 </div>
               </div>
             )}
-            {activeTab === "shipping" && (
+            {activeTab === "delivery" && (
               <div className="space-y-3 text-sm">
                 <p className="text-gray-800 font-semibold">{t('productPage.shippingOptions')}</p>
                 <div className="space-y-3">

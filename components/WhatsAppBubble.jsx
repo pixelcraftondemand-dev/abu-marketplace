@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { MessageCircle, X } from "lucide-react";
 import {
@@ -18,17 +18,34 @@ import {
  * NEXT_PUBLIC_WHATSAPP_SUPPORT_NUMBER — the component renders nothing when it
  * is unset, so environments without a WhatsApp line are unaffected.
  *
- * Sits bottom-left to stay clear of the ABU support bubble (bottom-right) and
- * is raised above the mobile bottom tab bar. Hidden on operator surfaces
- * (admin / store console / agent / Studio).
+ * Starts bottom-left to stay clear of the ABU support bubble and is raised
+ * above the mobile bottom tab bar. Buyers can drag it elsewhere; its position
+ * is saved between visits. Hidden on operator surfaces (admin / store console /
+ * agent / Studio).
  */
 
 const HIDDEN_PREFIXES = ["/admin", "/store", "/agent", "/studio", "/monitoring"];
+const POSITION_STORAGE_KEY = "abu-whatsapp-bubble-pos";
+const EDGE_PADDING = 16;
+const DRAG_THRESHOLD = 6;
+
+function clampPosition(position, width, height) {
+  const maxX = window.innerWidth - width - EDGE_PADDING;
+  const maxY = window.innerHeight - height - EDGE_PADDING;
+  return {
+    x: Math.min(Math.max(EDGE_PADDING, position.x), Math.max(EDGE_PADDING, maxX)),
+    y: Math.min(Math.max(EDGE_PADDING, position.y), Math.max(EDGE_PADDING, maxY)),
+  };
+}
 
 export default function WhatsAppBubble() {
   const pathname = usePathname();
   const [dismissed, setDismissed] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [position, setPosition] = useState(null);
+  const bubbleRef = useRef(null);
+  const dragRef = useRef(null);
+  const lastDragAtRef = useRef(0);
 
   useEffect(() => {
     setMounted(true);
@@ -38,6 +55,33 @@ export default function WhatsAppBubble() {
       // Storage unavailable (private mode) — the bubble just shows again.
     }
   }, []);
+
+  useEffect(() => {
+    if (!mounted || !bubbleRef.current) return;
+
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(POSITION_STORAGE_KEY));
+      if (typeof saved?.x === "number" && typeof saved?.y === "number") {
+        const { width, height } = bubbleRef.current.getBoundingClientRect();
+        setPosition(clampPosition(saved, width, height));
+      }
+    } catch {
+      // Corrupt or unavailable storage — keep the default corner position.
+    }
+  }, [mounted]);
+
+  useEffect(() => {
+    if (!position) return;
+
+    const handleResize = () => {
+      const bounds = bubbleRef.current?.getBoundingClientRect();
+      if (!bounds) return;
+      setPosition((current) => current && clampPosition(current, bounds.width, bounds.height));
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [position]);
 
   if (!mounted) return null;
 
@@ -62,8 +106,84 @@ export default function WhatsAppBubble() {
     }
   };
 
+  const handlePointerDown = (event) => {
+    if (event.button !== 0) return;
+    const bounds = bubbleRef.current?.getBoundingClientRect();
+    if (!bounds) return;
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      origin: { x: bounds.left, y: bounds.top },
+      moved: false,
+      position: null,
+    };
+    try {
+      const captureTarget = event.target.closest?.("a, button") || event.currentTarget;
+      captureTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture is best-effort; the link remains usable without it.
+    }
+  };
+
+  const handlePointerMove = (event) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (!drag.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+
+    drag.moved = true;
+    const bounds = bubbleRef.current?.getBoundingClientRect();
+    if (!bounds) return;
+    drag.position = clampPosition(
+      { x: drag.origin.x + dx, y: drag.origin.y + dy },
+      bounds.width,
+      bounds.height
+    );
+    setPosition(drag.position);
+  };
+
+  const handlePointerUp = (event) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    if (!drag.moved || !drag.position) return;
+
+    lastDragAtRef.current = Date.now();
+    try {
+      window.localStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify(drag.position));
+    } catch {
+      // Storage unavailable — the position lasts until the page is reloaded.
+    }
+  };
+
+  const handlePointerCancel = () => {
+    dragRef.current = null;
+  };
+
+  const preventClickAfterDrag = (event) => {
+    if (Date.now() - lastDragAtRef.current < 500) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
+
   return (
-    <div className="fixed left-4 bottom-24 z-40 flex items-center gap-1.5 sm:bottom-6">
+    <div
+      ref={bubbleRef}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onClickCapture={preventClickAfterDrag}
+      className={`fixed z-40 flex touch-none select-none items-center gap-1.5 ${
+        position ? "" : "left-4 bottom-24 sm:bottom-6"
+      }`}
+      style={position ? { left: position.x, top: position.y } : undefined}
+      title="Drag to move"
+    >
       <a
         href={href}
         target="_blank"

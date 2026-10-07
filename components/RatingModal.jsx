@@ -18,15 +18,16 @@ const RatingModal = ({ ratingModal, setRatingModal }) => {
     const [review, setReview] = useState('');
 
     const handleSubmit = async () => {
-        if (rating < 0 || rating > 5) {
-            return toast('Please select a rating');
+        if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+            return toast.error('Please select a rating');
         }
-        if (review.length < 5) {
-            return toast('write a short review');
+        const cleanReview = review.trim();
+        if (cleanReview.length < 3) {
+            return toast.error('Please write a review of at least 3 characters');
         }
         try {
             const token = await getToken()
-            const { data } = await axios.post('/api/rating', {productId: ratingModal.productId, orderId: ratingModal.orderId, rating, review}, {
+            const { data } = await axios.post('/api/rating', {productId: ratingModal.productId, orderId: ratingModal.orderId, rating, review: cleanReview}, {
                  headers: { Authorization: `Bearer ${token}` }
             })
             dispatch(addRating(data.rating))
@@ -56,8 +57,10 @@ const RatingModal = ({ ratingModal, setRatingModal }) => {
                 </div>
                 <textarea
                     className='w-full p-2 border border-gray-300 rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-green-400'
-                    placeholder='Write your review (optional)'
+                    placeholder='Write your review (required)'
                     rows='4'
+                    minLength={3}
+                    maxLength={1000}
                     value={review}
                     onChange={(e) => setReview(e.target.value)}
                 ></textarea>

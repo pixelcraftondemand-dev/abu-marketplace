@@ -1,7 +1,7 @@
 "use client";
 
-import { PlusIcon, SquarePenIcon, XIcon, ShieldCheck, Lock, CreditCard, Banknote } from 'lucide-react';
-import React, { useEffect, useState } from 'react'
+import { PlusIcon, SquarePenIcon, XIcon, ShieldCheck, Lock, Banknote, MessageCircle } from 'lucide-react';
+import React, { useState } from 'react'
 import AddressModal from './AddressModal';
 import { useDispatch, useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
@@ -10,9 +10,9 @@ import { useAuth, useUser, Show } from '@clerk/nextjs'
 import axios from 'axios';
 import { fetchCart } from '@/lib/features/cart/cartSlice';
 import CurrencyAmount from '@/components/CurrencyAmount'
-import useWalletBalance from '@/lib/hooks/useWalletBalance'
 import { useTranslation } from '@/lib/i18n'
 import { isCashOnDeliveryAvailable, isFreeDelivery } from '@/lib/paymentOptions'
+import { buildWhatsAppLink } from '@/lib/utils/whatsapp'
 
 const OrderSummary = ({ totalPrice, items }) => {
     const { user } = useUser()
@@ -26,14 +26,7 @@ const OrderSummary = ({ totalPrice, items }) => {
     const codEnabled = isCashOnDeliveryAvailable();
     const deliveryFree = isFreeDelivery(totalPrice);
 
-    const [paymentMethod, setPaymentMethod] = useState('COD');
-    const { balance: walletBalance, loading: walletLoading } = useWalletBalance();
-
-    useEffect(() => {
-        if (!codEnabled && paymentMethod === 'COD') {
-            setPaymentMethod('WALLET');
-        }
-    }, [codEnabled, paymentMethod]);
+    const paymentMethod = 'COD';
 
     const [idempotencyKey] = useState(() =>
       typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -42,6 +35,29 @@ const OrderSummary = ({ totalPrice, items }) => {
     const [showAddressModal, setShowAddressModal] = useState(false);
     const [couponCodeInput, setCouponCodeInput] = useState('');
     const [coupon, setCoupon] = useState('');
+    const [placingOrder, setPlacingOrder] = useState(false);
+
+    const sellerContacts = Array.from(items.reduce((contacts, item) => {
+        const store = item.store;
+        const key = store?.id || store?.username || store?.name;
+        if (!key || !store?.whatsappNumber) return contacts;
+
+        if (!contacts.has(key)) {
+            contacts.set(key, { store, products: [] });
+        }
+        contacts.get(key).products.push(item);
+        return contacts;
+    }, new Map()).values()).map(({ store, products: sellerProducts }) => ({
+        store,
+        href: buildWhatsAppLink(
+            store.whatsappNumber,
+            [
+                `Hi ${store.name || 'there'}, I have a question about these items in my ABU Marketplace cart:`,
+                ...sellerProducts.map((item) => `• ${item.name} (quantity: ${item.quantity})`),
+                'Please confirm availability, delivery, and cash-on-delivery options.',
+            ].join('\n')
+        ),
+    })).filter((contact) => contact.href);
 
     const handleCouponCode = async (event) => {
         event.preventDefault();
@@ -60,6 +76,8 @@ const OrderSummary = ({ totalPrice, items }) => {
 
     const handlePlaceOrder = async (e) => {
         e.preventDefault();
+        if (placingOrder) return;
+        setPlacingOrder(true);
         try {
             if(!user) return toast(t('checkout.loginToPlaceOrder'))
             if(!selectedAddress) return toast(t('checkout.selectAddressFirst'))
@@ -87,6 +105,8 @@ const OrderSummary = ({ totalPrice, items }) => {
            dispatch(fetchCart({getToken}))
         } catch (error) {
             toast.error(error?.response?.data?.error || error.message)
+        } finally {
+            setPlacingOrder(false);
         }
     }
 
@@ -95,38 +115,43 @@ const OrderSummary = ({ totalPrice, items }) => {
           <div className='bg-white border border-gray-100 rounded-2xl p-6 shadow-sm'>
             {/* Header */}
             <div className="flex items-center gap-2 mb-5">
-              <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
-                <CreditCard size={16} className="text-[var(--color-primary)]" />
+              <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
+                <Banknote size={16} className="text-green-700" />
               </div>
               <h2 className='text-base font-bold text-gray-900'>{t('checkout.paymentSummary')}</h2>
             </div>
             
-            {/* Payment Method */}
-            <p className='text-gray-400 text-[10px] font-semibold mb-2.5 uppercase tracking-wider'>{t('checkout.paymentMethod')}</p>
-            <div className='space-y-2 mb-5'>
-                <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 ${paymentMethod === 'COD' ? 'border-[var(--color-primary)] bg-orange-50/50 shadow-sm shadow-orange-500/5' : 'border-gray-100 hover:border-gray-200'}`}>
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${paymentMethod === 'COD' ? 'border-[var(--color-primary)]' : 'border-gray-300'}`}>
-                        {paymentMethod === 'COD' && <div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />}
-                    </div>
-                    <Banknote size={16} className={paymentMethod === 'COD' ? 'text-[var(--color-primary)]' : 'text-gray-400'} />
-                    <span className={`text-sm font-medium ${!codEnabled ? 'text-gray-400' : 'text-gray-700'}`}>{t('checkout.cod')}</span>
-                </label>
-                <label className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all duration-200 ${paymentMethod === 'WALLET' ? 'border-[var(--color-primary)] bg-orange-50/50 shadow-sm shadow-orange-500/5' : 'border-gray-100 hover:border-gray-200'}`}>
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors ${paymentMethod === 'WALLET' ? 'border-[var(--color-primary)]' : 'border-gray-300'}`}>
-                        {paymentMethod === 'WALLET' && <div className="w-2 h-2 rounded-full bg-[var(--color-primary)]" />}
-                    </div>
-                    <CreditCard size={16} className={paymentMethod === 'WALLET' ? 'text-[var(--color-primary)]' : 'text-gray-400'} />
-                    <span className='text-sm font-medium text-gray-700'>
-                        {t('wallet.payWithWallet')}
-                        {!walletLoading && walletBalance != null && (
-                            <span className='ml-1.5 text-xs text-gray-400 font-normal'>(<CurrencyAmount amount={walletBalance} />)</span>
-                        )}
-                    </span>
-                </label>
-                {paymentMethod === 'WALLET' && !walletLoading && walletBalance != null && walletBalance < totalPrice && (
-                    <p className='text-xs text-red-500 font-medium ml-1 mt-1'>{t('wallet.balanceTooLow')}</p>
-                )}
+            {/* Payment on delivery */}
+            <div className='mb-5 rounded-xl border border-green-100 bg-green-50 p-3'>
+                <div className='flex items-center gap-2'>
+                    <Banknote size={17} className='text-green-700' />
+                    <span className='text-sm font-semibold text-green-800'>{t('checkout.cod')}</span>
+                </div>
+                <p className='mt-1 text-xs leading-5 text-green-800/75'>
+                    Place your order now and pay the seller when your items are delivered.
+                </p>
             </div>
+
+            {sellerContacts.length > 0 && (
+                <div className='mb-5 rounded-xl border border-gray-100 bg-gray-50 p-3'>
+                    <p className='text-xs font-semibold text-gray-700'>Questions before ordering?</p>
+                    <p className='mt-1 text-xs text-gray-500'>Message a seller directly on WhatsApp to confirm availability and delivery.</p>
+                    <div className='mt-2 flex flex-col gap-2'>
+                        {sellerContacts.map(({ store, href }) => (
+                            <a
+                                key={store.id || store.username || store.name}
+                                href={href}
+                                target='_blank'
+                                rel='noopener noreferrer'
+                                className='inline-flex items-center justify-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-green-700'
+                            >
+                                <MessageCircle size={14} />
+                                Contact {store.name || 'vendor'} on WhatsApp
+                            </a>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Address */}
             <div className='mb-5 pb-5 border-b border-gray-100'>
@@ -214,7 +239,7 @@ const OrderSummary = ({ totalPrice, items }) => {
             {/* Place Order Button */}
             <button
                 onClick={e => toast.promise(handlePlaceOrder(e), { loading: t('checkout.placingOrder') })}
-                disabled={paymentMethod === 'WALLET' && !walletLoading && walletBalance != null && walletBalance < totalPrice}
+                disabled={!codEnabled || placingOrder}
                 className='w-full bg-[var(--color-primary)] text-white py-3.5 rounded-xl text-sm font-bold uppercase tracking-wide transition-all duration-200 hover:bg-[var(--color-primary-hover)] hover:shadow-lg hover:shadow-orange-500/25 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:transform-none disabled:hover:shadow-none flex items-center justify-center gap-2'
             >
                 <Lock size={14} />

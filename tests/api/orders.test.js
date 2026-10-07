@@ -20,14 +20,8 @@ vi.mock("@/lib/prisma", () => {
     product: { findMany: vi.fn(), update: vi.fn(), updateMany: vi.fn(() => ({ count: 1 })) },
     payment: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn(() => ({ count: 1 })) },
     user: { update: vi.fn(), findUnique: vi.fn().mockResolvedValue({ id: "usr_1", createdAt: new Date("2025-01-01") }) },
-    wallet: { findUnique: vi.fn().mockResolvedValue({ id: "w_1", userId: "usr_1", balance: 100 }), updateMany: vi.fn(() => ({ count: 1 })) },
-    walletTransaction: { create: vi.fn().mockResolvedValue({ id: "tx_1" }) },
-    // PSP integration — added after original tests were written
-    pspTransaction: { create: vi.fn().mockResolvedValue({ id: "psp_1", version: 1 }), findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
-    auditLog: { create: vi.fn(), count: vi.fn().mockResolvedValue(0) },
+    auditLog: { count: vi.fn().mockResolvedValue(0) },
     fraudEvent: { create: vi.fn(), count: vi.fn().mockResolvedValue(0), findFirst: vi.fn().mockResolvedValue(null), groupBy: vi.fn().mockResolvedValue([]) },
-    ledgerEntry: { create: vi.fn() },
-    idempotencyKeyRecord: { create: vi.fn().mockResolvedValue({}) },
   };
   prismaMock.$transaction = vi.fn(async (fn) => fn(prismaMock));
   return { default: prismaMock };
@@ -67,10 +61,6 @@ describe("orders POST", () => {
     getSessionFromRequest.mockResolvedValue({ user: { id: "usr_1" } });
     getVerifiedUserFromRequest.mockResolvedValue({ id: "usr_1", emailVerified: true, email: "buyer@example.com", name: "Buyer" });
     prisma.$transaction.mockImplementation(async (fn) => fn(prisma));
-    // Wallet mocks (resetAllMocks wipes factory defaults).
-    prisma.wallet.findUnique.mockResolvedValue({ id: "w_1", userId: "usr_1", balance: 100 });
-    prisma.wallet.updateMany.mockResolvedValue({ count: 1 });
-    prisma.walletTransaction.create.mockResolvedValue({ id: "tx_1" });
   });
 
   it("returns 401 when the user is not authenticated", async () => {
@@ -282,134 +272,33 @@ describe("orders POST", () => {
     );
   });
 
-  it("blocks unverified accounts from ordering with every payment method", async () => {
+  it("allows authenticated WhatsApp buyers to place cash-on-delivery orders without email verification", async () => {
     getVerifiedUserFromRequest.mockResolvedValue(null);
     prisma.address.findFirst.mockResolvedValue({ id: "addr_123" });
     prisma.product.findMany.mockResolvedValue([productRow]);
+    prisma.order.create.mockResolvedValueOnce({ id: "o1" });
 
-    for (const paymentMethod of ["COD", "WALLET"]) {
-      const res = await POST(buildRequest({ ...validBody, paymentMethod }));
-      expect(res.status).toBe(403);
-      expect((await res.json()).error).toContain("verify your email");
-    }
-    // Nothing was created for any method — the check runs before any side effects.
+    const res = await POST(buildRequest({ ...validBody, paymentMethod: "COD" }));
+    expect(res.status).toBe(200);
+    expect(prisma.order.create).toHaveBeenCalled();
     expect(prisma.payment.create).not.toHaveBeenCalled();
-    expect(prisma.order.create).not.toHaveBeenCalled();
-    expect(prisma.product.updateMany).not.toHaveBeenCalled();
   });
 
-  it("allows verified users to place orders with any payment method", async () => {
+  it("rejects WALLET as an order payment method", async () => {
+    const res = await POST(buildRequest({ ...validBody, paymentMethod: "WALLET" }));
+    expect(res.status).toBe(422);
+    expect((await res.json()).error).toBe("Invalid checkout details.");
+    expect(prisma.order.create).not.toHaveBeenCalled();
+  });
+
+  it("allows verified users to place cash-on-delivery orders", async () => {
     prisma.address.findFirst.mockResolvedValue({ id: "addr_123" });
     prisma.product.findMany.mockResolvedValue([productRow]);
     prisma.order.create.mockResolvedValueOnce({ id: "o1" });
 
     const res = await POST(buildRequest(validBody)); // COD
     expect(res.status).toBe(200);
-    expect(getVerifiedUserFromRequest).toHaveBeenCalled();
-  });
-
-  it("WALLET: debits the wallet, creates a SUCCEEDED payment, and marks orders paid instantly", async () => {
-    prisma.address.findFirst.mockResolvedValue({ id: "addr_123" });
-    prisma.product.findMany.mockResolvedValue([productRow]);
-    prisma.payment.create.mockResolvedValueOnce({ id: "pay_1" });
-    prisma.order.create.mockResolvedValueOnce({ id: "o1" });
-
-    const res = await POST(buildRequest({ ...validBody, paymentMethod: "WALLET" }));
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.message).toBe("Orders Placed Successfully");
-    expect(json.paymentId).toBe("pay_1");
-    // The idempotency key is returned so a timeout-retry cannot double-debit.
-    expect(typeof json.idempotencyKey).toBe("string");
-
-    // A payment row exists (idempotency) and is immediately SUCCEEDED.
-    expect(prisma.payment.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          idempotencyKey: expect.any(String),
-          userId: "usr_1",
-          amount: 25,
-          currency: "USD",
-          status: "SUCCEEDED",
-        }),
-      })
-    );
-    // Wallet debit is atomic and ledger-guarded against double-spend.
-    expect(prisma.wallet.updateMany).toHaveBeenCalledWith({
-      where: { id: "w_1", balance: { gte: 25 } },
-      data: { balance: { decrement: 25 } },
-    });
-    expect(prisma.walletTransaction.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          type: "PAYMENT",
-          amount: -25,
-          referenceId: "pay_1",
-          referenceType: "order",
-        }),
-      })
-    );
-    // Order is paid immediately.
-    expect(prisma.order.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          paymentId: "pay_1",
-          paymentStatus: "SUCCEEDED",
-          isPaid: true,
-          paymentMethod: "WALLET",
-        }),
-      })
-    );
-    // Cart cleared after successful wallet checkout.
-    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: "usr_1" }, data: { cart: {} } });
-  });
-
-  it("returns 422 with a full rollback when the wallet cannot cover the total", async () => {
-    prisma.address.findFirst.mockResolvedValue({ id: "addr_123" });
-    prisma.product.findMany.mockResolvedValue([productRow]);
-    prisma.payment.create.mockResolvedValueOnce({ id: "pay_1" });
-    // Atomic balance guard fails.
-    prisma.wallet.updateMany.mockResolvedValueOnce({ count: 0 });
-
-    const res = await POST(buildRequest({ ...validBody, paymentMethod: "WALLET" }));
-    expect(res.status).toBe(422);
-    expect((await res.json()).error).toBe("Insufficient wallet balance.");
-    // No order, no cart clear — the transaction rolled back.
-    expect(prisma.order.create).not.toHaveBeenCalled();
-    expect(prisma.user.update).not.toHaveBeenCalled();
-  });
-
-  it("WALLET retry WITHOUT a key returns alreadyProcessed when a recent wallet payment exists", async () => {
-    prisma.payment.findFirst.mockResolvedValue({
-      id: "pay_1",
-      createdAt: new Date(),
-    });
-    const res = await POST(buildRequest({ ...validBody, paymentMethod: "WALLET" }));
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ alreadyProcessed: true, paymentId: "pay_1" });
-    // No second debit, no second order, no second payment.
-    expect(prisma.payment.create).not.toHaveBeenCalled();
-    expect(prisma.order.create).not.toHaveBeenCalled();
-    expect(prisma.wallet.updateMany).not.toHaveBeenCalled();
-    expect(prisma.payment.findFirst).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ userId: "usr_1", status: "SUCCEEDED" }) })
-    );
-  });
-
-  it("WALLET retry with the same idempotency key returns alreadyProcessed (no second debit)", async () => {
-    prisma.payment.findUnique.mockResolvedValue({
-      id: "pay_1",
-      userId: "usr_1",
-      status: "SUCCEEDED",
-
-    });
-    const res = await POST(
-      buildRequest({ ...validBody, paymentMethod: "WALLET", idempotencyKey: "key_12345678" })
-    );
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ alreadyProcessed: true, paymentId: "pay_1" });
-    expect(prisma.wallet.updateMany).not.toHaveBeenCalled();
-    expect(prisma.order.create).not.toHaveBeenCalled();
+    expect(getVerifiedUserFromRequest).not.toHaveBeenCalled();
   });
 
   it("returns 422 for an unsupported currency", async () => {
@@ -428,78 +317,6 @@ describe("orders POST", () => {
     expect(prisma.order.create).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ total: 25 }) })
     );
-  });
-
-  it("returns 409 for an in-flight idempotency key (no second charge)", async () => {
-    prisma.payment.findUnique.mockResolvedValue({
-      id: "pay_1",
-      userId: "usr_1",
-      status: "PROCESSING",
-    });
-    const res = await POST(
-      buildRequest({ ...validBody, paymentMethod: "WALLET", idempotencyKey: "key_12345678" })
-    );
-    expect(res.status).toBe(409);
-
-    expect(prisma.payment.create).not.toHaveBeenCalled();
-    expect(prisma.order.create).not.toHaveBeenCalled();
-  });
-
-  it("returns alreadyProcessed for a SUCCEEDED idempotency key", async () => {
-    prisma.payment.findUnique.mockResolvedValue({
-      id: "pay_1",
-      userId: "usr_1",
-      status: "SUCCEEDED",
-
-    });
-    const res = await POST(
-      buildRequest({ ...validBody, paymentMethod: "WALLET", idempotencyKey: "key_12345678" })
-    );
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ alreadyProcessed: true, paymentId: "pay_1" });
-  });
-
-  it("rejects another user's idempotency key", async () => {
-    prisma.payment.findUnique.mockResolvedValue({
-      id: "pay_1",
-      userId: "usr_other",
-      status: "PROCESSING",
-
-    });
-    const res = await POST(
-      buildRequest({ ...validBody, paymentMethod: "WALLET", idempotencyKey: "key_12345678" })
-    );
-    expect(res.status).toBe(403);
-    expect((await res.json()).error).toBe("Idempotency key is already in use.");
-  });
-
-  it("P2002 race: concurrent duplicate key returns the winner's session without a second order", async () => {
-    prisma.address.findFirst.mockResolvedValue({ id: "addr_123" });
-    prisma.product.findMany.mockResolvedValue([productRow]);
-    prisma.payment.findUnique
-      .mockResolvedValueOnce(null) // idempotency pre-check
-      .mockResolvedValueOnce({ id: "pay_win", userId: "usr_1", status: "SUCCEEDED" });
-    prisma.payment.create.mockRejectedValueOnce({ code: "P2002" }); // unique constraint
-
-    const res = await POST(
-      buildRequest({ ...validBody, paymentMethod: "WALLET", idempotencyKey: "key_12345678" })
-    );
-    expect(res.status).toBe(200);
-    expect((await res.json()).alreadyProcessed).toBe(true);
-    expect(prisma.order.create).not.toHaveBeenCalled();
-  });
-
-  it("WALLET retry WITHOUT a key returns alreadyProcessed when a recent wallet payment exists", async () => {
-    prisma.payment.findFirst.mockResolvedValue({
-      id: "pay_1",
-      status: "SUCCEEDED",
-      createdAt: new Date(),
-    });
-    const res = await POST(buildRequest({ ...validBody, paymentMethod: "WALLET" }));
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.alreadyProcessed).toBe(true);
-    expect(prisma.payment.create).not.toHaveBeenCalled();
   });
 });
 

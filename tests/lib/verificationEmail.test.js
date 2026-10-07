@@ -59,9 +59,13 @@ describe("sendVerificationEmail", () => {
     expect(mockSend.mock.calls[0][0].subject).toBe("Your sign-in code — ABU Marketplace");
     expect(mockSend.mock.calls[0][0].html).toContain("sign in to your account");
 
-    await sendVerificationEmail({ to: "buyer@example.com", code: "222222", purpose: "reset" });
-    expect(mockSend.mock.calls[1][0].subject).toBe("Reset your password — ABU Marketplace");
-    expect(mockSend.mock.calls[1][0].html).toContain("reset your password");
+    await sendVerificationEmail({ to: "buyer@example.com", code: "22222A", purpose: "signup" });
+    expect(mockSend.mock.calls[1][0].subject).toBe("Your account creation code — ABU Marketplace");
+    expect(mockSend.mock.calls[1][0].html).toContain("create your account");
+
+    await sendVerificationEmail({ to: "buyer@example.com", code: "333333", purpose: "reset" });
+    expect(mockSend.mock.calls[2][0].subject).toBe("Reset your password — ABU Marketplace");
+    expect(mockSend.mock.calls[2][0].html).toContain("reset your password");
   });
 
   it("falls back to the default verification from-address when env is unset", async () => {
@@ -102,6 +106,14 @@ describe("sendVerificationEmail", () => {
 
   it("propagates a Resend send failure to the caller", async () => {
     mockSend.mockRejectedValue(new Error("domain not verified"));
+
+    await expect(
+      sendVerificationEmail({ to: "buyer@example.com", code: "483920" })
+    ).rejects.toThrow("domain not verified");
+  });
+
+  it("throws when Resend reports a send error in its response", async () => {
+    mockSend.mockResolvedValue({ data: null, error: { message: "domain not verified" } });
 
     await expect(
       sendVerificationEmail({ to: "buyer@example.com", code: "483920" })

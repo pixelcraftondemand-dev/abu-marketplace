@@ -4,7 +4,6 @@ import FlashDeals from '@/components/FlashDeals'
 import { getFlashDealProducts } from '@/lib/productUtils'
 import Link from 'next/link'
 import { useSelector } from 'react-redux'
-import { productDummyData } from '@/assets/assets'
 import { useTranslation } from '@/lib/i18n'
 import { StaggerReveal, StaggerItem } from '@/components/ScrollReveal'
 import { ArrowRight } from 'lucide-react'
@@ -12,8 +11,7 @@ import { ArrowRight } from 'lucide-react'
 const FlashDealsSection = () => {
     const { t } = useTranslation()
     const products = useSelector((state) => state.product.list)
-    const sourceProducts = products.length ? products : productDummyData
-    const flashDeals = getFlashDealProducts(sourceProducts, 8)
+    const flashDeals = getFlashDealProducts(products, 8)
 
     if (flashDeals.length === 0) return null
 

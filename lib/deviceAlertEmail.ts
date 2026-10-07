@@ -54,11 +54,11 @@ function buildHtml({ email, deviceInfo, timestamp }: DeviceAlertEmailParams): st
         </div>
         <div style="border-top:1px solid #EEE;padding-top:16px;margin-top:16px;font-size:13px;color:#666;line-height:1.6">
           <p style="margin:0 0 8px"><strong style="color:#333">If this was you</strong> — no action needed. Your account is secure.</p>
-          <p style="margin:0"><strong style="color:#333">If this wasn't you</strong> — change your passwords immediately and contact our support team at <a href="mailto:abumarketplace.shop@gmail.com" style="color:#C9A96E">abumarketplace.shop@gmail.com</a>.</p>
+          <p style="margin:0"><strong style="color:#333">If this wasn't you</strong> — contact our support team immediately at <a href="mailto:abumarketplace.shop@gmail.com" style="color:#C9A96E">abumarketplace.shop@gmail.com</a>.</p>
         </div>
       </div>
       <div style="text-align:center;padding:16px;color:#888;font-size:12px">
-        <p style="margin:0">ABU Marketplace — halal-certified African marketplace</p>
+        <p style="margin:0">ABU Marketplace — Sierra Leone marketplace</p>
       </div>
     </div>
   </body>
@@ -78,9 +78,9 @@ Timezone: ${deviceInfo.timezone || "Unknown"}
 Browser: ${deviceInfo.userAgent || "Unknown"}
 
 If this was you — no action needed. Your account is secure.
-If this wasn't you — change your passwords immediately and contact support at abumarketplace.shop@gmail.com.
+If this wasn't you — contact support immediately at abumarketplace.shop@gmail.com.
 
-ABU Marketplace — halal-certified African marketplace`;
+ABU Marketplace — Sierra Leone marketplace`;
 }
 
 /**

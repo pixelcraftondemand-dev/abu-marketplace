@@ -83,6 +83,16 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
+      - name: Bootstrap Supabase auth helpers for migration replay
+        run: |
+          set -euo pipefail
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE SCHEMA auth;
+          CREATE FUNCTION auth.uid() RETURNS uuid
+            LANGUAGE sql STABLE
+            AS 'SELECT NULL::uuid';
+          SQL
+
       - name: Apply supabase/migrations to a fresh database
         run: |
           set -euo pipefail

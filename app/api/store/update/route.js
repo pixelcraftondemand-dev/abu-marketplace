@@ -6,8 +6,7 @@ import { isValidWhatsAppNumber, normalizeWhatsAppNumber } from "@/lib/utils/what
 import { NextResponse } from "next/server";
 
 // POST /api/store/update
-// Lets an approved seller edit their store settings. Currently the only
-// editable field is the WhatsApp contact number; an empty value clears it.
+// Lets an approved seller update the required WhatsApp contact number.
 export async function POST(request) {
     try {
         const session = await getSessionFromRequest(request);
@@ -29,14 +28,20 @@ export async function POST(request) {
         const body = await request.json().catch(() => ({}));
         const raw = typeof body?.whatsappNumber === "string" ? body.whatsappNumber.trim() : "";
 
-        if (raw && !isValidWhatsAppNumber(raw)) {
+        if (!raw) {
+            return NextResponse.json(
+                { error: "WhatsApp number is required so buyers can contact your store." },
+                { status: 422 }
+            );
+        }
+        if (!isValidWhatsAppNumber(raw)) {
             return NextResponse.json(
                 { error: "WhatsApp number must be a valid phone number." },
                 { status: 422 }
             );
         }
 
-        const whatsappNumber = raw ? normalizeWhatsAppNumber(raw) : null;
+        const whatsappNumber = normalizeWhatsAppNumber(raw);
 
         await prisma.store.update({
             where: { userId },

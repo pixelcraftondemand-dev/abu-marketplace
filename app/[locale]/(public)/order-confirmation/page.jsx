@@ -59,7 +59,7 @@ export default function OrderConfirmation() {
               </div>
               <div>
                 <p className="text-sm font-semibold text-gray-800">Order Processing</p>
-                <p className="text-xs text-gray-500">We're preparing your items for shipment</p>
+                <p className="text-xs text-gray-500">We're preparing your items for delivery</p>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl text-left">

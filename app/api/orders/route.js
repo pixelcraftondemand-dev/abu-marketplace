@@ -1,28 +1,20 @@
 import prisma from "@/lib/prisma";
-import crypto from "node:crypto";
 import { z } from "zod";
 import { isValidId, checkoutRateLimiter } from "@/lib/security";
-import { getSessionFromRequest, getVerifiedUserFromRequest } from "@/lib/serverAuth";
+import { getSessionFromRequest } from "@/lib/serverAuth";
 import { PaymentMethod } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { isValidCurrency } from "@/lib/utils/currency";
 import { DELIVERY_FEE, FREE_DELIVERY_THRESHOLD, isCashOnDeliveryAvailable } from "@/lib/paymentOptions";
 import { reserveStock, releaseStock, StockUnavailableError } from "@/lib/services/paymentService";
-import { debitWallet, WalletInsufficientFundsError } from "@/lib/services/walletService";
-import { PAYMENT_STATES } from "@/lib/services/paymentState";
 import { logPayment, getRequestId } from "@/lib/paymentLog";
-// PSP integration imports
-import { PSP_STATES } from "@/lib/services/pspStateMachine";
-import { appendAuditLog } from "@/lib/services/auditLog";
-import { recordPaymentCapture } from "@/lib/services/ledger";
 import { evaluateCheckoutRisk } from "@/lib/services/fraudPrevention";
 import { validateCheckoutPrices } from "@/lib/services/priceGuard";
-import { validateAmount, validateQuantity, roundMoney } from "@/lib/services/money"
+import { validateAmount, roundMoney } from "@/lib/services/money"
 
 const MAX_ORDER_ITEMS = 50;
 const MAX_ITEM_QUANTITY = 99;
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9._-]{8,128}$/;
-const SESSION_REUSE_WINDOW_MS = 25 * 60 * 1000; // reuse an in-flight session for 25 min
 
 // Runtime validation — never trust the client for amounts/prices. This schema
 // only accepts ids, quantities, and the (display-only) currency.
@@ -37,7 +29,7 @@ const checkoutSchema = z.object({
     )
     .min(1)
     .max(MAX_ORDER_ITEMS),
-  paymentMethod: z.enum(["COD", "WALLET"]),
+  paymentMethod: z.literal("COD"),
   couponCode: z.string().trim().min(3).max(32).optional().nullable(),
   idempotencyKey: z.string().regex(IDEMPOTENCY_KEY_PATTERN).optional().nullable(),
   currency: z.string().max(8).optional().nullable(),
@@ -68,8 +60,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "not authorized" }, { status: 401 });
     }
 
-    // Rate limit per user — retries are safe via idempotency, so a modest limit
-    // never blocks legitimate retries.
+    // Rate limit checkout attempts per user to throttle repeated requests.
     const rl = await checkoutRateLimiter.check(userId);
     if (!rl.allowed) {
       return NextResponse.json(
@@ -78,7 +69,7 @@ export async function POST(request) {
       );
     }
 
-    const { addressId, items, couponCode, paymentMethod, currency, country } = parsed;
+    const { addressId, items, couponCode, paymentMethod, currency } = parsed;
 
     // ── PSP: Fraud prevention check ──────────────────────────────────────────
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -101,59 +92,8 @@ export async function POST(request) {
       return NextResponse.json({ error: "Invalid address." }, { status: 422 });
     }
 
-    // Every order requires a verified email server-side, for all payment
-    // methods. The client-side VerificationGate keeps unverified accounts off
-    // the pages, and this check guarantees it at the API boundary — no client
-    // state can bypass it, and OAuth sign-ins are subject to the same rule.
-    const verifiedUser = await getVerifiedUserFromRequest();
-    if (!verifiedUser) {
-      return NextResponse.json(
-        { error: "Please verify your email address before placing an order." },
-        { status: 403 }
-      );
-    }
-
-    // A client-supplied idempotency key makes retries provably single-charge.
-    // When absent we generate one and return it so the client can reuse it.
-    const idempotencyKey = (parsed.idempotencyKey || crypto.randomUUID()).slice(0, 128);
-
     if (currency != null && !isValidCurrency(currency)) {
       return NextResponse.json({ error: "Unsupported currency." }, { status: 422 });
-    }
-
-    // ── Idempotency: return the existing attempt instead of charging again ─────
-    if (parsed.idempotencyKey) {
-      const existing = await prisma.payment.findUnique({ where: { idempotencyKey } });
-      if (existing) {
-        if (existing.userId !== userId) {
-          return NextResponse.json({ error: "Idempotency key is already in use." }, { status: 403 });
-        }
-        if (existing.status === PAYMENT_STATES.SUCCEEDED) {
-          return NextResponse.json({ alreadyProcessed: true, paymentId: existing.id });
-        }
-  
-        return NextResponse.json(
-          { error: "Checkout already in progress.", paymentId: existing.id },
-          { status: 409 }
-        );
-      }
-    } else if (paymentMethod === "WALLET") {
-      // Retry safety without a client key for wallet payments: a wallet
-      // checkout settles instantly, so a recent SUCCEEDED payment means the
-      // previous attempt already went through — return alreadyProcessed
-      // instead of debiting the wallet a second time.
-      const recent = await prisma.payment.findFirst({
-        where: {
-          userId,
-          status: PAYMENT_STATES.SUCCEEDED,
-          createdAt: { gte: new Date(Date.now() - SESSION_REUSE_WINDOW_MS) },
-        },
-        orderBy: { createdAt: "desc" },
-        select: { id: true, createdAt: true },
-      });
-      if (recent) {
-        return NextResponse.json({ alreadyProcessed: true, paymentId: recent.id });
-      }
     }
 
     if (!isValidId(addressId)) {
@@ -169,7 +109,7 @@ export async function POST(request) {
       return NextResponse.json({ error: "Address not found." }, { status: 404 });
     }
 
-    if (paymentMethod === "COD" && !isCashOnDeliveryAvailable()) {
+    if (!isCashOnDeliveryAvailable()) {
       return NextResponse.json({ error: "Cash on delivery is unavailable at the moment." }, { status: 403 });
     }
 
@@ -274,48 +214,11 @@ export async function POST(request) {
       return NextResponse.json({ error: "Invalid order total." }, { status: 422 });
     }
 
-    // ── Atomic transaction: payment + orders + inventory + coupon usage + PSP ────
+    // ── Atomic transaction: orders + inventory + coupon usage ─────────────────
     // A single transaction means a failure (stock, coupon, DB) rolls everything
     // back — no partial orders, no phantom reservations, no double decrements.
-    let payment = null;
-    let pspTransaction = null;
-    let orderIds = [];
     try {
       await prisma.$transaction(async (tx) => {
-        // Payment row for card (PENDING, verified later by webhook) and wallet
-        // (SUCCEEDED — settled instantly from pre-funded balance). The unique
-        // idempotencyKey means concurrent duplicates cannot both insert; the
-        // loser hits P2002 below and returns the winner's outcome.
-        if (paymentMethod !== "COD") {
-          payment = await tx.payment.create({
-            data: {
-              idempotencyKey,
-              userId,
-              amount: fullAmount,
-              currency: "USD",
-              status: PAYMENT_STATES.SUCCEEDED,
-            },
-          });
-
-          // PSP transaction: create alongside the Payment record for the
-          // licensed processor lifecycle. This tracks the explicit PSP states
-          // (pending→authorized→captured→settled) separately from the payment.
-          const merchantId = storeTotals[0]?.storeId || "unknown";
-          pspTransaction = await tx.pspTransaction.create({
-            data: {
-              paymentId: payment.id,
-              merchantId,
-              userId,
-              amount: fullAmount,
-              capturedAmount: 0,
-              settledAmount: 0,
-              currency: "USD",
-              pspStatus: PSP_STATES.CAPTURED,
-              idempotencyKey: `psp_${idempotencyKey}`,
-            },
-          });
-        }
-
         // Inventory: atomic conditional decrement (stock >= quantity). Throws →
         // full rollback. Never trusts frontend stock info.
         await reserveStock(tx, requestedItems);
@@ -331,21 +234,7 @@ export async function POST(request) {
           }
         }
 
-        // Wallet payment: atomic debit (balance >= amount) inside the same
-        // transaction — no double-spend, no partial debit. The ledger row's
-        // unique (referenceType, referenceId) guard makes the debit idempotent.
-        if (paymentMethod === "WALLET") {
-          await debitWallet(tx, userId, fullAmount, {
-            referenceId: payment.id,
-            referenceType: "order",
-            description: "Checkout payment",
-          });
-        }
-
         // Social proof: count units toward the products' lifetime sold tally.
-        // COD and WALLET orders are final the moment the transaction commits
-        // (no provider step), so the increment is safe here and rolls back
-        // with everything else on failure.
         for (const [productId, qty] of requestedItems) {
           await tx.product.update({
             where: { id: productId },
@@ -363,14 +252,6 @@ export async function POST(request) {
               paymentMethod,
               isCouponUsed: coupon ? true : false,
               coupon: coupon ? coupon : {},
-              ...(payment
-                ? {
-                    paymentId: payment.id,
-                    paymentStatus: PAYMENT_STATES.SUCCEEDED,
-                  }
-                : {}),
-              // Wallet payments settle instantly (pre-funded).
-              ...(paymentMethod === "WALLET" ? { isPaid: true } : {}),
               orderItems: {
                 create: sellerItems.map((item) => ({
                   productId: item.id,
@@ -380,19 +261,9 @@ export async function POST(request) {
               },
             },
           });
-          orderIds.push(order.id);
         }
       });
     } catch (error) {
-      if (error?.code === "P2002") {
-        // A concurrent request won this idempotency key. Return its outcome —
-        // never create a second charge.
-        const winner = await prisma.payment.findUnique({ where: { idempotencyKey } });
-        if (winner && winner.status === PAYMENT_STATES.SUCCEEDED) {
-          return NextResponse.json({ alreadyProcessed: true, paymentId: winner.id });
-        }
-        return NextResponse.json({ error: "Checkout already in progress." }, { status: 409 });
-      }
       if (error instanceof StockUnavailableError) {
         logPayment({ event: "checkout.insufficient_stock", requestId, productId: error.productId });
         return NextResponse.json({ error: "One or more products are no longer in stock." }, { status: 422 });
@@ -400,46 +271,14 @@ export async function POST(request) {
       if (error?.message === "COUPON_LIMIT_REACHED") {
         return NextResponse.json({ error: "Coupon usage limit reached." }, { status: 409 });
       }
-      if (error instanceof WalletInsufficientFundsError) {
-        logPayment({ event: "checkout.insufficient_wallet", requestId });
-        return NextResponse.json({ error: "Insufficient wallet balance." }, { status: 422 });
-      }
       throw error;
     }
 
-    // ── COD/WALLET: clear the cart and confirm ─────────────────────────────────
+    // ── COD: clear the cart and confirm ────────────────────────────────────────
     await prisma.user.update({
       where: { id: userId },
       data: { cart: {} },
     });
-
-    if (paymentMethod === "WALLET") {
-      // PSP: Record capture in ledger for wallet payments (instant settlement)
-      if (pspTransaction) {
-        await recordPaymentCapture(prisma, {
-          pspTransactionId: pspTransaction.id,
-          amount: fullAmount,
-          description: "Wallet payment captured",
-          referenceType: "psp_transaction",
-          referenceId: pspTransaction.id,
-        });
-
-        await appendAuditLog(prisma, {
-          pspTransactionId: pspTransaction.id,
-          actor: userId,
-          action: "capture",
-          previousState: PSP_STATES.CAPTURED,
-          newState: PSP_STATES.CAPTURED,
-          metadata: { amount: fullAmount, currency: "USD", method: "WALLET" },
-        });
-      }
-
-      logPayment({ event: "checkout.wallet_placed", paymentId: payment.id, userId, amount: fullAmount, currency: "USD", requestId });
-      // Return the idempotency key so the client can retry safely after a
-      // timeout — a retry with this key returns alreadyProcessed, never a
-      // second wallet debit.
-      return NextResponse.json({ message: "Orders Placed Successfully", paymentId: payment.id, idempotencyKey });
-    }
 
     logPayment({ event: "checkout.cod_placed", userId, requestId });
     return NextResponse.json({ message: "Orders Placed Successfully" });

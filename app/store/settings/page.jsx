@@ -104,15 +104,16 @@ export default function StoreSettings() {
                         name="whatsappNumber"
                         type="tel"
                         inputMode="tel"
+                        autoComplete="tel"
                         value={whatsappNumber}
                         onChange={(e) => setWhatsappNumber(e.target.value)}
                         placeholder="e.g. 076 123 456"
                         maxLength={20}
+                        required
                         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-green-400 focus:ring-2 focus:ring-green-500/10"
                     />
                     <p className="text-xs text-slate-400">
-                        Buyers can message you about your products. Leave blank to hide the
-                        WhatsApp button from your storefront.
+                        Required so the Contact Vendor button opens a direct WhatsApp chat.
                     </p>
                 </div>
 

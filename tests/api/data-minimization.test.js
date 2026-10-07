@@ -46,14 +46,14 @@ describe("data minimization (no sensitive data leakage)", () => {
     expect(findManyArg.include.address.select).not.toHaveProperty("userId");
   });
 
-  it("public products listing: store objects do not expose internal ids/contacts", async () => {
+  it("public products listing: exposes seller WhatsApp but not private store fields", async () => {
     prisma.product.findMany.mockResolvedValue([]);
     const res = await productsGET(new Request("http://localhost:3000/api/products"));
     expect(res.status).toBe(200);
     const includeStore = prisma.product.findMany.mock.calls[0][0].include.store;
-    // Public storefront fields only.
+    // Public storefront fields include the seller contact explicitly used for buyer inquiries.
     expect(includeStore.select).toEqual(
-      expect.objectContaining({ id: true, name: true, username: true, logo: true, description: true, halalCertified: true })
+      expect.objectContaining({ id: true, name: true, username: true, logo: true, description: true, halalCertified: true, whatsappNumber: true })
     );
     expect(includeStore.select.userId).toBeUndefined();
     expect(includeStore.select.email).toBeUndefined();
@@ -81,5 +81,8 @@ describe("data minimization (no sensitive data leakage)", () => {
     expect(ratingSelect.orderId).toBeUndefined();
     expect(json.product.reviewCount).toBe(1);
     expect(json.product.rating).toBe(5);
+    expect(json.product.reviews).toEqual([
+      { rating: 5, review: "great", createdAt: expect.any(String), user: { name: "A", image: "" } },
+    ]);
   });
 });

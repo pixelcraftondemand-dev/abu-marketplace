@@ -6,6 +6,7 @@ export default function CommerceInfoPage({
   title,
   description,
   stats = [],
+  heroAside,
   highlights = [],
   sections = [],
   primaryAction,
@@ -52,14 +53,16 @@ export default function CommerceInfoPage({
             </div>
 
             <div className="rounded-3xl border border-white/10 bg-white/10 p-6 shadow-2xl shadow-black/20 backdrop-blur">
-              <div className="grid gap-4 sm:grid-cols-2">
-                {stats.map((stat) => (
-                  <div key={stat.label} className="rounded-2xl border border-white/10 bg-[#0f172a]/40 p-4">
-                    <p className="text-3xl font-semibold text-white">{stat.value}</p>
-                    <p className="mt-1 text-sm text-slate-300">{stat.label}</p>
-                  </div>
-                ))}
-              </div>
+              {heroAside || (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {stats.map((stat) => (
+                    <div key={stat.label} className="rounded-2xl border border-white/10 bg-[#0f172a]/40 p-4">
+                      <p className="text-3xl font-semibold text-white">{stat.value}</p>
+                      <p className="mt-1 text-sm text-slate-300">{stat.label}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

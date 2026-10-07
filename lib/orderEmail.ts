@@ -75,7 +75,7 @@ function buildHtml({ userName, orders, total }: OrderEmailContent): string {
         </p>
       </div>
       <div style="text-align:center;padding:16px;color:#888;font-size:12px">
-        <p style="margin:0">ABU Marketplace — halal-certified African marketplace</p>
+        <p style="margin:0">ABU Marketplace — Sierra Leone marketplace</p>
         <p style="margin:4px 0 0">Questions? Reply to this email or contact support.</p>
       </div>
     </div>

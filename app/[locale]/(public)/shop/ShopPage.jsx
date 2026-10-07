@@ -12,6 +12,7 @@ import {
   SlidersHorizontal,
   Grid3X3,
   LayoutList,
+  ImageIcon,
   Star,
   Heart,
   ArrowUpDown,
@@ -20,7 +21,6 @@ import {
   ChevronDown,
 } from "lucide-react";
 import Loading from "@/components/Loading";
-import { productDummyData } from "@/assets/assets";
 import { getProductRating } from "@/lib/productUtils";
 import SharedProductCard from "@/components/ProductCard";
 
@@ -64,9 +64,6 @@ function ShopPageContent({ initialProducts = [] }) {
   const searchQuery = searchParams.get("search") || "";
   const categoryFilter = searchParams.get("category") || "";
   const sortBy = searchParams.get("sort") || "featured";
-
-  const showFallbackProducts = !loading && products.length === 0 && !searchQuery && !categoryFilter;
-  const displayedProducts = showFallbackProducts ? productDummyData : products;
 
   useEffect(() => {
     setSearchTerm(searchQuery);
@@ -118,7 +115,7 @@ function ShopPageContent({ initialProducts = [] }) {
   };
 
   // Client-side filtering for sidebar filters
-  let filteredProducts = displayedProducts;
+  let filteredProducts = products;
   if (priceRange.min) filteredProducts = filteredProducts.filter(p => p.price >= Number(priceRange.min));
   if (priceRange.max) filteredProducts = filteredProducts.filter(p => p.price <= Number(priceRange.max));
   if (minRating) filteredProducts = filteredProducts.filter(p => {
@@ -433,6 +430,7 @@ function ShopPageContent({ initialProducts = [] }) {
 function ProductCard({ product, viewMode, index }) {
   const [liked, setLiked] = useState(false);
   const { rating: ratingValue, count: ratingCount } = getProductRating(product);
+  const image = product.images?.[0] || product.image;
 
   if (viewMode === "list") {
     return (
@@ -441,12 +439,18 @@ function ProductCard({ product, viewMode, index }) {
         className="group flex gap-4 p-3 bg-[var(--bg-surface)] border border-[var(--border-primary)] rounded-lg hover:border-[var(--accent)]/30 transition"
       >
         <div className="relative w-32 h-36 shrink-0 overflow-hidden bg-[var(--bg-muted)] rounded">
-          <Image
-            src={product.image || "/placeholder.jpg"}
-            alt={product.name}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
-          />
+          {image ? (
+            <Image
+              src={image}
+              alt={product.name}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-[var(--text-tertiary)]">
+              <ImageIcon size={32} aria-label="No product photo" />
+            </div>
+          )}
         </div>
         <div className="flex-1 py-1 min-w-0">
           <h3 className="text-sm font-medium text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors line-clamp-2">
@@ -480,12 +484,18 @@ function ProductCard({ product, viewMode, index }) {
     <div className="group product-discovery" style={{ animationDelay: `${index * 50}ms` }}>
       <Link href={`/product/${product.id}`}>
         <div className="relative aspect-square overflow-hidden bg-[var(--bg-muted)]">
-          <Image
-            src={product.images?.[0] || product.image || "/placeholder.jpg"}
-            alt={product.name}
-            fill
-            className="object-cover product-discovery-img"
-          />
+          {image ? (
+            <Image
+              src={image}
+              alt={product.name}
+              fill
+              className="object-cover product-discovery-img"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-[var(--text-tertiary)]">
+              <ImageIcon size={32} aria-label="No product photo" />
+            </div>
+          )}
           {product.badge && (
             <span className="product-discovery-badge">
               {product.badge}

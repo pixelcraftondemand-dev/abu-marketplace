@@ -243,7 +243,7 @@ jobs:
           echo "### Key Files"
           echo ""
 
-          KEY_FILES="lib/prisma.ts lib/cache.ts lib/services/amberPayService.ts lib/services/walletService.ts lib/services/paymentService.ts lib/services/cardPaymentService.ts lib/services/pspStateMachine.ts lib/services/ledger.ts lib/services/settlement.ts"
+          KEY_FILES="lib/prisma.ts lib/cache.ts lib/services/amberPayService.ts lib/services/walletService.ts lib/services/paymentService.ts lib/services/pspStateMachine.ts lib/services/ledger.ts lib/services/settlement.ts"
 
           for f in $KEY_FILES; do
             if [ -f "$f" ]; then
