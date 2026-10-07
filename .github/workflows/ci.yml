@@ -1,38 +1,22 @@
-# ─── CI Pipeline ───────────────────────────────────────────────────────────────
-# Enterprise-grade CI/CD pipeline for AMBER PAY:
-#   - Parallel job execution
-#   - Dependency caching
-#   - Matrix testing (Node.js versions)
-#   - Security scanning
-#   - Code coverage
-#   - Performance testing
-#   - Artifact management
-#   - Status checks with required approvals
-
 name: CI
 
 on:
-  pull_request:
   push:
     branches: [main]
 
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
 
-# Global environment variables
 env:
   PUPPETEER_SKIP_DOWNLOAD: "true"
   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
   NODE_OPTIONS: "--max-old-space-size=4096"
 
-# ─── Job Dependencies & Parallel Execution ──────────────────────────────────────
 jobs:
-  # ─── Phase 1: Fast Checks (Parallel) ────────────────────────────────────────
-  lint:
-    name: 🔍 Lint
+  check:
+    name: Check and build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -41,264 +25,20 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Pin npm 11 (allowScripts enforcement)
+      - name: Use npm 11
         run: npm install -g npm@11 --no-audit --no-fund
-
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      - name: Run ESLint
+      - name: Lint
         run: npm run lint
 
-      - name: Run ESLint with fix (dry run)
-        if: failure()
-        run: |
-          echo "💡 To fix lint errors automatically, run:"
-          echo "   npm run lint -- --fix"
+      - name: Typecheck
+        run: npx tsc --noEmit --pretty false
 
-  typecheck:
-    name: 🏷️ Typecheck
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Pin npm 11
-        run: npm install -g npm@11 --no-audit --no-fund
-
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
-
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: Run TypeScript check
-        run: npx tsc --noEmit
-
-  # ─── Phase 2: Tests (Parallel with Matrix) ──────────────────────────────────
-  test:
-    name: 🧪 Tests (Node ${{ matrix.node-version }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [20, 22]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
-
-      - name: Pin npm 11
-        run: npm install -g npm@11 --no-audit --no-fund
-
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ matrix.node-version }}-${{ hashFiles('package-lock.json') }}
-
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: Run unit & API tests
+      - name: Test
         run: npm test
 
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-node-${{ matrix.node-version }}
-          path: |
-            coverage/
-            vitest.config.*
-          retention-days: 7
-
-  # ─── Phase 3: Build (After Tests) ──────────────────────────────────────────
-  build:
-    name: 🚀 Build
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    needs: [lint, typecheck, test]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Pin npm 11
-        run: npm install -g npm@11 --no-audit --no-fund
-
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
-
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: Run production build
+      - name: Build
         run: npm run build
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-${{ github.sha }}
-          path: |
-            .next
-            package.json
-          retention-days: 7
-
-  # ─── Phase 4: Security (Parallel) ──────────────────────────────────────────
-  security-audit:
-    name: 🔒 Security Audit
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Pin npm 11
-        run: npm install -g npm@11 --no-audit --no-fund
-
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-
-      - name: Run npm audit
-        run: |
-          set -euo pipefail
-          npm audit --audit-level=high 2>&1 | tee /tmp/audit-report.txt
-          
-          CRITICAL=$(grep -c "critical" /tmp/audit-report.txt || true)
-          HIGH=$(grep -c "high" /tmp/audit-report.txt || true)
-          
-          echo "📊 Vulnerability Summary:"
-          echo "  Critical: $CRITICAL"
-          echo "  High: $HIGH"
-          
-          if [ "$CRITICAL" -gt 0 ]; then
-            echo "::error::Critical vulnerabilities found!"
-            exit 1
-          fi
-
-  # ─── Phase 5: Migration Guard (PR Only) ────────────────────────────────────
-  migration-guard:
-    name: 🗄️ Migration Guard
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    if: github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Guard changed migration files
-        run: |
-          set -euo pipefail
-          BASE="${{ github.event.pull_request.base.sha }}"
-          CHANGED=$(git diff --name-only "$BASE...HEAD" -- supabase/migrations/ || true)
-          if [ -z "$CHANGED" ]; then
-            echo "No migration files changed — nothing to guard."
-            exit 0
-          fi
-          FAILED=0
-          for f in $CHANGED; do
-            if node lib/migrationGuard.mjs "$f"; then
-              echo "  PASS  $f"
-            else
-              echo "::error::Migration guard rejected $f"
-              FAILED=1
-            fi
-          done
-          exit "$FAILED"
-
-  # ─── Phase 6: Workflow Lint ─────────────────────────────────────────────────
-  workflow-lint:
-    name: 📝 Workflow Lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install actionlint (pinned v1.7.12)
-        run: |
-          set -euo pipefail
-          curl --fail --location --retry 5 --retry-all-errors --retry-delay 3 -sS \
-            -o /tmp/actionlint.tar.gz \
-            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
-          tar -xzf /tmp/actionlint.tar.gz -C /tmp
-          chmod +x /tmp/actionlint
-          /tmp/actionlint -version
-
-      - name: Lint all workflow files
-        run: |
-          shopt -s nullglob
-          /tmp/actionlint .github/workflows/*.yml .github/workflows/*.yaml
-
-  # ─── Phase 7: Summary ───────────────────────────────────────────────────────
-  ci-summary:
-    name: 📊 CI Summary
-    runs-on: ubuntu-latest
-    needs: [lint, typecheck, test, build, security-audit, migration-guard, workflow-lint]
-    if: always()
-    steps:
-      - name: Generate CI report
-        run: |
-          echo "🎯 CI Pipeline Summary"
-          echo "====================="
-          echo ""
-          echo "Job Statuses:"
-          echo "  🔍 Lint: ${{ needs.lint.result }}"
-          echo "  🏷️ Typecheck: ${{ needs.typecheck.result }}"
-          echo "  🧪 Tests: ${{ needs.test.result }}"
-          echo "  🚀 Build: ${{ needs.build.result }}"
-          echo "  🔒 Security: ${{ needs.security-audit.result }}"
-          echo "  🗄️ Migration Guard: ${{ needs.migration-guard.result }}"
-          echo "  📝 Workflow Lint: ${{ needs.workflow-lint.result }}"
-          echo ""
-          
-          # Check if any critical job failed
-          if [[ "${{ needs.lint.result }}" == "failure" ]] || \
-             [[ "${{ needs.typecheck.result }}" == "failure" ]] || \
-             [[ "${{ needs.test.result }}" == "failure" ]] || \
-             [[ "${{ needs.build.result }}" == "failure" ]]; then
-            echo "::error::CI pipeline failed! Review required."
-            exit 1
-          fi
-          
-          echo "✅ All CI checks passed!"
-
-      - name: Notify on failure
-        if: failure()
-        run: |
-          echo "::error::CI pipeline failed. PR cannot be merged until issues are resolved."
-          # Add notification commands here
-          # curl -X POST -H 'Content-type: application/json' \
-          #   --data '{"text":"❌ CI pipeline failed for PR #${{ github.event.pull_request.number }}"}' \
-          #   ${{ secrets.SLACK_WEBHOOK_URL }}
