@@ -74,7 +74,7 @@ export default function CollectionsPage() {
         { value: "12+", label: "Curated collection themes" },
         { value: "4.9/5", label: "Average satisfaction" },
         { value: "24/7", label: "Support coverage" },
-        { value: "Free", label: "Express shipping above threshold" },
+        { value: "Free", label: "Express delivery above threshold" },
       ]}
       highlights={highlights}
       sections={sections}

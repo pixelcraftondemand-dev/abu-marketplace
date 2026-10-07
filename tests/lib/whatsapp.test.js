@@ -3,6 +3,7 @@ import {
   buildSupportMessage,
   buildSupportWhatsAppLink,
   buildWhatsAppLink,
+  buildWhatsAppSignupLink,
   getSupportWhatsAppNumber,
   isValidWhatsAppNumber,
   normalizeWhatsAppNumber,
@@ -79,6 +80,27 @@ describe("site-wide support line", () => {
   it("normalises a locally-formatted support number too", () => {
     vi.stubEnv("NEXT_PUBLIC_WHATSAPP_SUPPORT_NUMBER", "079 069 045");
     expect(buildSupportWhatsAppLink()).toBe("https://wa.me/23279069045");
+  });
+
+  it("builds a Meta In-App Signup deep link from the configured signup ID", () => {
+    vi.stubEnv("NEXT_PUBLIC_WHATSAPP_SUPPORT_NUMBER", "+232 79 069 045");
+    vi.stubEnv("NEXT_PUBLIC_WHATSAPP_SIGNUP_ID", "9876543210123456");
+    expect(buildWhatsAppSignupLink()).toBe(
+      "https://wa.me/23279069045/signup/9876543210123456"
+    );
+  });
+
+  it("returns null unless a valid signup ID and WhatsApp number are configured", () => {
+    vi.stubEnv("NEXT_PUBLIC_WHATSAPP_SUPPORT_NUMBER", "23279069045");
+    vi.stubEnv("NEXT_PUBLIC_WHATSAPP_SIGNUP_ID", "");
+    expect(buildWhatsAppSignupLink()).toBeNull();
+
+    vi.stubEnv("NEXT_PUBLIC_WHATSAPP_SIGNUP_ID", "not-an-id");
+    expect(buildWhatsAppSignupLink()).toBeNull();
+
+    vi.stubEnv("NEXT_PUBLIC_WHATSAPP_SUPPORT_NUMBER", "");
+    vi.stubEnv("NEXT_PUBLIC_WHATSAPP_SIGNUP_ID", "9876543210123456");
+    expect(buildWhatsAppSignupLink()).toBeNull();
   });
 });
 

@@ -87,6 +87,7 @@ export async function GET(request, { params }) {
         images: normalizeImages(product.images),
         rating: averageRating,
         reviewCount,
+        reviews: product.rating,
         originalPrice: product.mrp,
         related: related.map((item) => ({
           ...item,

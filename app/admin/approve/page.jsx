@@ -5,6 +5,7 @@ import { useAuth, useUser } from "@clerk/nextjs"
 import axios from "axios"
 import { useEffect, useState } from "react"
 import toast from "react-hot-toast"
+import { RefreshCw } from "lucide-react"
 import {
     STORE_REJECTION_REASONS,
     STORE_STATUS,
@@ -19,12 +20,15 @@ export default function AdminApprove() {
     const [stores, setStores] = useState([])
     const [counts, setCounts] = useState({ pending: 0, rejected: 0 })
     const [loading, setLoading] = useState(true)
+    const [refreshing, setRefreshing] = useState(false)
+    const [loadError, setLoadError] = useState("")
     const [busyId, setBusyId] = useState(null)
     // storeId -> rejection reason being typed
     const [rejectingId, setRejectingId] = useState(null)
     const [reason, setReason] = useState("")
 
     const fetchStores = async () => {
+        setLoadError("")
         try {
             const token = await getToken()
             const { data } = await axios.get('/api/admin/approve-store', {
@@ -33,9 +37,21 @@ export default function AdminApprove() {
             setStores(data.stores || [])
             setCounts(data.counts || { pending: 0, rejected: 0 })
         } catch (error) {
-            toast.error(error?.response?.data?.error || error.message)
+            const message = error?.response?.data?.error || error.message || "Could not load store applications."
+            setLoadError(message)
+            toast.error(message)
+        } finally {
+            setLoading(false)
         }
-        setLoading(false)
+    }
+
+    const refreshStores = async () => {
+        setRefreshing(true)
+        try {
+            await fetchStores()
+        } finally {
+            setRefreshing(false)
+        }
     }
 
     // Throws on failure so toast.promise can report it — previously this
@@ -105,19 +121,39 @@ export default function AdminApprove() {
 
     return (
         <div className="text-slate-500 mb-28">
-            <h1 className="text-2xl">
-                Approve <span className="text-slate-800 font-medium">Stores</span>
-            </h1>
-            <p className="mt-2 text-sm">
-                {counts.pending} awaiting review
-                {counts.rejected > 0 && <> · {counts.rejected} rejected, waiting on the seller</>}
-            </p>
-            <p className="mt-1 max-w-2xl text-xs text-slate-400">
-                Approving makes the store live immediately. Rejecting requires a reason — the
-                seller is emailed it and can fix the application and resubmit from the same page.
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl">
+                        Approve <span className="text-slate-800 font-medium">Stores</span>
+                    </h1>
+                    <p className="mt-2 text-sm">
+                        {counts.pending} awaiting review
+                        {counts.rejected > 0 && <> · {counts.rejected} rejected, waiting on the seller</>}
+                    </p>
+                    <p className="mt-1 max-w-2xl text-xs text-slate-400">
+                        Approving makes the store live immediately. Rejecting requires a reason — the
+                        seller is emailed it and can fix the application and resubmit from the same page.
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onClick={refreshStores}
+                    disabled={refreshing}
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60"
+                >
+                    <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
+                    Refresh
+                </button>
+            </div>
 
-            {stores.length ? (
+            {loadError ? (
+                <div role="alert" className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                    <span>{loadError}</span>
+                    <button type="button" onClick={refreshStores} disabled={refreshing} className="font-semibold underline underline-offset-2 disabled:opacity-60">
+                        Try again
+                    </button>
+                </div>
+            ) : stores.length ? (
                 <div className="flex flex-col gap-4 mt-4">
                     {stores.map((store) => {
                         const isBusy = busyId === store.id
@@ -244,8 +280,9 @@ export default function AdminApprove() {
                     })}
                 </div>
             ) : (
-                <div className="flex items-center justify-center h-80">
-                    <h1 className="text-3xl text-slate-400 font-medium">No applications to review</h1>
+                <div className="mt-5 flex h-72 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-white text-center">
+                    <h2 className="text-xl font-semibold text-slate-700">You’re all caught up</h2>
+                    <p className="mt-2 max-w-sm px-4 text-sm text-slate-400">New store applications will appear here when sellers submit their forms.</p>
                 </div>
             )}
         </div>

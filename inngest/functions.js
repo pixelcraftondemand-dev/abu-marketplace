@@ -32,13 +32,19 @@ export const syncUserCreation = inngest.createFunction(
             // added and the user.updated event arrives.
             console.warn('[Inngest syncUserCreation] no email on account; creating user without email', { userId: data.id })
         }
-        await prisma.user.create({
-            data: {
+        const userData = {
+            email: email || '',
+            name: `${data.first_name || ''} ${data.last_name || ''}`.trim(),
+            image: data.image_url || '',
+        }
+        await prisma.user.upsert({
+            where: { id: data.id },
+            create: {
                 id: data.id,
-                email: email || '',
-                name: `${data.first_name || ''} ${data.last_name || ''}`.trim(),
-                image: data.image_url || '',
-            }
+                ...userData,
+                cart: {},
+            },
+            update: userData,
         })
 
         // Best-effort: a failed email must never break account creation, and

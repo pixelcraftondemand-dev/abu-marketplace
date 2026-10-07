@@ -18,7 +18,6 @@ import {
   PlusCircle,
   ShoppingBag,
   Store,
-  Wallet,
   User as UserIcon,
 } from "lucide-react";
 import PageTitle from "@/components/PageTitle";
@@ -27,7 +26,6 @@ import Loading from "@/components/Loading";
 const QUICK_LINKS = [
   { label: "My Orders", href: "/orders", icon: Package, hint: "Track orders & deliveries" },
   { label: "Wishlist", href: "/wishlist", icon: Heart, hint: "Items you've saved" },
-  { label: "Wallet", href: "/wallet", icon: Wallet, hint: "Balance & top-up" },
   { label: "Cart", href: "/cart", icon: ShoppingBag, hint: "Your shopping bag" },
 ];
 
@@ -87,7 +85,7 @@ export default function AccountPage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Sign in to continue</h1>
           <p className="mt-2 text-sm text-gray-500 leading-relaxed">
-            Sign in to view your orders, wallet, and account settings.
+            Sign in to view your orders and account settings.
           </p>
           <button
             onClick={() => dispatch(openSignInModal())}
@@ -116,7 +114,7 @@ export default function AccountPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-6 px-4 sm:px-6">
       <div className="mx-auto max-w-7xl">
-        <PageTitle heading="My Account" text="Manage your profile, orders, wallet and store" />
+        <PageTitle heading="My Account" text="Manage your profile, orders and store" />
 
         {/* Profile header */}
         <section className="relative overflow-hidden rounded-2xl bg-gray-900 p-8 text-white shadow-xl sm:p-10">
@@ -237,7 +235,7 @@ export default function AccountPage() {
                     </p>
                     <h2 className="mt-1.5 text-lg font-bold text-gray-900">Become a seller</h2>
                     <p className="mt-1 text-sm text-gray-500 leading-relaxed">
-                      Open a storefront and reach shoppers across Africa.
+                      Open a storefront and reach shoppers in Sierra Leone.
                     </p>
                   </div>
                   <Link
@@ -275,7 +273,7 @@ export default function AccountPage() {
               </p>
               <h2 className="mt-1.5 text-lg font-bold text-gray-900">Sign out of this device</h2>
               <p className="mt-1 text-sm text-gray-500">
-                You will need to sign in again to access your orders, wallet and account settings.
+                You will need to sign in again to access your orders and account settings.
               </p>
             </div>
             <button

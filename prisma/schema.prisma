@@ -555,7 +555,7 @@ model Account {
 model Verification {
   id         String   @id
   identifier String
-  value      String   @unique // SHA-256 hash of the raw token (never stored in plaintext)
+  value      String   @unique // Hash of the raw token (never stored in plaintext)
   expiresAt  DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

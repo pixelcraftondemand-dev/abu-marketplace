@@ -3,7 +3,7 @@
 import { addToCart } from "@/lib/features/cart/cartSlice";
 import { toggleWishlist } from "@/lib/features/wishlist/wishlistSlice";
 import { getProductDiscount } from "@/lib/productUtils";
-import { StarIcon, TagIcon, EarthIcon, CreditCardIcon, UserIcon, ShieldCheckIcon, RotateCcwIcon, TruckIcon, Heart } from "lucide-react";
+import { StarIcon, TagIcon, ShieldCheckIcon, RotateCcwIcon, TruckIcon, Heart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Image from "next/image";
@@ -133,13 +133,6 @@ const ProductDetails = ({ product }) => {
                         {isWishlisted ? t('productDetails.saved') : t('productDetails.save')}
                     </button>
                 </div>
-                <hr className="border-gray-300 my-5" />
-                <div className="flex flex-col gap-4 text-slate-500">
-                    <p className="flex gap-3"> <EarthIcon className="text-slate-400" /> {t('productDetails.freeDeliveryWorldwide')} </p>
-                    <p className="flex gap-3"> <CreditCardIcon className="text-slate-400" /> {t('productDetails.securedPayment')} </p>
-                    <p className="flex gap-3"> <UserIcon className="text-slate-400" /> {t('productDetails.trustedByBrands')} </p>
-                </div>
-
             </div>
         </div>
     )

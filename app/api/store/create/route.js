@@ -155,12 +155,13 @@ export async function POST(request) {
         const address     = sanitize(formData.get("address")     ?? "", 300);
         const imageFile   = formData.get("image");
 
-        // WhatsApp is optional, but when supplied it must be a usable number.
         const whatsappRaw = String(formData.get("whatsappNumber") ?? "").trim();
         const whatsappNumber = normalizeWhatsAppNumber(whatsappRaw);
 
         const errors = validateFields({ name, username, description, email, contact, address });
-        if (whatsappRaw && !isValidWhatsAppNumber(whatsappRaw)) {
+        if (!whatsappRaw) {
+            errors.push("WhatsApp number is required so buyers can contact your store.");
+        } else if (!isValidWhatsAppNumber(whatsappRaw)) {
             errors.push("WhatsApp number must be a valid phone number.");
         }
         if (errors.length) {

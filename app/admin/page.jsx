@@ -7,6 +7,7 @@ import { ArrowUpRight, CircleDollarSignIcon, Clock3, ShoppingBasketIcon, StoreIc
 import { useEffect, useState } from "react"
 import toast from "react-hot-toast"
 import CurrencyAmount from '@/components/CurrencyAmount'
+import Link from "next/link"
 
 export default function AdminDashboard() {
     const { user } = useUser()
@@ -60,10 +61,18 @@ export default function AdminDashboard() {
                             Track store activity, revenue momentum, and approvals in one clean view so you can make faster decisions.
                         </p>
                     </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm backdrop-blur">
-                        <p className="text-slate-300">Pending review</p>
-                        <p className="mt-1 text-2xl font-semibold text-white">{dashboardData.pendingStores}</p>
-                    </div>
+                    <Link
+                        href="/admin/approve"
+                        className="group rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm backdrop-blur transition hover:bg-white/[0.16]"
+                    >
+                        <p className="text-slate-300">Pending store applications</p>
+                        <div className="mt-1 flex items-center gap-3">
+                            <p className="text-2xl font-semibold text-white">{dashboardData.pendingStores}</p>
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-white/80 group-hover:text-white">
+                                Review applications <ArrowUpRight size={14} />
+                            </span>
+                        </div>
+                    </Link>
                 </div>
             </div>
 

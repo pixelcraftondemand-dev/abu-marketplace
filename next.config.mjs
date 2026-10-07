@@ -1,4 +1,5 @@
 import { withSentryConfig } from '@sentry/nextjs';
+import createNextIntlPlugin from 'next-intl/plugin';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     images: {
@@ -59,7 +60,9 @@ const nextConfig = {
     ],
 };
 
-export default withSentryConfig(nextConfig, {
+const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
+
+export default withSentryConfig(withNextIntl(nextConfig), {
   org: "pixelcraft",
   project: "javascript-nextjs",
   silent: !process.env.CI,

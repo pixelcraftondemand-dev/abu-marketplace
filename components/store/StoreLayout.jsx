@@ -49,11 +49,11 @@ const StoreLayout = ({ children }) => {
     )
 
     return (
-        <div className="flex flex-col h-screen bg-slate-50">
+        <div className="flex min-h-screen flex-col bg-slate-50 md:h-screen">
             <StoreNavbar storeInfo={storeInfo} />
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
                 <StoreSidebar storeInfo={storeInfo} />
-                <main className="flex-1 overflow-y-auto p-6 lg:p-10">
+                <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6 lg:p-10">
                     <VerificationGate>
                         {children}
                     </VerificationGate>

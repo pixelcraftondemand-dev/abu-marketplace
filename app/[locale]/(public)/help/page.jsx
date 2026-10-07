@@ -1,5 +1,4 @@
 import CommerceInfoPage from "@/components/CommerceInfoPage";
-import AbuChat from "@/components/AbuChat";
 import { CircleHelp, MessageCircleMore, ShieldCheck, Truck } from "lucide-react";
 
 const highlights = [
@@ -35,7 +34,7 @@ const sections = [
     title: "Popular support topics",
     description: "Most questions can be answered quickly through our support experience and buying policies.",
     items: [
-      "Shipping estimates and fulfillment timing",
+      "Delivery estimates and fulfilment timing",
       "Order changes, cancellations, and confirmations",
       "Store support for seller-related questions",
       "Returns, refunds, and protected purchase guidance",
@@ -64,9 +63,6 @@ export default function HelpPage() {
       footerDescription="The ABU support experience brings together clear answers, helpful policies, and real assistance for every shopper and seller."
       />
 
-      <div className="mx-auto max-w-7xl px-6 lg:px-8 -mt-8">
-        <AbuChat />
-      </div>
     </>
   );
 }

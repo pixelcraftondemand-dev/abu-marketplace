@@ -172,7 +172,7 @@ describe("whatsappOtpService", () => {
 
       expect(fetchMock).toHaveBeenCalledTimes(1);
       const [url, init] = fetchMock.mock.calls[0];
-      expect(url).toBe("https://graph.facebook.com/v21.0/1234567890/messages");
+      expect(url).toBe("https://graph.facebook.com/v23.0/1234567890/messages");
       expect(init.headers.Authorization).toBe("Bearer eaab-test-token");
 
       const body = JSON.parse(init.body);

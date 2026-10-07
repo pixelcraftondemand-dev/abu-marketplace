@@ -6,12 +6,14 @@ const VERIFY_SUBJECT = "Verify your ABU Marketplace account";
 const SUBJECTS = {
   verification: "Verify your email — ABU Marketplace",
   login: "Your sign-in code — ABU Marketplace",
+  signup: "Your account creation code — ABU Marketplace",
   reset: "Reset your password — ABU Marketplace",
 };
 
 const ACTIONS = {
   verification: "verify your email address",
   login: "sign in to your account",
+  signup: "create your account",
   reset: "reset your password",
 };
 
@@ -43,7 +45,7 @@ function buildHtml({ code, purpose, expiresInMinutes }: VerificationEmailParams)
         <p style="margin:20px 0 0;font-size:13px;color:#888">This code expires in ${expiresInMinutes} minutes. If you didn't request it, you can safely ignore this email.</p>
       </div>
       <div style="text-align:center;padding:16px;color:#888;font-size:12px">
-        <p style="margin:0">ABU Marketplace — halal-certified African marketplace</p>
+        <p style="margin:0">ABU Marketplace — Sierra Leone marketplace</p>
       </div>
     </div>
   </body>
@@ -89,13 +91,16 @@ export async function sendVerificationEmail({
   const minutes = Math.max(1, expiresInMinutes);
   const subject = SUBJECTS[purpose as keyof typeof SUBJECTS] || SUBJECTS.verification;
 
-  await resend.emails.send({
+  const result = await resend.emails.send({
     from: getEmailFromAddress("verification"),
     to: [to],
     subject,
     html: buildHtml({ code, purpose, expiresInMinutes: minutes }),
     text: buildText({ code, purpose, expiresInMinutes: minutes }),
   });
+  if (result?.error) {
+    throw new Error(`Verification email could not be sent: ${result.error.message}`);
+  }
 }
 
 /**
@@ -159,7 +164,7 @@ export async function sendAccountVerificationEmail({ to, verificationUrl, expire
       <div style="background:#fff;border-radius:0 0 16px 16px;padding:32px 24px">
         <p style="margin:0 0 16px;color:#333;font-size:15px;line-height:1.6">
           Hello, and welcome to ABU Marketplace! Please confirm your email address to
-          activate your account and start shopping from verified sellers across Africa.
+          activate your account and start shopping in Sierra Leone.
         </p>
         <div style="text-align:center;margin:28px 0">
           <a href="${safeUrl}" style="display:inline-block;background:#1A1A1A;color:#F6E0B9;text-decoration:none;font-size:15px;font-weight:bold;padding:16px 40px;border-radius:999px">
@@ -178,7 +183,7 @@ export async function sendAccountVerificationEmail({ to, verificationUrl, expire
       </div>
       <!-- Footer -->
       <div style="text-align:center;padding:16px;color:#888;font-size:12px">
-        <p style="margin:0">ABU Marketplace — halal-certified African marketplace</p>
+        <p style="margin:0">ABU Marketplace — Sierra Leone marketplace</p>
       </div>
     </div>
   </body>
@@ -193,7 +198,7 @@ ${verificationUrl}
 
 This link expires on ${expiryLabel}. If you did not create an account on ABU Marketplace, you can safely ignore this email.
 
-ABU Marketplace — halal-certified African marketplace`;
+ABU Marketplace — Sierra Leone marketplace`;
 
   await resend.emails.send({
     from: getEmailFromAddress("verification"),

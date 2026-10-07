@@ -1,5 +1,5 @@
 'use client'
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@clerk/nextjs"
 import axios from "axios"
 import toast from "react-hot-toast"
@@ -11,6 +11,9 @@ const CATEGORIES = [
     'Toys & Games', 'Sports & Outdoors', 'Books & Media',
     'Food & Drink', 'Hobbies & Crafts', 'Others'
 ]
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const MAX_PRICE = 1_000_000
 
 const EMPTY_FORM = { name: '', description: '', mrp: '', price: '', category: '', halalCertified: false }
 
@@ -18,15 +21,32 @@ export default function AddProduct() {
     const { getToken } = useAuth()
 
     const [form, setForm] = useState(EMPTY_FORM)
-    const [images, setImages] = useState([null, null, null, null])
+    const [images, setImages] = useState(Array(6).fill(null))
     const [submitting, setSubmitting] = useState(false)
     const [aiLoading, setAiLoading] = useState(false)
     const [aiDone, setAiDone] = useState(false)
+    const [imagePreviews, setImagePreviews] = useState([])
+
+    useEffect(() => {
+        const previews = images.map((image) => image ? URL.createObjectURL(image) : null)
+        setImagePreviews(previews)
+        return () => previews.forEach((preview) => preview && URL.revokeObjectURL(preview))
+    }, [images])
 
     const onChange = e => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
 
-    const handleImage = async (index, file) => {
+    const handleImage = async (index, file, input) => {
         if (!file) return
+        if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+            toast.error('Use a JPEG, PNG, WebP, or GIF image.')
+            if (input) input.value = ''
+            return
+        }
+        if (file.size > MAX_IMAGE_BYTES) {
+            toast.error('Each product image must be 5 MB or smaller.')
+            if (input) input.value = ''
+            return
+        }
         const updated = [...images]
         updated[index] = file
         setImages(updated)
@@ -34,23 +54,31 @@ export default function AddProduct() {
         if (index === 0 && !aiDone) {
             setAiLoading(true)
             try {
-                const reader = new FileReader()
-                reader.readAsDataURL(file)
-                reader.onloadend = async () => {
-                    const base64 = reader.result.split(',')[1]
-                    const token = await getToken()
-                    const { data } = await axios.post('/api/store/ai',
-                        { base64Image: base64, mimeType: file.type },
+                const base64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader()
+                    reader.onerror = () => reject(reader.error || new Error('Could not read image'))
+                    reader.onload = () => {
+                        if (typeof reader.result !== 'string') {
+                            reject(new Error('Could not read image'))
+                            return
+                        }
+                        resolve(reader.result.split(',')[1])
+                    }
+                    reader.readAsDataURL(file)
+                })
+                const token = await getToken()
+                const { data } = await axios.post('/api/store/ai',
+                    { base64Image: base64, mimeType: file.type },
                         { headers: { Authorization: `Bearer ${token}` } }
                     )
-                    if (data?.name) {
-                        setForm(f => ({ ...f, name: data.name || f.name, description: data.description || f.description }))
-                        setAiDone(true)
-                        toast.success('AI filled product details')
-                    }
+                if (data?.name) {
+                    setForm(f => ({ ...f, name: data.name || f.name, description: data.description || f.description }))
+                    setAiDone(true)
+                    toast.success('AI filled product details')
                 }
             } catch (e) {
                 console.error('[AI]', e)
+                toast.error('Could not fill product details automatically. You can enter them manually.')
             } finally {
                 setAiLoading(false)
             }
@@ -75,7 +103,29 @@ export default function AddProduct() {
             toast.error('Upload at least one image', { id: 'product-validation' })
             return
         }
-        if (Number(form.price) > Number(form.mrp)) {
+        if (!form.name.trim()) {
+            toast.error('Enter a product name.', { id: 'product-validation' })
+            return
+        }
+        if (!form.description.trim()) {
+            toast.error('Enter a product description.', { id: 'product-validation' })
+            return
+        }
+        if (!CATEGORIES.includes(form.category)) {
+            toast.error('Choose a product category.', { id: 'product-validation' })
+            return
+        }
+        const mrp = Number(form.mrp)
+        const price = Number(form.price)
+        if (!Number.isFinite(mrp) || !Number.isFinite(price) || mrp <= 0 || price <= 0) {
+            toast.error('Enter a valid original and selling price.', { id: 'product-validation' })
+            return
+        }
+        if (mrp > MAX_PRICE || price > MAX_PRICE) {
+            toast.error(`Prices cannot exceed $${MAX_PRICE.toLocaleString()}.`, { id: 'product-validation' })
+            return
+        }
+        if (price > mrp) {
             toast.error('Selling price cannot exceed MRP', { id: 'product-validation' })
             return
         }
@@ -93,7 +143,7 @@ export default function AddProduct() {
             })
             toast.success(data.message)
             setForm(EMPTY_FORM)
-            setImages([null, null, null, null])
+            setImages(Array(6).fill(null))
             setAiDone(false)
         } catch (err) {
             toast.error(err?.response?.data?.error || err.message)
@@ -130,8 +180,8 @@ export default function AddProduct() {
                             </span>
                         )}
                     </div>
-                    <p className="text-xs text-slate-400 mb-4">Upload up to 4 images. Minimum 1 required.</p>
-                    <div className="grid grid-cols-4 gap-3">
+                    <p className="text-xs text-slate-400 mb-4">Upload up to 6 images. Minimum 1 required.</p>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
                         {images.map((img, i) => (
                             <div key={i} className="relative group aspect-square">
                                 <label
@@ -140,7 +190,7 @@ export default function AddProduct() {
                                         ${img ? 'border-green-200 bg-green-50' : 'border-slate-200 bg-slate-50 hover:border-green-300 hover:bg-green-50'}`}
                                 >
                                     {img ? (
-                                        <Image src={URL.createObjectURL(img)} alt="" fill className="object-cover rounded-xl" />
+                                        imagePreviews[i] && <Image src={imagePreviews[i]} alt={`Product photo ${i + 1}`} fill className="object-cover rounded-xl" />
                                     ) : (
                                         <div className="flex flex-col items-center gap-1 text-slate-400">
                                             <UploadCloudIcon size={18} />
@@ -148,7 +198,7 @@ export default function AddProduct() {
                                         </div>
                                     )}
                                 </label>
-                                <input type="file" id={`img-${i}`} accept="image/*" hidden onChange={e => handleImage(i, e.target.files[0])} />
+                                <input type="file" id={`img-${i}`} accept={ALLOWED_IMAGE_TYPES.join(',')} hidden disabled={submitting} onChange={e => handleImage(i, e.target.files[0], e.target)} />
                                 {img && (
                                     <button
                                         type="button"
@@ -169,7 +219,7 @@ export default function AddProduct() {
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-medium text-slate-500">Product Name *</label>
                         <input
-                            name="name" value={form.name} onChange={onChange} required
+                            name="name" value={form.name} onChange={onChange} required maxLength={120}
                             placeholder="e.g. Wireless Bluetooth Headphones"
                             className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-green-400 focus:ring-2 focus:ring-green-50 transition"
                         />
@@ -178,7 +228,7 @@ export default function AddProduct() {
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-medium text-slate-500">Description *</label>
                         <textarea
-                            name="description" value={form.description} onChange={onChange} required rows={4}
+                            name="description" value={form.description} onChange={onChange} required rows={4} maxLength={2000}
                             placeholder="Describe your product clearly..."
                             className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-green-400 focus:ring-2 focus:ring-green-50 transition resize-none"
                         />
@@ -224,7 +274,7 @@ export default function AddProduct() {
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">USD</span>
                                     <input
                                         type="number" name={name} value={form[name]} onChange={onChange}
-                                        required min="0" placeholder="0.00"
+                                        required min="0.01" max={MAX_PRICE} step="0.01" placeholder="0.00"
                                         className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-200 rounded-xl outline-none focus:border-green-400 focus:ring-2 focus:ring-green-50 transition"
                                     />
                                 </div>

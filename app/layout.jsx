@@ -3,16 +3,12 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "react-hot-toast";
 import StoreProvider from "@/app/StoreProvider";
 import CookieConsentBanner from "@/components/CookieConsent";
-import AbuChatBubble from "@/components/AbuChatBubble";
 import WhatsAppBubble from "@/components/WhatsAppBubble";
 import AddedToCartSheet from "@/components/AddedToCartSheet";
 import "./globals.css";
-import { cookies, headers } from 'next/headers'
 import { THEME_INIT_SCRIPT } from '@/components/ThemeToggle'
-import { getPreferredLocaleFromAcceptLanguage, supportedLocales, defaultLocale } from '@/lib/utils/locale'
 import { NextIntlClientProvider } from 'next-intl'
-import en from '@/locales/en/common.json'
-import kri from '@/locales/kri/common.json'
+import { getLocale, getMessages } from 'next-intl/server'
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -29,7 +25,7 @@ export const metadata = {
     template: "%s | ABU Marketplace",
   },
   description:
-    "ABU Marketplace is a trusted online marketplace for electronics, fashion, home essentials, and everyday gadgets in Sierra Leone and beyond.",
+    "ABU Marketplace is an online marketplace for electronics, fashion, home essentials, and everyday gadgets in Sierra Leone.",
   keywords: [
     "ABU Marketplace",
     "online marketplace Sierra Leone",
@@ -87,27 +83,10 @@ export const viewport = {
 };
 
 export default async function RootLayout({ children }) {
-  let locale = defaultLocale
-  let lang = 'en'
+  const locale = await getLocale()
+  const messages = await getMessages()
+  const lang = locale
   let clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_CLERK_TEST_PUBLISHABLE_KEY || "pk_test_00000000000000000000000000000000"
-
-  try {
-    const cookieStore = await cookies()
-    const headerStore = await headers()
-    const cookieLang = cookieStore.get('marketplaceLocale')?.value
-    const preferred = getPreferredLocaleFromAcceptLanguage(headerStore.get('accept-language'))
-    const localeCode = cookieLang || preferred
-    locale = supportedLocales.includes(localeCode) ? localeCode : defaultLocale
-    lang = locale
-  } catch (e) {
-    locale = defaultLocale
-    lang = defaultLocale
-  }
-
-  const messages = {
-    en,
-    kri,
-  }[locale] || en
 
   return (
     <html lang={lang} className={outfit.variable} suppressHydrationWarning>
@@ -198,7 +177,6 @@ export default async function RootLayout({ children }) {
               />
               {children}
               <CookieConsentBanner />
-              <AbuChatBubble />
               <WhatsAppBubble />
               <AddedToCartSheet />
             </StoreProvider>

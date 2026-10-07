@@ -1,5 +1,8 @@
 {
   "nav": {
+    "buy": "Buy",
+    "sell": "Sell",
+    "cart": "Cart",
     "home": "Home",
     "shop": "Shop",
     "collections": "Collections",
@@ -30,6 +33,12 @@
     "ratesUpdated": "Rates updated",
     "ratesLoading": "Loading rates..."
   },
+  "benefits": {
+    "freeDelivery": "Free Delivery",
+    "qualityProducts": "Quality Products",
+    "easyReturns": "Easy Returns",
+    "cashOnDelivery": "Cash on Delivery"
+  },
   "categories": {
     "newArrivals": "New Arrivals",
     "bestSellers": "Best Sellers",
@@ -54,7 +63,7 @@
     "helpCenter": "Help Center",
     "contactUs": "Contact Us",
     "returns": "Returns",
-    "shipping": "Shipping",
+    "shipping": "Delivery",
     "about": "About",
     "terms": "Terms & Conditions",
     "privacy": "Privacy Policy",
@@ -72,7 +81,6 @@
     "shopNow": "Shop Now",
     "bestProducts": "Best products",
     "viewMore": "View more",
-    "discounts": "10% discounts",
     "phones": "Phones",
     "audio": "Audio",
     "home": "Home"
@@ -81,11 +89,7 @@
     "halalCertifiedSectionLabel": "Halal Certified",
     "halalCertifiedSectionTitle": "Shop trusted halal-certified products",
     "halalCertifiedSectionText": "Explore verified halal products across electronics, fashion, home essentials, and brands you can trust.",
-    "exploreHalalCertified": "Browse Halal Certified",
-    "freeShippingOver": "Free Shipping Over",
-    "authenticityGuaranteed": "Authenticity Guaranteed",
-    "curatedByExperts": "Curated by Experts",
-    "averageRating": "4.9 Average Rating"
+    "exploreHalalCertified": "Browse Halal Certified"
   },
   "home": {
     "bestSelling": "Best Selling",
@@ -96,10 +100,11 @@
     "eyebrowBestSelling": "Most loved"
   },
   "newsletter": {
-    "title": "Join the Newsletter",
-    "description": "Subscribe to get exclusive deals, new arrivals, and insider updates delivered straight to your inbox every week.",
-    "placeholder": "Enter your email address",
-    "cta": "Get Updates"
+    "title": "Get ABU updates on WhatsApp",
+    "description": "Choose to receive marketplace offers and updates directly on WhatsApp.",
+    "cta": "Subscribe on WhatsApp",
+    "consent": "WhatsApp will show the subscription details before you confirm. No messages are sent until you opt in.",
+    "privacy": "Privacy policy"
   },
   "flashDeals": {
     "title": "Daily Flash Deals",
@@ -114,7 +119,7 @@
     "buyNow": "Buy Now",
     "onlyXLeft": "Only {count} left",
     "xSold": "{count} sold",
-    "easyReturns": "Easy returns • Quality checked sellers",
+    "easyReturns": "Easy returns • Quality products",
     "yourPrice": "Your price",
     "save": "Save {percent}%",
     "popular": "Popular",
@@ -144,10 +149,7 @@
     "viewCart": "View Cart",
     "buyNow": "Buy Now",
     "saved": "Saved",
-    "save": "Save",
-    "freeDeliveryWorldwide": "Free delivery worldwide",
-    "securedPayment": "100% Secured Payment",
-    "trustedByBrands": "Trusted by top brands"
+    "save": "Save"
   },
   "cart": {
     "title": "My Cart",
@@ -195,23 +197,17 @@
     "orderPlaced": "Orders placed successfully!"
   },
   "highlights": {
-    "trustBadge": "Trusted marketplace built for quick, confident shopping",
-    "headline": "Shop securely, discover faster, and order with confidence.",
-    "body": "ABU Marketplace now makes it easy to shop verified sellers, choose better deals, and return with fewer questions.",
-    "trustedSellers": "Trusted sellers",
-    "trustedSellersText": "Verified stores, clear dispute support, and buying confidence every step of the way.",
+    "trustBadge": "Everyday shopping made easy",
+    "headline": "Shop with confidence.",
+    "body": "Discover quality products, clear prices, and convenient delivery.",
+    "qualityProducts": "Quality products",
+    "qualityProductsText": "Carefully selected items for everyday needs.",
     "betterPrices": "Better prices",
-    "betterPricesText": "Fresh promotions, fair deals, and transparent checkout for everyday tech shoppers.",
+    "betterPricesText": "Great value on everyday essentials.",
     "easyReturns": "Easy returns",
     "easyReturnsText": "Return eligible purchases within 7 days with clear terms and fast support.",
-    "safeCheckout": "Safe checkout",
-    "safeCheckoutText": "Encrypted payments, fraud protection, and secure verification on every order.",
-    "freeDeliveryOver": "Free delivery over",
-    "trustedGadgets": "Trusted gadgets for every day.",
-    "exploreVerified": "Explore verified electronics, smart home picks, and daily essentials.",
-    "memberSavings": "Member savings",
-    "vipPerks": "Save more with VIP perks.",
-    "joinForExclusive": "Join for exclusive pricing, faster delivery, and member-only offers."
+    "cashOnDelivery": "Cash on delivery",
+    "cashOnDeliveryText": "Pay when your order arrives."
   },
   "shop": {
     "theCollection": "The Marketplace",
@@ -233,8 +229,6 @@
     "tryAdjusting": "Try adjusting your search or filters",
     "retry": "Retry",
     "retryText": "We couldn't load products right now. Please try again.",
-    "sampleProducts": "Sample products displayed",
-    "sampleProductsText": "These are placeholder listings while sellers add real products. The live shop will automatically show uploaded products once they exist.",
     "featuredCollection": "Featured Collection",
     "halalCertifiedProducts": "Halal Certified Products",
     "halalCertifiedText": "Browse this dedicated section for trusted halal-certified products and verified sellers.",
@@ -255,7 +249,7 @@
     "percentOff": "{percent}% OFF",
     "quantity": "Quantity",
     "addToCart": "Add to Cart",
-    "freeShipping": "Free Shipping",
+    "freeShipping": "Free Delivery",
     "authenticityGuaranteed": "Authenticity Guaranteed",
     "returns30": "30-Day Returns",
     "secureCheckout": "Secure Checkout",
@@ -264,13 +258,13 @@
     "tabDescription": "Description",
     "tabSpecifications": "Specifications",
     "tabReviews": "Reviews",
-    "tabShipping": "Shipping",
+    "tabDelivery": "Delivery",
     "noDescription": "No description available.",
     "noSpecifications": "No specifications available.",
     "noReviews": "No reviews yet. Be the first to review!",
-    "shippingOptions": "We offer the following shipping options:",
-    "standardShipping": "Standard Shipping",
-    "expressShipping": "Express Shipping",
+    "shippingOptions": "Delivery options:",
+    "standardShipping": "Standard Delivery",
+    "expressShipping": "Express Delivery",
     "standardNote": "5-7 business days — Free on orders over",
     "expressNote": "2-3 business days —",
     "youMayAlsoLike": "You May Also Like",

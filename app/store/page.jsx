@@ -11,6 +11,7 @@ import {
   SlidersHorizontal,
   Grid3X3,
   LayoutList,
+  ImageIcon,
   Star,
   Heart,
   ArrowUpDown,
@@ -98,14 +99,7 @@ function ShopPageContent() {
   return (
     <main className="min-h-screen bg-[#FAF8F5]">
       {/* ─── Shop Header — Editorial Magazine Style ─── */}
-      <div className="relative h-[40vh] min-h-[300px] overflow-hidden">
-        <Image
-          src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&h=600&fit=crop"
-          alt="Shop"
-          fill
-          className="object-cover"
-        />
-        <div className="absolute inset-0 bg-[#1A1A1A]/40" />
+      <div className="relative h-[40vh] min-h-[300px] overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700">
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
             <p className="text-editorial text-white/70 mb-3">The Collection</p>
@@ -325,6 +319,7 @@ function ShopPageContent() {
 function ProductCard({ product, viewMode, index }) {
   const [liked, setLiked] = useState(false);
   const { rating: ratingValue, count: ratingCount } = getProductRating(product);
+  const image = product.images?.[0] || product.image;
 
   if (viewMode === "list") {
     return (
@@ -333,12 +328,18 @@ function ProductCard({ product, viewMode, index }) {
         className="group flex gap-6 p-4 bg-white border border-[#E8E2DB] hover:border-[#EA580C]/30 transition-all duration-500"
       >
         <div className="relative w-40 h-48 shrink-0 overflow-hidden bg-[#F5F0EB]">
-          <Image
-            src={product.images?.[0] || product.image || "/placeholder.jpg"}
-            alt={product.name}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-700"
-          />
+          {image ? (
+            <Image
+              src={image}
+              alt={product.name}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-700"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-slate-300">
+              <ImageIcon size={32} aria-label="No product photo" />
+            </div>
+          )}
         </div>
         <div className="flex-1 py-2">
           <p className="text-[10px] tracking-[0.15em] uppercase text-[#9B9590] mb-1">
@@ -372,12 +373,18 @@ function ProductCard({ product, viewMode, index }) {
     >
       <Link href={`/product/${product.id}`}>
         <div className="relative aspect-[3/4] overflow-hidden bg-[#F5F0EB]">
-          <Image
-            src={product.images?.[0] || product.image || "/placeholder.jpg"}
-            alt={product.name}
-            fill
-            className="object-cover product-discovery-img"
-          />
+          {image ? (
+            <Image
+              src={image}
+              alt={product.name}
+              fill
+              className="object-cover product-discovery-img"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-slate-300">
+              <ImageIcon size={32} aria-label="No product photo" />
+            </div>
+          )}
           {product.badge && (
             <span className="product-discovery-badge">{product.badge}</span>
           )}
@@ -426,4 +433,3 @@ export default function StorePage() {
     </Suspense>
   );
 }
-

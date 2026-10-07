@@ -32,7 +32,7 @@ import { createDistributedRateLimiter } from "@/lib/services/rateLimitStore";
 const OTP_LENGTH = 6;
 const DEFAULT_TTL_MINUTES = 5;
 const MAX_TTL_MINUTES = 15;
-const GRAPH_API_VERSION = "v21.0";
+const GRAPH_API_VERSION = "v23.0";
 
 export const WHATSAPP_OTP_IDENTIFIER_PREFIX = "whatsapp:";
 

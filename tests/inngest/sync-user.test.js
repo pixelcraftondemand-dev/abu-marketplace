@@ -8,7 +8,7 @@ vi.mock("@/inngest/client", () => ({
 
 vi.mock("@/lib/prisma", () => ({
   default: {
-    user: { create: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+    user: { upsert: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     store: { updateMany: vi.fn() },
     coupon: { delete: vi.fn() },
   },
@@ -75,7 +75,7 @@ describe("registration (clerk/user.created) → syncUserCreation", () => {
   });
 
   it("creates the account unverified and triggers the verification email", async () => {
-    prisma.user.create.mockResolvedValue({});
+    prisma.user.upsert.mockResolvedValue({});
     issueVerificationEmail.mockResolvedValue({ sent: true });
 
     await registrationHandler({
@@ -91,9 +91,16 @@ describe("registration (clerk/user.created) → syncUserCreation", () => {
     });
 
     // User starts with emailVerified defaulting to false — never trusted from the client.
-    expect(prisma.user.create).toHaveBeenCalledWith({
-      data: {
+    expect(prisma.user.upsert).toHaveBeenCalledWith({
+      where: { id: "usr_1" },
+      create: {
         id: "usr_1",
+        email: "amina@example.com",
+        name: "Amina Kargbo",
+        image: "https://img.clerk.com/x",
+        cart: {},
+      },
+      update: {
         email: "amina@example.com",
         name: "Amina Kargbo",
         image: "https://img.clerk.com/x",
@@ -103,7 +110,7 @@ describe("registration (clerk/user.created) → syncUserCreation", () => {
   });
 
   it("a verification-email failure never breaks account creation", async () => {
-    prisma.user.create.mockResolvedValue({});
+    prisma.user.upsert.mockResolvedValue({});
     issueVerificationEmail.mockRejectedValue(new Error("resend down"));
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -112,7 +119,7 @@ describe("registration (clerk/user.created) → syncUserCreation", () => {
         event: { data: { id: "usr_2", first_name: "B", last_name: "C", image_url: "", email_addresses: [{ email_address: "b@example.com" }] } },
       });
       // Account still created; the email failure is swallowed + logged.
-      expect(prisma.user.create).toHaveBeenCalledTimes(1);
+      expect(prisma.user.upsert).toHaveBeenCalledTimes(1);
     } finally {
       spy.mockRestore();
     }

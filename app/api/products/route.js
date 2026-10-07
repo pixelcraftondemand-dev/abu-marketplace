@@ -58,11 +58,11 @@ export async function GET(request) {
             user: { select: { name: true, image: true } },
           },
         },
-        // Only public storefront fields — never internal ids/contacts.
+        // Public storefront fields plus the seller's intentionally published WhatsApp contact.
         store: {
           select: {
             id: true, name: true, username: true, logo: true,
-            description: true, halalCertified: true,
+            description: true, halalCertified: true, whatsappNumber: true,
           },
         },
       },

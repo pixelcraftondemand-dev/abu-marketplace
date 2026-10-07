@@ -17,9 +17,6 @@ export const supportedCountries = [
   { country: "Sierra Leone", languages: ["English", "Krio"], currency: "SLL" },
 ];
 
-// Legacy alias kept for backward compatibility.
-export const africanCountries = supportedCountries;
-
 // All currencies the marketplace supports for display and checkout.
 // Sierra Leone pilot: prices display in leones, with USD as the canonical base.
 export const supportedCurrencies = ["USD", "SLL"];
@@ -46,10 +43,6 @@ export const currencyOptions = [
   { code: "SLL", label: "Sierra Leonean Leone (SLL)" },
   { code: "USD", label: "US Dollar (USD)" },
 ];
-
-// Legacy aliases kept for backward compatibility.
-export const africanCurrencyOptions = currencyOptions;
-export const westAfricanCurrencyOptions = currencyOptions;
 
 export const currencySymbols: Record<string, string> = {
   USD: "$",

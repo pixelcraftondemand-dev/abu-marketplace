@@ -38,7 +38,6 @@ export default function StoreShopPage() {
         ? (allRatings.reduce((acc, r) => acc + (Number(r.rating) || 0), 0) / allRatings.length).toFixed(1)
         : null
 
-    // Vendors may or may not have supplied a WhatsApp number.
     const whatsappLink = storeInfo
         ? buildWhatsAppLink(
             storeInfo.whatsappNumber,
@@ -123,7 +122,7 @@ export default function StoreShopPage() {
                                     className="mt-4 inline-flex items-center gap-2 rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
                                 >
                                     <MessageCircle size={16} />
-                                    Chat on WhatsApp
+                                    Contact this vendor on WhatsApp
                                 </a>
                             )}
                         </div>

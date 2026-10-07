@@ -51,6 +51,16 @@ export function buildSupportWhatsAppLink(message?: string): string | null {
   return buildWhatsAppLink(getSupportWhatsAppNumber(), message);
 }
 
+/** Deep link to the configured Meta In-App Signup opt-in flow. */
+export function buildWhatsAppSignupLink(): string | null {
+  const signupId = String(process.env.NEXT_PUBLIC_WHATSAPP_SIGNUP_ID || "").trim();
+  const phoneNumber = normalizeWhatsAppNumber(getSupportWhatsAppNumber());
+  if (!/^\d{8,20}$/.test(signupId) || !phoneNumber || phoneNumber.length > 15) {
+    return null;
+  }
+  return `https://wa.me/${phoneNumber}/signup/${signupId}`;
+}
+
 /**
  * Opening message for the site-wide bubble — short, and tells support what to
  * reply with (availability + how to pay).
