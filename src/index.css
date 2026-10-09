@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --color-primary: #002541;
+  --color-primary-navy: #0B3B60;
+  --color-secondary-deal: #D84315;
+  --color-secondary-rust: #b12d00;
+  --color-verified-green: #00875A;
+  --color-orange-money: #FF6600;
+  --color-afrimoney: #7A1CAC;
+  --color-border-subtle: #DCE1E5;
+  --color-canvas: #F4F6F8;
+  --color-surface: #FFFFFF;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-canvas);
+  color: #0f1d26;
+}
+
+/* Custom scrollbar for dense commerce discovery */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
