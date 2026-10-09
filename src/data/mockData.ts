@@ -1,4 +1,4 @@
-import { LocationNode, Product, VendorStore, BlueCollarService } from '../types';
+import { LocationNode, Product, VendorStore, BlueCollarService } from '../types.ts';
 
 export const SIERRA_LEONE_LOCATIONS: LocationNode[] = [
   {

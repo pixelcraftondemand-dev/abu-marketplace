@@ -1,6 +1,6 @@
 {
   "name": "Abu Marketplace",
-  "description": "High-density West African digital commerce marketplace in Sierra Leone featuring Leones pricing, verified merchant network, and seamless Orange Money and Afrimoney checkout.",
+  "description": "High-density West African digital commerce marketplace in Sierra Leone featuring Leones pricing, verified merchant network, and secure Cash on Delivery fulfillment.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

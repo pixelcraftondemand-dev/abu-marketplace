@@ -5,14 +5,14 @@ import express, { Request, Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
-import { Product, VendorStore, BlueCollarService, ServiceBooking } from './src/types';
-import { INITIAL_STORES, INITIAL_SERVICES } from './src/data/mockData';
+import { Product, VendorStore, BlueCollarService, ServiceBooking } from './src/types/index.ts';
+import { INITIAL_STORES, INITIAL_SERVICES } from './src/data/mockData.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
 
@@ -855,4 +855,8 @@ async function startServer() {
   });
 }
 
-startServer();
+export default app;
+
+if (!process.env.VERCEL) {
+  startServer();
+}
