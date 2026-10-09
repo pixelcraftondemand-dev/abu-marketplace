@@ -56,7 +56,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-slate-100 text-[#5A6872] hover:text-[#0f1d26] transition-colors cursor-pointer"
+            className="p-2.5 rounded-full hover:bg-slate-100 text-[#5A6872] hover:text-[#0f1d26] transition-colors cursor-pointer"
             aria-label="Close dialog"
           >
             <X className="w-5 h-5" />

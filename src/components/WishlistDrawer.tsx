@@ -33,7 +33,7 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-white/10 text-white/80 hover:text-white"
+            className="p-2.5 rounded hover:bg-white/10 text-white/80 hover:text-white"
             aria-label="Close wishlist"
           >
             <X className="w-5 h-5" />

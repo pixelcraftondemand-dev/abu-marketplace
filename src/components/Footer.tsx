@@ -16,7 +16,7 @@ export const Footer: React.FC<FooterProps> = ({
   return (
     <footer className="bg-[#002541] text-white pt-8 pb-8 border-t border-[#144b77] mt-12">
       {/* 4 Trust Pillars */}
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 pb-6 border-b border-[#144b77]">
+      <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 pb-6 border-b border-[#144b77]">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-xs">
           <div className="flex items-start gap-3 p-3 bg-[#082d49] rounded border border-[#144b77]">
             <Truck className="w-4 h-4 text-[#8df7c1] shrink-0 mt-0.5" />
@@ -63,7 +63,7 @@ export const Footer: React.FC<FooterProps> = ({
       </div>
 
       {/* Main Footer Links & Information - Clean Balanced 3-Column Layout */}
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 text-xs text-[#d0e4ff]">
           {/* Column 1: Brand & Mission (5 cols) */}
           <div className="md:col-span-5 space-y-3">
@@ -150,7 +150,7 @@ export const Footer: React.FC<FooterProps> = ({
       </div>
 
       {/* Copyright & Legal Note */}
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 pt-5 border-t border-[#144b77] flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-[#7fa6d0]">
+      <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 pt-5 border-t border-[#144b77] flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-[#7fa6d0]">
         <div>
           © 2026 Abu Marketplace SL Ltd. All rights reserved.
         </div>

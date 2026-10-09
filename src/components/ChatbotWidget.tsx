@@ -196,22 +196,25 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
             <div className="flex items-center gap-1">
               <button
                 onClick={handleResetChat}
-                className="p-1.5 text-[#d0e4ff] hover:text-white hover:bg-[#0B3B60] rounded transition-colors cursor-pointer"
+                className="p-2.5 text-[#d0e4ff] hover:text-white hover:bg-[#0B3B60] rounded transition-colors cursor-pointer"
                 title="Restart conversation"
+                aria-label="Restart conversation"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <RotateCcw className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 text-[#d0e4ff] hover:text-white hover:bg-[#0B3B60] rounded transition-colors cursor-pointer"
+                className="p-2.5 text-[#d0e4ff] hover:text-white hover:bg-[#0B3B60] rounded transition-colors cursor-pointer"
                 title="Minimize chat"
+                aria-label="Minimize chat"
               >
-                <Minimize2 className="w-3.5 h-3.5" />
+                <Minimize2 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-1.5 text-[#d0e4ff] hover:text-white hover:bg-[#0B3B60] rounded transition-colors cursor-pointer"
+                className="p-2.5 text-[#d0e4ff] hover:text-white hover:bg-[#0B3B60] rounded transition-colors cursor-pointer"
                 title="Close chat"
+                aria-label="Close chat"
               >
                 <X className="w-4 h-4" />
               </button>

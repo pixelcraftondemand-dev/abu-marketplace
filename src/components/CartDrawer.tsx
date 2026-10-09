@@ -43,7 +43,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-white/10 text-white/80 hover:text-white"
+            className="p-2.5 rounded hover:bg-white/10 text-white/80 hover:text-white"
             aria-label="Close cart drawer"
           >
             <X className="w-5 h-5" />

@@ -24,7 +24,7 @@ export const StoresDirectoryView: React.FC<StoresDirectoryViewProps> = ({
   onOpenCreateStore,
 }) => {
   return (
-    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 py-4">
+    <div className="max-w-[1440px] w-full mx-auto px-3 sm:px-6 py-4">
       {/* Hero Strip */}
       <div className="bg-gradient-to-r from-[#002541] to-[#0B3B60] text-white p-5 sm:p-6 rounded-lg mb-6 border border-[#144b77] shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>

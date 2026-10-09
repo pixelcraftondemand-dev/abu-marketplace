@@ -82,7 +82,7 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
   ];
 
   return (
-    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 py-3">
+    <div className="max-w-[1440px] w-full mx-auto px-3 sm:px-6 py-3">
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-xs font-bold uppercase tracking-wider text-[#5A6872]">
           Shop by Category

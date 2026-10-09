@@ -20,6 +20,37 @@ body {
   color: #0f1d26;
 }
 
+/* Mobile-first guard: never let a stray wide/nowrap row widen the page.
+   `clip` (not `hidden`) keeps the sticky header working, since it does not
+   create a scroll container. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+#root {
+  min-width: 0;
+}
+
+/* Media can never punch past the viewport */
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+/* iOS Safari zooms the whole page when a focused field is under 16px.
+   Keeping controls at 16px on small screens prevents that jump. */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 /* Custom scrollbar for dense commerce discovery */
 ::-webkit-scrollbar {
   width: 6px;

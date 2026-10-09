@@ -63,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="sticky top-0 z-40 bg-[#002541] text-white shadow-sm">
       {/* 1. Top Global Announcement Bar for Full Website Experience */}
       <div className="bg-[#001B30] text-[#A7C8E8] text-[11px] py-1.5 px-3 sm:px-6 border-b border-[#0B3B60]">
-        <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-3">
+        <div className="max-w-[1440px] w-full mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 truncate">
             <span className="bg-[#059669] text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
               Cash on Delivery
@@ -96,8 +96,8 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* 2. Main Brand & Navigation Strip */}
-      <div className="max-w-[1440px] mx-auto px-3 sm:px-6 py-2.5">
-        <div className="flex items-center justify-between gap-2.5 sm:gap-6">
+      <div className="max-w-[1440px] w-full mx-auto px-3 sm:px-6 py-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-6">
           {/* Brand & Monogram Logo */}
           <button 
             onClick={() => {
@@ -117,8 +117,8 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </button>
 
-          {/* Center Search Bar */}
-          <div className="flex-1 max-w-xl mx-auto">
+          {/* Center Search Bar (full-width row on mobile, inline on desktop) */}
+          <div className="order-3 w-full min-w-0 sm:order-none sm:w-auto sm:flex-1 sm:max-w-xl sm:mx-auto">
             <div className="relative w-full">
               <Search className="w-4 h-4 text-[#73777f] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
@@ -141,7 +141,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Right Action Controls: WhatsApp Login, Location, Create Store, Wishlist, Cart */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
             {/* Quick Delivery Location Button */}
             <button
               onClick={onOpenLocationPicker}
@@ -176,19 +176,21 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenWhatsAppAuth}
-                className="bg-[#25D366] hover:bg-[#1EBE5D] text-[#002541] px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs hover:shadow-md cursor-pointer shrink-0"
+                className="bg-[#25D366] hover:bg-[#1EBE5D] text-[#002541] p-2.5 sm:px-3 sm:py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs hover:shadow-md cursor-pointer shrink-0"
                 title="Sign in with WhatsApp"
+                aria-label="Sign in with WhatsApp"
               >
                 <MessageSquare className="w-3.5 h-3.5 fill-current text-[#002541]" />
-                <span className="whitespace-nowrap">WhatsApp Login</span>
+                <span className="whitespace-nowrap hidden sm:inline">WhatsApp Login</span>
               </button>
             )}
 
             {/* "Create Store" Action Button */}
             <button
               onClick={onOpenMerchantHub}
-              className="text-xs font-semibold text-white bg-[#0b3b60] hover:bg-[#144b77] px-2.5 sm:px-3 py-1.5 rounded transition-colors cursor-pointer flex items-center gap-1.5"
+              className="text-xs font-semibold text-white bg-[#0b3b60] hover:bg-[#144b77] p-2.5 sm:px-3 sm:py-1.5 rounded transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
               title="Create Store"
+              aria-label="Create Store"
             >
               <Store className="w-3.5 h-3.5 text-[#8df7c1]" />
               <span className="whitespace-nowrap hidden sm:inline">Create Store</span>
@@ -197,7 +199,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Wishlist Icon */}
             <button
               onClick={onOpenWishlist}
-              className="relative p-1.5 text-[#d0e4ff] hover:text-white transition-colors cursor-pointer"
+              className="relative p-2.5 text-[#d0e4ff] hover:text-white transition-colors cursor-pointer"
               title="Wishlist"
               aria-label="Wishlist"
             >
@@ -212,7 +214,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Cart Icon */}
             <button
               onClick={onOpenCart}
-              className="relative p-1.5 text-[#d0e4ff] hover:text-white transition-colors cursor-pointer"
+              className="relative p-2.5 text-[#d0e4ff] hover:text-white transition-colors cursor-pointer"
               title="Cart"
               aria-label="Cart"
             >
@@ -229,7 +231,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* 3. Desktop Category Sub-Nav Bar (Ensures Website Layout, No App-Like Empty Space) */}
       <div className="bg-[#0B3B60] text-xs border-t border-[#144b77]/60 overflow-x-auto scrollbar-none">
-        <div className="max-w-[1440px] mx-auto px-3 sm:px-6 flex items-center gap-1 sm:gap-2 py-1.5">
+        <div className="max-w-[1440px] w-full mx-auto px-3 sm:px-6 flex items-center gap-1 sm:gap-2 py-1.5">
           <button
             onClick={() => {
               onSelectView('marketplace');

@@ -76,13 +76,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <button
           type="button"
           onClick={(e) => onToggleWishlist(product, e)}
-          className={`absolute top-2 right-2 p-1.5 rounded-full bg-white/85 backdrop-blur-xs hover:bg-white transition-colors shadow-2xs ${
+          className={`absolute top-2 right-2 p-2.5 rounded-full bg-white/85 backdrop-blur-xs hover:bg-white transition-colors shadow-2xs ${
             isWishlisted ? 'text-[#0B3B60]' : 'text-gray-400 hover:text-[#0B3B60]'
           }`}
           aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
         >
           <Heart
-            className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-current' : ''}`}
+            className={`w-4 h-4 ${isWishlisted ? 'fill-current' : ''}`}
           />
         </button>
       </div>
@@ -121,11 +121,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <button
             type="button"
             onClick={(e) => onAddToCart(product, e)}
-            className="w-6 h-6 rounded bg-[#F4F6F8] hover:bg-[#0B3B60] text-[#0B3B60] hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+            className="w-9 h-9 rounded bg-[#F4F6F8] hover:bg-[#0B3B60] text-[#0B3B60] hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
             title="Add to cart"
             aria-label="Add to cart"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4" />
           </button>
         </div>
       </div>

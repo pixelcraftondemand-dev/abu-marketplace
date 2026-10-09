@@ -16,7 +16,7 @@ export const CategoryChips: React.FC<CategoryChipsProps> = ({
 }) => {
   return (
     <div className="bg-[#FFFFFF] border-b border-[#DCE1E5] py-2 px-3 sm:px-6 shadow-[0_1px_2px_rgba(11,59,96,0.04)]">
-      <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-3 overflow-x-auto no-scrollbar">
+      <div className="max-w-[1440px] w-full mx-auto flex items-center justify-between gap-3 overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-1.5 shrink-0">
           <span className="text-[11px] font-bold uppercase tracking-wider text-[#5A6872] mr-1 hidden sm:inline">
             Browse:

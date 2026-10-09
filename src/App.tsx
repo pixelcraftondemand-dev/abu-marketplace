@@ -367,7 +367,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] flex flex-col font-sans antialiased text-[#1A242D] relative">
+    <div className="min-h-screen w-full bg-[#FAF9F6] flex flex-col font-sans antialiased text-[#1A242D] relative [&>*]:min-w-0">
       {/* 1. Header with Abu Logo and 3-Track Mode navigation */}
       <Header
         currentLocation={currentLocation}

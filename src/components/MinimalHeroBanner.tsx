@@ -14,7 +14,7 @@ export const MinimalHeroBanner: React.FC<MinimalHeroBannerProps> = ({
   onOpenWhatsAppAuth,
 }) => {
   return (
-    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 pt-3 pb-2">
+    <div className="max-w-[1440px] w-full mx-auto px-3 sm:px-6 pt-3 pb-2">
       <div className="relative rounded-xl overflow-hidden bg-gradient-to-r from-[#002541] via-[#0B3B60] to-[#05263B] text-white p-5 sm:p-7 shadow-sm border border-[#144b77]">
         {/* Subtle Background Doodles */}
         <EcommerceDoodles 
