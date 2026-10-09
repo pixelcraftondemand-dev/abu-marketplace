@@ -67,11 +67,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         <div className="p-4 sm:p-6 grid grid-cols-1 md:grid-cols-12 gap-6">
           {/* Left Column: Image Showcase (md:col-span-6) */}
           <div className="md:col-span-6 flex flex-col gap-3">
-            <div className="relative aspect-square w-full bg-[#F8F9FA] rounded border border-[#DCE1E5] overflow-hidden">
+            <div className="relative aspect-square w-full bg-[#F8F9FA] rounded border border-[#DCE1E5] overflow-hidden flex items-center justify-center">
               <img
                 src={product.image}
                 alt={product.title}
                 referrerPolicy="no-referrer"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect fill="%23f1f5f9" width="400" height="400"/><text fill="%230b3b60" font-family="sans-serif" font-size="20" font-weight="bold" x="50%" y="45%" text-anchor="middle">Abu Marketplace</text><text fill="%2364748b" font-family="sans-serif" font-size="14" x="50%" y="55%" text-anchor="middle">Verified Product</text></svg>';
+                }}
                 className="w-full h-full object-cover object-center"
               />
               <button
@@ -84,6 +87,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-current' : ''}`} />
               </button>
             </div>
+
 
             {/* Merchant Trust Bar */}
             <div className="bg-[#eaf5ff] p-3 rounded border border-[#c2c7cf] flex items-center justify-between text-xs">

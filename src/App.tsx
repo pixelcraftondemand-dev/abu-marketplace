@@ -53,6 +53,9 @@ import {
 import { 
   Footer 
 } from './components/Footer';
+import { 
+  WhatsAppAuthModal 
+} from './components/WhatsAppAuthModal';
 
 import { 
   Category, 
@@ -62,7 +65,8 @@ import {
   Order, 
   MobileMoneyProvider,
   VendorStore,
-  BlueCollarService
+  BlueCollarService,
+  UserProfile
 } from './types';
 import { 
   INITIAL_PRODUCTS, 
@@ -77,12 +81,30 @@ import {
   Building2,
   Wrench,
   ArrowRight,
-  X
+  X,
+  Sparkles,
+  Sun,
+  Smartphone,
+  Headphones,
+  UtensilsCrossed,
+  ShieldCheck
 } from 'lucide-react';
 
 export default function App() {
+  // WhatsApp Authentication state (persisted)
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
+    try {
+      const saved = localStorage.getItem('abu_marketplace_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isWhatsAppAuthOpen, setIsWhatsAppAuthOpen] = useState(false);
+
   // 1. Navigation View Mode ('marketplace' | 'services' | 'stores')
   const [activeView, setActiveView] = useState<'marketplace' | 'services' | 'stores'>('marketplace');
+
 
   // 2. Core Datasets
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
@@ -222,10 +244,28 @@ export default function App() {
   // Sections for Minimalist Screenshot Layout when on default "All" view without active search/store filter
   const isSectionedHome = activeView === 'marketplace' && selectedCategory === 'All' && !searchQuery.trim() && !selectedStoreFilter && !onlyVerified && !inStockOnly && sortBy === 'featured';
 
+  const fashionProducts = useMemo(() => products.filter((p) => p.category === 'Fashion & Footwear'), [products]);
   const solarProducts = useMemo(() => products.filter((p) => p.category === 'Solar & Power'), [products]);
   const phoneProducts = useMemo(() => products.filter((p) => p.category === 'Phones & Tablets'), [products]);
   const homeProducts = useMemo(() => products.filter((p) => p.category === 'Home & Living'), [products]);
   const techProducts = useMemo(() => products.filter((p) => p.category === 'Electronics & Audio'), [products]);
+
+  // WhatsApp Auth Handlers
+  const handleLoginSuccess = (user: UserProfile) => {
+    setCurrentUser(user);
+    try {
+      localStorage.setItem('abu_marketplace_user', JSON.stringify(user));
+    } catch {}
+    showToast(`Signed in via WhatsApp as ${user.name}`);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('abu_marketplace_user');
+    } catch {}
+    showToast('Logged out of WhatsApp session');
+  };
 
   // Cart Handlers
   const handleAddToCart = (product: Product, quantity: number = 1, e?: React.MouseEvent) => {
@@ -344,6 +384,8 @@ export default function App() {
         onSelectCategory={setSelectedCategory}
         activeView={activeView}
         onSelectView={setActiveView}
+        currentUser={currentUser}
+        onOpenWhatsAppAuth={() => setIsWhatsAppAuthOpen(true)}
       />
 
       {/* VIEW: BLUE-COLLAR SERVICES */}
@@ -372,7 +414,10 @@ export default function App() {
       {activeView === 'marketplace' && (
         <>
           {/* Subtle Warm Lifestyle Hero Banner */}
-          <MinimalHeroBanner />
+          <MinimalHeroBanner 
+            onSelectCategory={setSelectedCategory}
+            onOpenWhatsAppAuth={() => setIsWhatsAppAuthOpen(true)}
+          />
 
           {/* "Shop by Category" Circular Icons Row */}
           <CategoryIconRow
@@ -416,12 +461,12 @@ export default function App() {
 
           {/* Sectioned Feed matching Screenshot */}
           {isSectionedHome ? (
-            <div className="max-w-[1440px] mx-auto w-full px-3 sm:px-6 py-4 space-y-7">
+            <div className="max-w-[1440px] mx-auto w-full px-3 sm:px-6 py-4 space-y-8">
               {/* SECTION 1: Top Picks */}
               <section>
                 <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] pb-2">
                   <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
-                    Top Picks
+                    Top Picks & Best Sellers
                   </h2>
                   <button
                     onClick={() => setSortBy('sold')}
@@ -444,20 +489,53 @@ export default function App() {
                 </div>
               </section>
 
-              {/* SECTION 2: Solar & Power Backup */}
+              {/* SECTION 2: Fashion & Footwear (West African Couture & Leather) */}
               <section>
                 <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] pb-2">
-                  <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
-                    Solar & Power Backup
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#D84315]" />
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
+                      Fashion & Footwear Spotlight (West African Couture & Leather)
+                    </h2>
+                  </div>
+                  <button
+                    onClick={() => setSelectedCategory('Fashion & Footwear')}
+                    className="text-xs text-[#0B3B60] hover:underline font-semibold"
+                  >
+                    View All Fashion ({fashionProducts.length})
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4">
+                  {fashionProducts.map((prod) => (
+                    <ProductCard
+                      key={prod.id}
+                      product={prod}
+                      onSelect={(p) => setSelectedProduct(p)}
+                      onAddToCart={(p, e) => handleAddToCart(p, 1, e)}
+                      isWishlisted={isWishlisted(prod)}
+                      onToggleWishlist={handleToggleWishlist}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              {/* SECTION 3: Solar & Power Backup */}
+              <section>
+                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] pb-2">
+                  <div className="flex items-center gap-2">
+                    <Sun className="w-4 h-4 text-[#FF6600]" />
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
+                      Solar & Power Backup Systems
+                    </h2>
+                  </div>
                   <button
                     onClick={() => setSelectedCategory('Solar & Power')}
                     className="text-xs text-[#0B3B60] hover:underline font-semibold"
                   >
-                    View All
+                    View All Solar ({solarProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-2.5 sm:gap-4">
                   {solarProducts.map((prod) => (
                     <ProductCard
                       key={prod.id}
@@ -471,20 +549,23 @@ export default function App() {
                 </div>
               </section>
 
-              {/* SECTION 3: Phones & Technology */}
+              {/* SECTION 4: Phones & Technology */}
               <section>
                 <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] pb-2">
-                  <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
-                    Phones & Technology
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4 text-[#00875A]" />
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
+                      Phones & Mobile Tech
+                    </h2>
+                  </div>
                   <button
                     onClick={() => setSelectedCategory('Phones & Tablets')}
                     className="text-xs text-[#0B3B60] hover:underline font-semibold"
                   >
-                    View All
+                    View All ({phoneProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 gap-2.5 sm:gap-4">
                   {phoneProducts.map((prod) => (
                     <ProductCard
                       key={prod.id}
@@ -498,21 +579,24 @@ export default function App() {
                 </div>
               </section>
 
-              {/* SECTION 4: Home & Kitchen Living */}
+              {/* SECTION 5: Audio & Gear */}
               <section>
                 <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] pb-2">
-                  <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
-                    Home & Living
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <Headphones className="w-4 h-4 text-[#7A1CAC]" />
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
+                      Electronics & Audio Gear
+                    </h2>
+                  </div>
                   <button
-                    onClick={() => setSelectedCategory('Home & Living')}
+                    onClick={() => setSelectedCategory('Electronics & Audio')}
                     className="text-xs text-[#0B3B60] hover:underline font-semibold"
                   >
-                    View All
+                    View All ({techProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4">
-                  {homeProducts.concat(techProducts).slice(0, 4).map((prod) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 gap-2.5 sm:gap-4">
+                  {techProducts.map((prod) => (
                     <ProductCard
                       key={prod.id}
                       product={prod}
@@ -524,6 +608,37 @@ export default function App() {
                   ))}
                 </div>
               </section>
+
+              {/* SECTION 6: Home & Kitchen Living */}
+              <section>
+                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] pb-2">
+                  <div className="flex items-center gap-2">
+                    <UtensilsCrossed className="w-4 h-4 text-[#0B3B60]" />
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
+                      Home & Kitchen Living
+                    </h2>
+                  </div>
+                  <button
+                    onClick={() => setSelectedCategory('Home & Living')}
+                    className="text-xs text-[#0B3B60] hover:underline font-semibold"
+                  >
+                    View All ({homeProducts.length})
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-2.5 sm:gap-4">
+                  {homeProducts.map((prod) => (
+                    <ProductCard
+                      key={prod.id}
+                      product={prod}
+                      onSelect={(p) => setSelectedProduct(p)}
+                      onAddToCart={(p, e) => handleAddToCart(p, 1, e)}
+                      isWishlisted={isWishlisted(prod)}
+                      onToggleWishlist={handleToggleWishlist}
+                    />
+                  ))}
+                </div>
+              </section>
+
 
               {/* SECTION 5: Certified Blue-Collar Technicians Strip */}
               <section className="bg-white rounded-lg border border-[#E7ECF0] p-4 sm:p-5 shadow-2xs">
@@ -714,6 +829,16 @@ export default function App() {
         currentLocation={currentLocation}
         initialPaymentMethod={checkoutInitialMethod}
         onOrderSuccess={handleOrderSuccess}
+        currentUser={currentUser}
+      />
+
+      {/* WhatsApp Authentication Modal */}
+      <WhatsAppAuthModal
+        isOpen={isWhatsAppAuthOpen}
+        onClose={() => setIsWhatsAppAuthOpen(false)}
+        currentUser={currentUser}
+        onLoginSuccess={handleLoginSuccess}
+        onLogout={handleLogout}
       />
 
       {/* Order Confirmation Receipt Modal */}

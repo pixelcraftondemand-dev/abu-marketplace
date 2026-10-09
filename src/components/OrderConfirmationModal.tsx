@@ -92,12 +92,26 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
               <ArrowRight className="w-4 h-4" />
             </button>
 
+            {/* WhatsApp Receipt & Direct Updates */}
+            <a
+              href={`https://wa.me/23276892411?text=${encodeURIComponent(`Hello Abu Marketplace! I just placed order ${order.trackingNumber} for ${order.recipientName}. Total: SLE ${order.totalSLE} (Cash on Delivery). Please send dispatch updates to my WhatsApp!`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full h-10 bg-[#25D366] hover:bg-[#1EBE5D] text-[#002541] rounded font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors"
+            >
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.149.929 3.182 0 5.767-2.587 5.768-5.766 0-3.187-2.583-5.771-5.768-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.698.077-2.222-.555-1.879-.779-3.076-2.695-3.17-2.821-.093-.125-.762-1.014-.762-1.934 0-.92.482-1.371.654-1.558.172-.187.375-.234.5-.234.125 0 .25 0 .359.006.115.006.27-.044.423.324.156.375.531 1.297.578 1.391.047.094.078.203.016.328-.063.125-.094.203-.188.312-.094.109-.197.244-.281.328-.094.094-.192.197-.082.385.109.188.487.804 1.046 1.302.721.642 1.328.841 1.516.934.188.094.297.078.406-.047.109-.125.469-.546.594-.734.125-.187.25-.156.422-.094.172.062 1.094.516 1.281.609.188.094.312.141.359.219.047.078.047.453-.097.858z"/>
+              </svg>
+              <span>Get WhatsApp Live Dispatch Alerts</span>
+            </a>
+
             <button
               onClick={onClose}
               className="w-full h-9 bg-white hover:bg-slate-50 text-[#5A6872] border border-[#DCE1E5] rounded text-xs font-semibold transition-colors cursor-pointer"
             >
               Continue Shopping on Abu Marketplace
             </button>
+
           </div>
         </div>
       </div>

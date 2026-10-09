@@ -149,3 +149,18 @@ export interface ServiceBooking {
   status: 'pending' | 'accepted' | 'completed';
   createdAt: string;
 }
+
+// ----------------------------------------------------
+// WHATSAPP USER AUTHENTICATION
+// ----------------------------------------------------
+export interface UserProfile {
+  id: string;
+  name: string;
+  whatsappNumber: string;
+  isVerified: boolean;
+  avatar?: string;
+  preferredCity?: string;
+  role: 'buyer' | 'merchant' | 'artisan';
+  joinedAt: string;
+}
+

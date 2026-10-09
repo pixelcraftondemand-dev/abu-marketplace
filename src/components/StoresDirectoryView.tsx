@@ -62,11 +62,14 @@ export const StoresDirectoryView: React.FC<StoresDirectoryViewProps> = ({
           >
             <div>
               <div className="flex items-start gap-3 mb-3">
-                <div className="w-14 h-14 rounded bg-[#F8F9FA] overflow-hidden shrink-0 border border-[#DCE1E5]">
+                <div className="w-14 h-14 rounded bg-[#F8F9FA] overflow-hidden shrink-0 border border-[#DCE1E5] flex items-center justify-center">
                   <img
                     src={store.logo}
                     alt={store.name}
                     referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect fill="%230b3b60" width="100" height="100"/><text fill="%23ffffff" font-family="sans-serif" font-size="28" font-weight="bold" x="50%" y="60%" text-anchor="middle">ABU</text></svg>';
+                    }}
                     className="w-full h-full object-cover"
                   />
                 </div>

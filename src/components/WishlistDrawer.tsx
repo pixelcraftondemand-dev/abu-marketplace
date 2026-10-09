@@ -64,11 +64,14 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({
                 key={prod.id}
                 className="p-3 bg-white rounded border border-[#DCE1E5] flex gap-3 items-center justify-between"
               >
-                <div className="w-16 h-16 rounded bg-[#F8F9FA] overflow-hidden shrink-0 border border-[#DCE1E5]">
+                <div className="w-16 h-16 rounded bg-[#F8F9FA] overflow-hidden shrink-0 border border-[#DCE1E5] flex items-center justify-center">
                   <img
                     src={prod.image}
                     alt={prod.title}
                     referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect fill="%23f1f5f9" width="100" height="100"/><text fill="%230b3b60" font-family="sans-serif" font-size="16" font-weight="bold" x="50%" y="55%" text-anchor="middle">ABU</text></svg>';
+                    }}
                     className="w-full h-full object-cover"
                   />
                 </div>

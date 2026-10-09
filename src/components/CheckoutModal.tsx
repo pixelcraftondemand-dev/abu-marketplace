@@ -12,9 +12,10 @@ import {
   Zap,
   Info
 } from 'lucide-react';
-import { CartItem, LocationNode, MobileMoneyProvider, Order } from '../types';
+import { CartItem, LocationNode, MobileMoneyProvider, Order, UserProfile } from '../types';
 import { SIERRA_LEONE_LOCATIONS, detectCarrier } from '../data/mockData';
 import { api } from '../services/api';
+import { MessageSquare } from 'lucide-react';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ interface CheckoutModalProps {
   currentLocation: LocationNode;
   initialPaymentMethod?: MobileMoneyProvider;
   onOrderSuccess: (order: Order) => void;
+  currentUser?: UserProfile | null;
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
@@ -32,16 +34,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   currentLocation,
   initialPaymentMethod = 'cash',
   onOrderSuccess,
+  currentUser,
 }) => {
   const [step, setStep] = useState<'details' | 'payment' | 'ussd_push'>('details');
-  const [recipientName, setRecipientName] = useState('Mohamed Kamara');
-  const [rawPhone, setRawPhone] = useState('076 123 456');
+  const [recipientName, setRecipientName] = useState(currentUser?.name || 'Mohamed Kamara');
+  const [rawPhone, setRawPhone] = useState(currentUser?.whatsappNumber || '076 123 456');
   const [selectedLocation, setSelectedLocation] = useState<LocationNode>(currentLocation);
   const [streetAddress, setStreetAddress] = useState('14 Rawdon Street, Central');
   const [landmark, setLandmark] = useState('Opposite St. George Cathedral');
   const [paymentMethod, setPaymentMethod] = useState<MobileMoneyProvider>('cash');
   const [isProcessing, setIsProcessing] = useState(false);
   const [ussdTimer, setUssdTimer] = useState(45);
+
+  React.useEffect(() => {
+    if (currentUser) {
+      if (currentUser.name) setRecipientName(currentUser.name);
+      if (currentUser.whatsappNumber) setRawPhone(currentUser.whatsappNumber);
+    }
+  }, [currentUser]);
 
   if (!isOpen) return null;
 

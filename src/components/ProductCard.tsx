@@ -1,5 +1,5 @@
-import React from 'react';
-import { Heart, Plus, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Heart, Plus, CheckCircle2, Sparkles, Sun, Smartphone, Headphones, UtensilsCrossed, ShoppingBag } from 'lucide-react';
 import { Product } from '../types';
 
 interface ProductCardProps {
@@ -17,26 +17,66 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   isWishlisted,
   onToggleWishlist,
 }) => {
+  const [imageError, setImageError] = useState(false);
+
+  // Category Icon helper for fallback
+  const renderCategoryFallbackIcon = () => {
+    switch (product.category) {
+      case 'Fashion & Footwear':
+        return <Sparkles className="w-10 h-10 text-[#0B3B60]/40" />;
+      case 'Solar & Power':
+        return <Sun className="w-10 h-10 text-[#FF6600]/40" />;
+      case 'Phones & Tablets':
+        return <Smartphone className="w-10 h-10 text-[#00875A]/40" />;
+      case 'Electronics & Audio':
+        return <Headphones className="w-10 h-10 text-[#7A1CAC]/40" />;
+      case 'Home & Living':
+        return <UtensilsCrossed className="w-10 h-10 text-[#0B3B60]/40" />;
+      default:
+        return <ShoppingBag className="w-10 h-10 text-[#5A6872]/40" />;
+    }
+  };
+
   return (
     <article
       onClick={() => onSelect(product)}
-      className="group bg-white rounded-md border border-[#E7ECF0] hover:border-[#0B3B60] transition-all cursor-pointer flex flex-col justify-between overflow-hidden shadow-2xs hover:shadow-xs"
+      className="group bg-white rounded-md border border-[#E7ECF0] hover:border-[#0B3B60] transition-all cursor-pointer flex flex-col justify-between overflow-hidden shadow-2xs hover:shadow-sm h-full"
     >
-      {/* Minimalist 1:1 Image Container */}
-      <div className="relative aspect-square w-full bg-[#F8F9FA] overflow-hidden">
-        <img
-          src={product.image}
-          alt={product.title}
-          referrerPolicy="no-referrer"
-          loading="lazy"
-          className="w-full h-full object-cover object-center group-hover:scale-102 transition-transform duration-300"
-        />
+      {/* 1:1 Image Container with Graceful Fallback */}
+      <div className="relative aspect-square w-full bg-[#F4F6F8] overflow-hidden flex items-center justify-center">
+        {!imageError ? (
+          <img
+            src={product.image}
+            alt={product.title}
+            referrerPolicy="no-referrer"
+            loading="lazy"
+            onError={() => setImageError(true)}
+            className="w-full h-full object-cover object-center group-hover:scale-102 transition-transform duration-300"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#F8FAFC] to-[#EDF2F7] p-3 text-center">
+            {renderCategoryFallbackIcon()}
+            <span className="text-[10px] font-bold text-[#5A6872] mt-1 line-clamp-1">
+              {product.category}
+            </span>
+            <span className="text-[9px] text-[#8A99A8] line-clamp-1 max-w-[120px]">
+              {product.title}
+            </span>
+          </div>
+        )}
+
+        {/* Discount Badge if available */}
+        {product.discountPercent && product.discountPercent > 0 && (
+          <div className="absolute top-2 left-2 bg-[#D84315] text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded shadow-2xs">
+            -{product.discountPercent}%
+          </div>
+        )}
 
         {/* Minimalist Wishlist Button */}
         <button
           type="button"
           onClick={(e) => onToggleWishlist(product, e)}
-          className={`absolute top-2 right-2 p-1.5 rounded-full bg-white/80 backdrop-blur-xs hover:bg-white transition-colors shadow-2xs ${
+          className={`absolute top-2 right-2 p-1.5 rounded-full bg-white/85 backdrop-blur-xs hover:bg-white transition-colors shadow-2xs ${
             isWishlisted ? 'text-[#0B3B60]' : 'text-gray-400 hover:text-[#0B3B60]'
           }`}
           aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
@@ -47,12 +87,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </button>
       </div>
 
-      {/* Clean Minimalist Details */}
+      {/* Clean Details */}
       <div className="p-2 sm:p-2.5 flex-1 flex flex-col justify-between">
         <div>
-          {/* Subtle seller / category line */}
-          <div className="text-[10px] text-[#5A6872] truncate mb-0.5">
-            {product.sellerName}
+          {/* Subtle seller line */}
+          <div className="text-[10px] text-[#5A6872] truncate mb-0.5 flex items-center gap-1">
+            <span>{product.sellerName}</span>
+            {product.isVerifiedSeller && (
+              <CheckCircle2 className="w-3 h-3 text-[#00875A] shrink-0" />
+            )}
           </div>
 
           {/* Clean 2-line title */}
@@ -61,11 +104,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </h3>
         </div>
 
-        {/* Clean price and subtle add button */}
+        {/* Clean price, COD hint and add button */}
         <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-[#F0F4F8]">
-          <div className="font-extrabold text-[#0B3B60] text-xs sm:text-sm tabular-nums">
-            <span className="text-[10px] font-semibold text-[#5A6872] mr-0.5">SLE</span>
-            {new Intl.NumberFormat('en-US').format(product.priceSLE)}
+          <div>
+            <div className="font-extrabold text-[#0B3B60] text-xs sm:text-sm tabular-nums">
+              <span className="text-[10px] font-semibold text-[#5A6872] mr-0.5">SLE</span>
+              {new Intl.NumberFormat('en-US').format(product.priceSLE)}
+            </div>
+            {product.originalPriceSLE > product.priceSLE && (
+              <div className="text-[10px] text-[#8A99A8] line-through tabular-nums -mt-0.5">
+                SLE {new Intl.NumberFormat('en-US').format(product.originalPriceSLE)}
+              </div>
+            )}
           </div>
 
           <button
@@ -82,3 +132,4 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     </article>
   );
 };
+
