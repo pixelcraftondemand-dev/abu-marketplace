@@ -1,4 +1,4 @@
-import { 
+import type { 
   Product, 
   LocationNode, 
   Order, 
