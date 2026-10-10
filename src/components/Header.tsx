@@ -8,16 +8,13 @@ import {
   ChevronDown, 
   X,
   MessageSquare,
-  CheckCircle2,
-  PhoneCall,
-  Clock,
   Sparkles,
   Sun,
   Smartphone,
   Headphones,
   UtensilsCrossed,
   Wrench,
-  Package
+  Package,
 } from 'lucide-react';
 import { LocationNode, Category, UserProfile } from '../types';
 import { AbuLogo } from './AbuLogo';
@@ -61,41 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-[#002541] text-white shadow-sm">
-      {/* 1. Top Global Announcement Bar for Full Website Experience */}
-      <div className="bg-[#001B30] text-[#A7C8E8] text-[11px] py-1.5 px-3 sm:px-6 border-b border-[#0B3B60]">
-        <div className="max-w-[1440px] w-full mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 truncate">
-            <span className="bg-[#059669] text-white font-extrabold text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
-              Cash on Delivery
-            </span>
-            <span className="truncate">
-              🇸🇱 Sierra Leone&apos;s Verified Digital Commerce Portal · Free transit over SLE 500 · Strictly Pay on Delivery (No mobile money initially)
-            </span>
-          </div>
-
-          <div className="hidden sm:flex items-center gap-4 shrink-0 text-[11px]">
-            <button
-              onClick={onOpenOrderTracking}
-              className="hover:text-white transition-colors cursor-pointer flex items-center gap-1"
-            >
-              <Package className="w-3.5 h-3.5 text-[#8df7c1]" />
-              <span>Track Order</span>
-            </button>
-
-            <a
-              href="https://wa.me/23276892411?text=Hello%20Abu%20Marketplace%20Customer%20Support"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#25D366] hover:text-[#52e78c] font-semibold flex items-center gap-1 transition-colors"
-            >
-              <MessageSquare className="w-3.5 h-3.5 fill-current" />
-              <span>WhatsApp Desk: 076 892 411</span>
-            </a>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Main Brand & Navigation Strip */}
+      {/* Main Brand & Navigation Strip */}
       <div className="max-w-[1440px] w-full mx-auto px-3 sm:px-6 py-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-6">
           {/* Brand & Monogram Logo */}
@@ -106,7 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
             }} 
             className="flex items-center gap-2 text-left focus:outline-none shrink-0 group cursor-pointer"
           >
-            <AbuLogo size={36} />
+            <AbuLogo size={52} />
             <div className="flex flex-col">
               <span className="font-extrabold tracking-tight text-base sm:text-lg text-white group-hover:text-[#d0e4ff] transition-colors leading-tight">
                 Abu
@@ -125,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="Search fashion, solar inverters, phones, home appliances..."
+                placeholder="Search products..."
                 className="w-full h-9 pl-9 pr-8 bg-[#F4F6F8] text-[#1A242D] placeholder-[#73777f] text-xs sm:text-sm rounded-full border border-transparent focus:border-[#7fa6d0] focus:bg-white focus:outline-none transition-all shadow-2xs"
               />
               {searchQuery && (
@@ -142,6 +105,15 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right Action Controls: WhatsApp Login, Location, Create Store, Wishlist, Cart */}
           <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
+            <button
+              onClick={onOpenOrderTracking}
+              className="p-2.5 text-[#d0e4ff] hover:text-white transition-colors cursor-pointer"
+              title="Track Order"
+              aria-label="Track Order"
+            >
+              <Package className="w-4 h-4" />
+            </button>
+
             {/* Quick Delivery Location Button */}
             <button
               onClick={onOpenLocationPicker}
@@ -229,7 +201,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* 3. Desktop Category Sub-Nav Bar (Ensures Website Layout, No App-Like Empty Space) */}
+      {/* Desktop Category Sub-Nav Bar */}
       <div className="bg-[#0B3B60] text-xs border-t border-[#144b77]/60 overflow-x-auto scrollbar-none">
         <div className="max-w-[1440px] w-full mx-auto px-3 sm:px-6 flex items-center gap-1 sm:gap-2 py-1.5">
           <button
@@ -351,4 +323,3 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
-

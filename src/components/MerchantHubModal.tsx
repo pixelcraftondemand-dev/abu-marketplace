@@ -256,7 +256,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
         {/* Header with Abu Logo */}
         <div className="bg-[#0B3B60] text-white px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <AbuLogo size={32} />
+            <AbuLogo size={44} />
             <div>
               <h2 className="font-bold text-sm sm:text-base">
                 Abu Merchant & Trade Hub

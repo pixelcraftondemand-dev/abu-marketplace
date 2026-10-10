@@ -2,18 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, 
   CheckCircle2, 
-  Smartphone, 
-  ArrowRight, 
   ShieldCheck, 
   MessageSquare, 
   Send, 
   ExternalLink,
-  Sparkles,
-  PhoneCall,
   UserCheck
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { detectCarrier } from '../data/mockData';
+import {
+  MARKETPLACE_ADDRESS,
+  MARKETPLACE_SUPPORT_EMAIL,
+  WHATSAPP_SUPPORT_NUMBER,
+} from '../data/contactDetails';
 
 interface WhatsAppAuthModalProps {
   isOpen: boolean;
@@ -30,15 +31,14 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
   onLoginSuccess,
   onLogout,
 }) => {
-  const [step, setStep] = useState<'input' | 'otp' | 'profile'>('input');
+  const [step, setStep] = useState<'input' | 'otp'>('input');
   const [countryCode, setCountryCode] = useState('+232');
-  const [phone, setPhone] = useState('76 892 411');
-  const [fullName, setFullName] = useState('Fouad Sesay');
+  const [phone, setPhone] = useState('');
+  const [fullName, setFullName] = useState('');
   const [enteredOtp, setEnteredOtp] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [otpError, setOtpError] = useState('');
   const [countdown, setCountdown] = useState(60);
-  const [isSending, setIsSending] = useState(false);
   const [toastNotice, setToastNotice] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,29 +57,40 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
   const carrier = detectCarrier(phone);
 
   const handleSendCode = () => {
-    if (!phone.trim() || phone.replace(/\D/g, '').length < 6) {
+    const phoneDigits = phone.replace(/\D/g, '');
+    if (!fullName.trim()) {
+      setOtpError('Please enter your full name');
+      return;
+    }
+    if (phoneDigits.length < 7 || phoneDigits.length > 15) {
       setOtpError('Please enter a valid phone number');
       return;
     }
     setOtpError('');
-    setIsSending(true);
 
-    // Generate random 6-digit OTP code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(code);
+    setEnteredOtp('');
+    setStep('otp');
+    setCountdown(60);
+    setToastNotice(`Demo code: ${code}. WhatsApp code delivery is not configured yet.`);
+    setTimeout(() => setToastNotice(null), 8000);
+  };
 
-    setTimeout(() => {
-      setIsSending(false);
-      setStep('otp');
-      setCountdown(60);
-      setToastNotice(`WhatsApp Notification: Your Abu Marketplace verification code is ${code}`);
-      setTimeout(() => setToastNotice(null), 8000);
-    }, 600);
+  const handleClose = () => {
+    setStep('input');
+    setPhone('');
+    setFullName('');
+    setEnteredOtp('');
+    setGeneratedOtp('');
+    setOtpError('');
+    setToastNotice(null);
+    onClose();
   };
 
   const handleVerifyOtp = () => {
     if (enteredOtp.trim() !== generatedOtp.trim()) {
-      setOtpError('Invalid code. Please enter the 6-digit code sent to your WhatsApp or click Auto-fill.');
+      setOtpError('That code does not match. Please enter the demo code shown below.');
       return;
     }
 
@@ -87,40 +98,21 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
     // Successful authentication
     const user: UserProfile = {
       id: `usr_wa_${phone.replace(/\D/g, '')}`,
-      name: fullName.trim() || 'Sierra Leone Shopper',
+      name: fullName.trim(),
       whatsappNumber: fullPhoneNumber,
       isVerified: true,
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName.trim() || 'SL')}&backgroundColor=0B3B60,002541&textColor=ffffff`,
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName.trim())}&backgroundColor=0B3B60,002541&textColor=ffffff`,
       role: 'buyer',
       preferredCity: 'Freetown',
       joinedAt: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
     };
 
     onLoginSuccess(user);
-    onClose();
+    handleClose();
   };
 
-  const handleAutoFillAndVerify = () => {
-    setEnteredOtp(generatedOtp);
-    setOtpError('');
-    setTimeout(() => {
-      const user: UserProfile = {
-        id: `usr_wa_${phone.replace(/\D/g, '')}`,
-        name: fullName.trim() || 'Sierra Leone Shopper',
-        whatsappNumber: fullPhoneNumber,
-        isVerified: true,
-        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName.trim() || 'SL')}&backgroundColor=0B3B60,002541&textColor=ffffff`,
-        role: 'buyer',
-        preferredCity: 'Freetown',
-        joinedAt: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-      };
-      onLoginSuccess(user);
-      onClose();
-    }, 400);
-  };
-
-  const cleanWaNumber = (countryCode + phone).replace(/\D/g, '');
-  const waDirectUrl = `https://wa.me/${cleanWaNumber}?text=${encodeURIComponent(`Hello! My Abu Marketplace one-time verification code is ${generatedOtp}`)}`;
+  const supportMessage = `Hello Abu Marketplace, I need help signing in with WhatsApp. My number is ${fullPhoneNumber}.`;
+  const supportUrl = `https://wa.me/${WHATSAPP_SUPPORT_NUMBER}?text=${encodeURIComponent(supportMessage)}`;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-[#002541]/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
@@ -136,19 +128,16 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-base text-white flex items-center gap-1.5">
-                <span>WhatsApp Login</span>
-                <span className="text-[10px] bg-[#25D366] text-white font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider">
-                  Verified
-                </span>
+                <span>WhatsApp Sign In</span>
               </h3>
               <p className="text-[11px] text-[#A7F3D0]">
-                Instant passwordless sign-in for Sierra Leone shoppers
+                Continue with your WhatsApp number
               </p>
             </div>
           </div>
 
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-2.5 rounded-full hover:bg-white/10 text-white/80 hover:text-white transition-colors cursor-pointer"
             aria-label="Close dialog"
           >
@@ -162,7 +151,7 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
             <MessageSquare className="w-4 h-4 text-[#25D366] shrink-0 mt-0.5 fill-current" />
             <div className="flex-1">
               <div className="font-bold text-[11px] uppercase tracking-wider text-[#075E54]">
-                Incoming WhatsApp OTP Notification
+                Demo sign-in code
               </div>
               <div className="font-semibold text-xs mt-0.5">{toastNotice}</div>
             </div>
@@ -244,7 +233,7 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                placeholder="e.g. Mohamed Sesay"
+                placeholder="Enter your name"
                 className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg text-sm text-[#0F172A] focus:border-[#25D366] focus:bg-white focus:outline-none transition-colors"
               />
             </div>
@@ -273,7 +262,7 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="76 892 411"
+                    placeholder="Enter your phone number"
                     className="w-full h-10 px-3 bg-[#F8FAFC] border border-[#CBD5E1] rounded-lg text-sm text-[#0F172A] font-semibold focus:border-[#25D366] focus:bg-white focus:outline-none transition-colors"
                   />
                   {carrier.carrier && (
@@ -287,7 +276,7 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                 </div>
               </div>
               <p className="text-[11px] text-[#64748B] mt-1.5">
-                We will send an instant 6-digit one-time verification passcode directly to your WhatsApp.
+                This demo generates a code here. WhatsApp code delivery is not configured yet.
               </p>
             </div>
 
@@ -316,17 +305,10 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
             <button
               type="button"
               onClick={handleSendCode}
-              disabled={isSending}
-              className="w-full h-11 bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-sm rounded-lg flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-60"
+              className="w-full h-11 bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-sm rounded-lg flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer"
             >
-              {isSending ? (
-                <span>Generating Code...</span>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  <span>Send Code via WhatsApp</span>
-                </>
-              )}
+              <Send className="w-4 h-4" />
+              <span>Generate demo code</span>
             </button>
           </div>
         ) : (
@@ -337,10 +319,10 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <h4 className="font-bold text-sm text-[#0F172A]">
-                Enter WhatsApp Verification Code
+                Enter your verification code
               </h4>
               <p className="text-xs text-[#64748B] mt-1">
-                Sent to <strong className="text-[#075E54]">{fullPhoneNumber}</strong>
+                For <strong className="text-[#075E54]">{fullPhoneNumber}</strong>
               </p>
             </div>
 
@@ -352,6 +334,9 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                 value={enteredOtp}
                 onChange={(e) => setEnteredOtp(e.target.value.replace(/\D/g, ''))}
                 placeholder="• • • • • •"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                aria-label="Six-digit verification code"
                 className="w-full h-12 text-center tracking-[0.5em] text-xl font-bold bg-[#F8FAFC] border-2 border-[#CBD5E1] focus:border-[#25D366] rounded-lg focus:outline-none transition-colors"
                 autoFocus
               />
@@ -363,32 +348,31 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
               </div>
             )}
 
-            {/* Quick Auto-Fill / Simulation Action */}
+            {/* Demo-only code and support contact */}
             <div className="bg-[#F0FDF4] border border-[#BBF7D0] p-3 rounded-lg text-xs space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[#166534] font-semibold">Generated Test Passcode:</span>
+                <span className="text-[#166534] font-semibold">Demo code (not sent):</span>
                 <span className="font-mono font-bold text-sm text-[#14532D] tracking-widest bg-white px-2 py-0.5 rounded border border-[#86EFAC]">
                   {generatedOtp}
                 </span>
               </div>
-              <div className="flex items-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={handleAutoFillAndVerify}
-                  className="flex-1 py-1.5 bg-[#25D366] hover:bg-[#1EBE5D] text-white font-bold text-xs rounded transition-colors flex items-center justify-center gap-1 cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Auto-Fill & Verify</span>
-                </button>
+              <a
+                href={supportUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-2 bg-white hover:bg-slate-50 text-[#075E54] font-bold rounded border border-[#CBD5E1] transition-colors flex items-center justify-center gap-1.5"
+                title="Contact Abu Marketplace support on WhatsApp"
+              >
+                <span>Need help? Contact us on WhatsApp</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+              <div className="text-center text-[11px] text-[#64748B]">
+                <span>{MARKETPLACE_ADDRESS} · </span>
                 <a
-                  href={waDirectUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="py-1.5 px-3 bg-white hover:bg-slate-50 text-[#075E54] font-bold text-xs rounded border border-[#CBD5E1] transition-colors flex items-center justify-center gap-1"
-                  title="Open WhatsApp Web or App"
+                  href={`mailto:${MARKETPLACE_SUPPORT_EMAIL}`}
+                  className="text-[#075E54] hover:underline"
                 >
-                  <span>Open WhatsApp</span>
-                  <ExternalLink className="w-3 h-3" />
+                  {MARKETPLACE_SUPPORT_EMAIL}
                 </a>
               </div>
             </div>
@@ -407,7 +391,12 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
             <div className="flex items-center justify-between text-xs pt-1">
               <button
                 type="button"
-                onClick={() => setStep('input')}
+                onClick={() => {
+                  setEnteredOtp('');
+                  setGeneratedOtp('');
+                  setOtpError('');
+                  setStep('input');
+                }}
                 className="text-[#64748B] hover:text-[#0F172A] font-semibold cursor-pointer"
               >
                 ← Change Number
@@ -428,7 +417,7 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
         {/* Modal Bottom Safety Guarantee */}
         <div className="bg-[#F8FAFC] border-t border-[#E2E8F0] p-3 text-center text-[11px] text-[#64748B] flex items-center justify-center gap-1.5">
           <ShieldCheck className="w-3.5 h-3.5 text-[#00875A]" />
-          <span>Encrypted Session · Official Abu Marketplace Sierra Leone Gateway</span>
+          <span>Demo sign-in · WhatsApp code delivery is not configured</span>
         </div>
       </div>
     </div>

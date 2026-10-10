@@ -1,6 +1,11 @@
 import React from 'react';
-import { ShieldCheck, Truck, Phone, MapPin, Store, RotateCcw } from 'lucide-react';
+import { ShieldCheck, Truck, Phone, MapPin, Store, RotateCcw, Mail } from 'lucide-react';
 import { AbuLogo } from './AbuLogo';
+import {
+  MARKETPLACE_ADDRESS,
+  MARKETPLACE_SUPPORT_EMAIL,
+  WHATSAPP_SUPPORT_DISPLAY_NUMBER,
+} from '../data/contactDetails';
 
 interface FooterProps {
   onOpenLocationPicker: () => void;
@@ -68,7 +73,7 @@ export const Footer: React.FC<FooterProps> = ({
           {/* Column 1: Brand & Mission (5 cols) */}
           <div className="md:col-span-5 space-y-3">
             <div className="flex items-center gap-2.5">
-              <AbuLogo size={36} />
+              <AbuLogo size={48} />
               <div>
                 <span className="font-extrabold text-lg text-white tracking-tight block leading-tight">
                   Abu Marketplace
@@ -134,15 +139,22 @@ export const Footer: React.FC<FooterProps> = ({
               <div className="flex items-start gap-2.5">
                 <Phone className="w-4 h-4 text-[#8df7c1] shrink-0 mt-0.5" />
                 <div>
-                  <span className="text-white font-bold block">+232 76 000 888 / +232 88 111 222</span>
+                  <span className="text-white font-bold block">{WHATSAPP_SUPPORT_DISPLAY_NUMBER}</span>
                   <span className="text-[11px] text-[#7fa6d0]">Mon–Sat: 8:00 AM – 7:00 PM GMT</span>
                 </div>
               </div>
               <div className="flex items-start gap-2.5">
+                <Mail className="w-4 h-4 text-[#8df7c1] shrink-0 mt-0.5" />
+                <a
+                  href={`mailto:${MARKETPLACE_SUPPORT_EMAIL}`}
+                  className="text-white/90 hover:text-white hover:underline"
+                >
+                  {MARKETPLACE_SUPPORT_EMAIL}
+                </a>
+              </div>
+              <div className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-[#8df7c1] shrink-0 mt-0.5" />
-                <span className="text-white/90">
-                  Siaka Stevens Street, Freetown, Sierra Leone
-                </span>
+                <span className="text-white/90">{MARKETPLACE_ADDRESS}</span>
               </div>
             </div>
           </div>

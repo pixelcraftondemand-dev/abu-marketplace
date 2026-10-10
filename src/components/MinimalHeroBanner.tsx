@@ -31,14 +31,10 @@ export const MinimalHeroBanner: React.FC<MinimalHeroBannerProps> = ({
               <span className="text-[11px] font-bold text-[#8df7c1] uppercase tracking-wider">
                 Official Sierra Leone Marketplace
               </span>
-              <span className="text-white/40">·</span>
-              <span className="text-[11px] text-white/90">
-                Cash on Delivery (No Mobile Money Initially)
-              </span>
             </div>
 
             <div className="flex items-start gap-3 sm:gap-4">
-              <AbuLogo size={48} className="shrink-0 mt-1" />
+              <AbuLogo size={64} className="shrink-0 mt-1" />
               <div>
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white leading-tight">
                   High-Density Digital Commerce & Verified Artisans
