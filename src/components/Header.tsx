@@ -61,23 +61,20 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Main Brand & Navigation Strip */}
       <div className="max-w-[1440px] w-full mx-auto px-3 sm:px-6 py-2.5">
         <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-6">
-          {/* Brand & Monogram Logo */}
+          {/* Brand Logo */}
           <button 
             onClick={() => {
               onSelectView('marketplace');
               onSelectCategory('All');
             }} 
-            className="flex items-center gap-2 text-left focus:outline-none shrink-0 group cursor-pointer"
+            className="flex items-center gap-3 text-left focus:outline-none shrink-0 cursor-pointer"
           >
             <AbuLogo size={52} />
-            <div className="flex flex-col">
-              <span className="font-extrabold tracking-tight text-base sm:text-lg text-white group-hover:text-[#d0e4ff] transition-colors leading-tight">
-                Abu
-              </span>
-              <span className="text-[10px] uppercase font-semibold text-[#8df7c1] tracking-wider leading-none hidden sm:block">
-                Marketplace
-              </span>
-            </div>
+            <img
+              src="/word-mark.png?v=3"
+              alt="Abu Marketplace"
+              className="h-10 w-auto object-contain brightness-0 invert"
+            />
           </button>
 
           {/* Center Search Bar (full-width row on mobile, inline on desktop) */}
