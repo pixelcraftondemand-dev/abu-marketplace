@@ -109,11 +109,18 @@ export const auth = betterAuth({
     'http://localhost:5173',
     process.env.APP_URL || '',
     BETTER_AUTH_URL,
+    'https://ais-dev-mwjnsmpsez6dbl5ruxi3bu-664654490955.europe-west2.run.app',
+    'https://ais-pre-mwjnsmpsez6dbl5ruxi3bu-664654490955.europe-west2.run.app',
   ].filter(Boolean),
+  advanced: {
+    useSecureCookies: false, // Allows session tokens to persist across localhost, preview iframes, and HTTPS production
+  },
   plugins: [
     bearer(),
     dash({ apiKey: BETTER_AUTH_API_KEY }),
     phoneNumber({
+      otpLength: 6,
+      expiresIn: 300, // 5 minutes single-use expiration
       signUpOnVerification: {
         getTempEmail: (phone) => `${phone.replace(/[^0-9]/g, '')}@phone.abumarketplace.sl`,
         getTempName: (phone) => `Verified Shopper (+${phone.slice(-4)})`,

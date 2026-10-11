@@ -3,10 +3,11 @@ import {
   Sun, 
   Smartphone, 
   Headphones, 
-  UtensilsCrossed, 
-  Sparkles, 
+  Home,
+  Shirt, 
   Wrench, 
-  Grid
+  LayoutGrid,
+  Zap
 } from 'lucide-react';
 import { Category } from '../types';
 
@@ -26,8 +27,11 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
   const items = [
     {
       label: 'All Items',
-      icon: Grid,
-      image: null,
+      sublabel: 'Catalog',
+      icon: LayoutGrid,
+      color: '#0B3B60',
+      bgColor: 'bg-blue-50 dark:bg-blue-950/40',
+      textColor: 'text-blue-600 dark:text-blue-400',
       onClick: () => {
         onSelectView('marketplace');
         onSelectCategory('All');
@@ -35,19 +39,12 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
       isActive: activeView === 'marketplace' && selectedCategory === 'All',
     },
     {
-      label: 'Fashion',
-      icon: Sparkles,
-      image: '/products/leather_sandals_1791545917938.jpg',
-      onClick: () => {
-        onSelectView('marketplace');
-        onSelectCategory('Fashion & Footwear');
-      },
-      isActive: activeView === 'marketplace' && selectedCategory === 'Fashion & Footwear',
-    },
-    {
       label: 'Solar & Power',
+      sublabel: 'Inverters & PV',
       icon: Sun,
-      image: '/products/solar_inverter_power_station_1791485447453.jpg',
+      color: '#D97706',
+      bgColor: 'bg-amber-50 dark:bg-amber-950/40',
+      textColor: 'text-amber-600 dark:text-amber-400',
       onClick: () => {
         onSelectView('marketplace');
         onSelectCategory('Solar & Power');
@@ -56,8 +53,11 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
     },
     {
       label: 'Phones & Tech',
+      sublabel: 'Tablets & SIM',
       icon: Smartphone,
-      image: '/products/flagship_smartphone_device_1791485459581.jpg',
+      color: '#0284C7',
+      bgColor: 'bg-sky-50 dark:bg-sky-950/40',
+      textColor: 'text-sky-600 dark:text-sky-400',
       onClick: () => {
         onSelectView('marketplace');
         onSelectCategory('Phones & Tablets');
@@ -66,8 +66,11 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
     },
     {
       label: 'Electronics',
+      sublabel: 'Audio & Sound',
       icon: Headphones,
-      image: '/products/wireless_earbuds_anc_1791546935073.jpg',
+      color: '#6366F1',
+      bgColor: 'bg-indigo-50 dark:bg-indigo-950/40',
+      textColor: 'text-indigo-600 dark:text-indigo-400',
       onClick: () => {
         onSelectView('marketplace');
         onSelectCategory('Electronics & Audio');
@@ -76,8 +79,11 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
     },
     {
       label: 'Home & Living',
-      icon: UtensilsCrossed,
-      image: '/products/digital_air_fryer_1791546864135.jpg',
+      sublabel: 'Appliances',
+      icon: Home,
+      color: '#EA580C',
+      bgColor: 'bg-orange-50 dark:bg-orange-950/40',
+      textColor: 'text-orange-600 dark:text-orange-400',
       onClick: () => {
         onSelectView('marketplace');
         onSelectCategory('Home & Living');
@@ -85,9 +91,25 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
       isActive: activeView === 'marketplace' && selectedCategory === 'Home & Living',
     },
     {
+      label: 'Fashion',
+      sublabel: 'Wear & Shoes',
+      icon: Shirt,
+      color: '#9333EA',
+      bgColor: 'bg-purple-50 dark:bg-purple-950/40',
+      textColor: 'text-purple-600 dark:text-purple-400',
+      onClick: () => {
+        onSelectView('marketplace');
+        onSelectCategory('Fashion & Footwear');
+      },
+      isActive: activeView === 'marketplace' && selectedCategory === 'Fashion & Footwear',
+    },
+    {
       label: 'Artisans',
+      sublabel: 'Trade Pros',
       icon: Wrench,
-      image: null,
+      color: '#00875A',
+      bgColor: 'bg-emerald-50 dark:bg-emerald-950/40',
+      textColor: 'text-emerald-600 dark:text-emerald-400',
       onClick: () => {
         onSelectView('services');
       },
@@ -98,7 +120,7 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
   return (
     <div className="max-w-[1440px] mx-auto px-3 sm:px-6 pt-3 pb-1">
       <div className="flex items-center justify-between mb-2.5">
-        <h3 className="text-sm font-bold text-[#1A242D] tracking-tight">
+        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">
           Shop by Category
         </h3>
         <button
@@ -106,49 +128,51 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
             onSelectView('marketplace');
             onSelectCategory('All');
           }}
-          className="text-xs text-[#00875A] hover:underline font-bold"
+          className="text-xs text-[#00875A] hover:underline font-bold cursor-pointer"
         >
-          View all &gt;
+          View all items &gt;
         </button>
       </div>
 
-      {/* Neat Rounded-2xl Category Cards (Matching User Reference Image) */}
-      <div className="flex items-center gap-3 sm:gap-5 overflow-x-auto no-scrollbar py-1">
+      {/* Pure Icon-Based Category Cards (Zero Pictures/Photos) */}
+      <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 sm:gap-3 py-1">
         {items.map((item, idx) => {
           const Icon = item.icon;
           return (
             <button
               key={idx}
               onClick={item.onClick}
-              className="flex flex-col items-center gap-1.5 shrink-0 group cursor-pointer focus:outline-none"
+              className={`flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl transition-all duration-200 group cursor-pointer focus:outline-none border text-center ${
+                item.isActive
+                  ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-[#00875A] shadow-xs ring-1 ring-[#00875A]/30'
+                  : 'bg-white dark:bg-[#111D27] border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-2xs active:scale-[0.98]'
+              }`}
             >
-              <div
-                className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl p-2 flex items-center justify-center overflow-hidden transition-all duration-200 ${
-                  item.isActive
-                    ? 'bg-[#E6F4EA] ring-2 ring-[#00875A] shadow-xs'
-                    : 'bg-white border border-[#E7ECF0] hover:border-[#00875A] group-hover:shadow-xs group-hover:scale-102'
+              {/* Icon Container */}
+              <div 
+                className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all duration-200 mb-1.5 ${
+                  item.isActive 
+                    ? 'bg-[#00875A] text-white shadow-xs scale-105' 
+                    : `${item.bgColor} ${item.textColor} group-hover:scale-105`
                 }`}
               >
-                {item.image ? (
-                  <img
-                    src={item.image}
-                    alt={item.label}
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                    item.isActive ? 'bg-[#00875A] text-white' : 'bg-[#F4F6F8] text-[#0B3B60]'
-                  }`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                )}
+                <Icon className="w-5 h-5 sm:w-6 sm:h-6" strokeWidth={2.2} />
               </div>
+
+              {/* Label */}
               <span
-                className={`text-[11px] sm:text-xs font-semibold whitespace-nowrap text-center transition-colors ${
-                  item.isActive ? 'text-[#00875A] font-bold' : 'text-[#42474E] group-hover:text-[#1A242D]'
+                className={`text-[11px] sm:text-xs font-bold whitespace-nowrap leading-tight transition-colors ${
+                  item.isActive 
+                    ? 'text-[#00875A] dark:text-[#8df7c1]' 
+                    : 'text-slate-700 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white'
                 }`}
               >
                 {item.label}
+              </span>
+
+              {/* Sublabel */}
+              <span className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap hidden sm:block mt-0.5">
+                {item.sublabel}
               </span>
             </button>
           );

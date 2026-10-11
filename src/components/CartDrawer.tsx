@@ -30,20 +30,20 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const totalWithDelivery = subtotal > 0 ? subtotal + currentLocation.deliveryFeeSLE : 0;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-[#002541]/60 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 overflow-hidden bg-[#002541]/60 dark:bg-black/75 backdrop-blur-xs flex justify-end animate-in fade-in duration-200">
       <div 
-        className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col justify-between border-l border-[#DCE1E5]"
+        className="w-full max-w-md bg-white dark:bg-[#111D27] text-[#1A242D] dark:text-[#F1F5F9] h-full shadow-2xl flex flex-col justify-between border-l border-[#DCE1E5] dark:border-[#1E2E3D]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-4 bg-[#0B3B60] text-white flex items-center justify-between">
+        <div className="p-4 bg-[#0B3B60] dark:bg-[#002541] text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShoppingBag className="w-5 h-5 text-[#8df7c1]" />
             <h2 className="font-bold text-base">Your Cart ({items.length} items)</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-white/10 text-white/80 hover:text-white"
+            className="p-1 rounded hover:bg-white/10 text-white/80 hover:text-white cursor-pointer"
             aria-label="Close cart drawer"
           >
             <X className="w-5 h-5" />
@@ -54,16 +54,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {items.length === 0 ? (
             <div className="text-center py-16 px-4">
-              <ShoppingBag className="w-12 h-12 text-[#73777f] mx-auto mb-3 opacity-40" />
-              <p className="font-bold text-[#1A242D] text-base mb-1">
+              <ShoppingBag className="w-12 h-12 text-[#73777f] dark:text-slate-600 mx-auto mb-3 opacity-40" />
+              <p className="font-bold text-[#1A242D] dark:text-[#F1F5F9] text-base mb-1">
                 Your cart is empty
               </p>
-              <p className="text-xs text-[#5A6872] mb-6">
+              <p className="text-xs text-[#5A6872] dark:text-slate-400 mb-6">
                 Explore solar power, tech flagships, home goods and verified deals in Sierra Leone.
               </p>
               <button
                 onClick={onClose}
-                className="bg-[#0B3B60] hover:bg-[#002541] text-white px-5 py-2 rounded text-xs font-bold transition-colors cursor-pointer"
+                className="bg-[#0B3B60] hover:bg-[#002541] dark:bg-[#00875A] dark:hover:bg-[#00704A] text-white px-5 py-2 rounded text-xs font-bold transition-colors cursor-pointer"
               >
                 Start Shopping
               </button>
@@ -72,10 +72,10 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
             items.map(({ product, quantity }) => (
               <div
                 key={product.id}
-                className="p-3 bg-white rounded border border-[#DCE1E5] flex gap-3 items-center justify-between"
+                className="p-3 bg-white dark:bg-[#0E1720] rounded border border-[#DCE1E5] dark:border-[#1E2E3D] flex gap-3 items-center justify-between"
               >
                 {/* Thumbnail */}
-                <div className="w-16 h-16 rounded bg-[#F8F9FA] overflow-hidden shrink-0 border border-[#DCE1E5] flex items-center justify-center">
+                <div className="w-16 h-16 rounded bg-[#F8F9FA] dark:bg-[#15222E] overflow-hidden shrink-0 border border-[#DCE1E5] dark:border-[#1E2E3D] flex items-center justify-center">
                   <img
                     src={product.image}
                     alt={product.title}
@@ -89,13 +89,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                 {/* Info */}
                 <div className="flex-1 min-w-0 pr-2">
-                  <h4 className="text-xs font-semibold text-[#1A242D] line-clamp-1">
+                  <h4 className="text-xs font-semibold text-[#1A242D] dark:text-[#F1F5F9] line-clamp-1">
                     {product.title}
                   </h4>
-                  <div className="text-[11px] text-[#00875A] font-medium">
+                  <div className="text-[11px] text-[#00875A] dark:text-[#8df7c1] font-medium">
                     {product.sellerLocation}
                   </div>
-                  <div className="text-xs font-extrabold text-[#0B3B60] tabular-nums mt-0.5">
+                  <div className="text-xs font-extrabold text-[#0B3B60] dark:text-[#38BDF8] tabular-nums mt-0.5">
                     SLE {new Intl.NumberFormat('en-US').format(product.priceSLE)}
                   </div>
                 </div>
@@ -104,26 +104,26 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="flex flex-col items-end gap-1.5 shrink-0">
                   <button
                     onClick={() => onRemoveItem(product.id)}
-                    className="text-[#ba1a1a] hover:text-[#93000a] p-1 text-xs"
+                    className="text-red-500 hover:text-red-700 p-1 text-xs cursor-pointer"
                     title="Remove item"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
 
-                  <div className="flex items-center border border-[#DCE1E5] rounded bg-white">
+                  <div className="flex items-center border border-[#DCE1E5] dark:border-[#1E2E3D] rounded bg-white dark:bg-[#111D27]">
                     <button
                       onClick={() => onUpdateQuantity(product.id, quantity - 1)}
-                      className="px-2 py-0.5 text-xs font-bold text-[#0B3B60] hover:bg-[#eaf5ff]"
+                      className="px-2 py-0.5 text-xs font-bold text-[#0B3B60] dark:text-[#38BDF8] hover:bg-[#eaf5ff] dark:hover:bg-slate-800 cursor-pointer"
                     >
                       -
                     </button>
-                    <span className="px-2 text-xs font-bold tabular-nums min-w-6 text-center">
+                    <span className="px-2 text-xs font-bold tabular-nums min-w-6 text-center text-[#1A242D] dark:text-slate-200">
                       {quantity}
                     </span>
                     <button
                       onClick={() => onUpdateQuantity(product.id, Math.min(product.stockCount, quantity + 1))}
                       disabled={quantity >= product.stockCount}
-                      className="px-2 py-0.5 text-xs font-bold text-[#0B3B60] hover:bg-[#eaf5ff] disabled:opacity-30"
+                      className="px-2 py-0.5 text-xs font-bold text-[#0B3B60] dark:text-[#38BDF8] hover:bg-[#eaf5ff] dark:hover:bg-slate-800 disabled:opacity-30 cursor-pointer"
                     >
                       +
                     </button>
@@ -136,33 +136,33 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
         {/* Summary Footer */}
         {items.length > 0 && (
-          <div className="p-4 bg-[#F4F6F8] border-t border-[#DCE1E5] space-y-3">
+          <div className="p-4 bg-[#F4F6F8] dark:bg-[#0B121A] border-t border-[#DCE1E5] dark:border-[#1E2E3D] space-y-3">
             {/* Delivery destination note */}
-            <div className="flex items-center justify-between text-xs text-[#5A6872] bg-white p-2.5 rounded border border-[#DCE1E5]">
+            <div className="flex items-center justify-between text-xs text-[#5A6872] dark:text-slate-400 bg-white dark:bg-[#0E1720] p-2.5 rounded border border-[#DCE1E5] dark:border-[#1E2E3D]">
               <div className="flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-[#00875A]" />
-                <span className="truncate max-w-[180px]">Delivery to: <strong>{currentLocation.name}</strong></span>
+                <MapPin className="w-3.5 h-3.5 text-[#00875A] dark:text-[#8df7c1]" />
+                <span className="truncate max-w-[180px]">Delivery to: <strong className="text-[#1A242D] dark:text-slate-200">{currentLocation.name}</strong></span>
               </div>
-              <span className="font-semibold text-[#1A242D]">
+              <span className="font-semibold text-[#1A242D] dark:text-slate-200">
                 SLE {currentLocation.deliveryFeeSLE}
               </span>
             </div>
 
             {/* Calculations */}
             <div className="space-y-1 text-xs">
-              <div className="flex justify-between text-[#5A6872]">
+              <div className="flex justify-between text-[#5A6872] dark:text-slate-400">
                 <span>Items Subtotal:</span>
-                <span className="font-semibold text-[#1A242D] tabular-nums">
+                <span className="font-semibold text-[#1A242D] dark:text-slate-200 tabular-nums">
                   SLE {new Intl.NumberFormat('en-US').format(subtotal)}
                 </span>
               </div>
-              <div className="flex justify-between text-[#5A6872]">
+              <div className="flex justify-between text-[#5A6872] dark:text-slate-400">
                 <span>Logistics & Handling:</span>
-                <span className="font-semibold text-[#1A242D] tabular-nums">
+                <span className="font-semibold text-[#1A242D] dark:text-slate-200 tabular-nums">
                   SLE {currentLocation.deliveryFeeSLE}
                 </span>
               </div>
-              <div className="flex justify-between text-sm font-extrabold text-[#0B3B60] pt-1 border-t border-[#DCE1E5]">
+              <div className="flex justify-between text-sm font-extrabold text-[#0B3B60] dark:text-[#38BDF8] pt-1 border-t border-[#DCE1E5] dark:border-[#1E2E3D]">
                 <span>Total Amount:</span>
                 <span className="text-base tabular-nums">
                   SLE {new Intl.NumberFormat('en-US').format(totalWithDelivery)}
@@ -176,15 +176,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 onProceedToCheckout();
                 onClose();
               }}
-              className="w-full h-11 bg-[#0B3B60] hover:bg-[#002541] text-white rounded font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-colors cursor-pointer"
+              className="w-full h-11 bg-[#0B3B60] hover:bg-[#002541] dark:bg-[#00875A] dark:hover:bg-[#00704A] text-white rounded font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-colors cursor-pointer"
             >
               <span>Proceed to Checkout</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 
-            <div className="flex items-center justify-center gap-1.5 text-[11px] text-[#5A6872]">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#00875A]" />
-              <span>Cash on Delivery · Inspect before paying (No mobile money initially)</span>
+            <div className="flex items-center justify-center gap-1.5 text-[11px] text-[#5A6872] dark:text-slate-400">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#00875A] dark:text-[#8df7c1]" />
+              <span>Cash on Delivery · Inspect before paying</span>
             </div>
           </div>
         )}

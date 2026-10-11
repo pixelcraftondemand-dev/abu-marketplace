@@ -43,27 +43,27 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const renderCategoryFallbackIcon = () => {
     switch (product.category) {
       case 'Fashion & Footwear':
-        return <Sparkles className="w-10 h-10 text-[#0B3B60]/40" />;
+        return <Sparkles className="w-10 h-10 text-[#0B3B60]/40 dark:text-sky-400/40" />;
       case 'Solar & Power':
-        return <Sun className="w-10 h-10 text-[#FF6600]/40" />;
+        return <Sun className="w-10 h-10 text-[#FF6600]/40 dark:text-amber-400/40" />;
       case 'Phones & Tablets':
-        return <Smartphone className="w-10 h-10 text-[#00875A]/40" />;
+        return <Smartphone className="w-10 h-10 text-[#00875A]/40 dark:text-emerald-400/40" />;
       case 'Electronics & Audio':
-        return <Headphones className="w-10 h-10 text-[#7A1CAC]/40" />;
+        return <Headphones className="w-10 h-10 text-[#7A1CAC]/40 dark:text-purple-400/40" />;
       case 'Home & Living':
-        return <UtensilsCrossed className="w-10 h-10 text-[#0B3B60]/40" />;
+        return <UtensilsCrossed className="w-10 h-10 text-[#0B3B60]/40 dark:text-orange-400/40" />;
       default:
-        return <ShoppingBag className="w-10 h-10 text-[#5A6872]/40" />;
+        return <ShoppingBag className="w-10 h-10 text-[#5A6872]/40 dark:text-slate-400/40" />;
     }
   };
 
   return (
     <article
       onClick={() => onSelect(product)}
-      className="group bg-white rounded-md border border-[#E7ECF0] hover:border-[#0B3B60] transition-all cursor-pointer flex flex-col justify-between overflow-hidden shadow-2xs hover:shadow-sm h-full"
+      className="group bg-white dark:bg-[#111D27] rounded-md border border-[#E7ECF0] dark:border-[#1E2E3D] hover:border-[#0B3B60] dark:hover:border-[#38BDF8] transition-all cursor-pointer flex flex-col justify-between overflow-hidden shadow-2xs hover:shadow-sm h-full"
     >
       {/* 1:1 Image Container with Graceful Fallback */}
-      <div className="relative aspect-square w-full bg-[#F4F6F8] overflow-hidden flex items-center justify-center">
+      <div className="relative aspect-square w-full bg-[#F4F6F8] dark:bg-[#091118] overflow-hidden flex items-center justify-center">
         {!imageError ? (
           <img
             src={currentImgSrc}
@@ -74,12 +74,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             className="w-full h-full object-cover object-center group-hover:scale-102 transition-transform duration-300"
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#F8FAFC] to-[#EDF2F7] p-3 text-center">
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#F8FAFC] to-[#EDF2F7] dark:from-[#091118] dark:to-[#15222E] p-3 text-center">
             {renderCategoryFallbackIcon()}
-            <span className="text-[10px] font-bold text-[#5A6872] mt-1 line-clamp-1">
+            <span className="text-[10px] font-bold text-[#5A6872] dark:text-slate-400 mt-1 line-clamp-1">
               {product.category}
             </span>
-            <span className="text-[9px] text-[#8A99A8] line-clamp-1 max-w-[120px]">
+            <span className="text-[9px] text-[#8A99A8] dark:text-slate-500 line-clamp-1 max-w-[120px]">
               {product.title}
             </span>
           </div>
@@ -96,8 +96,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <button
           type="button"
           onClick={(e) => onToggleWishlist(product, e)}
-          className={`absolute top-2 right-2 p-1.5 rounded-full bg-white/85 backdrop-blur-xs hover:bg-white transition-colors shadow-2xs ${
-            isWishlisted ? 'text-[#0B3B60]' : 'text-gray-400 hover:text-[#0B3B60]'
+          className={`absolute top-2 right-2 p-1.5 rounded-full bg-white/85 dark:bg-slate-900/85 backdrop-blur-xs hover:bg-white dark:hover:bg-slate-800 transition-colors shadow-2xs cursor-pointer ${
+            isWishlisted ? 'text-[#0B3B60] dark:text-[#38BDF8]' : 'text-gray-400 hover:text-[#0B3B60] dark:hover:text-[#38BDF8]'
           }`}
           aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
         >
@@ -111,7 +111,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       <div className="p-2 sm:p-2.5 flex flex-col justify-between">
         <div>
           {/* Subtle seller line */}
-          <div className="text-[10px] text-[#5A6872] truncate mb-0.5 flex items-center gap-1">
+          <div className="text-[10px] text-[#5A6872] dark:text-slate-400 truncate mb-0.5 flex items-center gap-1">
             <span>{product.sellerName}</span>
             {product.isVerifiedSeller && (
               <CheckCircle2 className="w-3 h-3 text-[#00875A] shrink-0" />
@@ -119,20 +119,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
 
           {/* Clean 2-line title with snug line height */}
-          <h3 className="text-xs sm:text-[13px] font-semibold text-[#1A242D] line-clamp-2 leading-snug group-hover:text-[#0B3B60] transition-colors min-h-[32px] sm:min-h-[36px]">
+          <h3 className="text-xs sm:text-[13px] font-semibold text-[#1A242D] dark:text-[#F1F5F9] line-clamp-2 leading-snug group-hover:text-[#0B3B60] dark:group-hover:text-[#38BDF8] transition-colors min-h-[32px] sm:min-h-[36px]">
             {product.title}
           </h3>
         </div>
 
         {/* Snug price and add button row */}
-        <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-[#F0F4F8]">
+        <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-[#F0F4F8] dark:border-[#1E2E3D]">
           <div className="flex items-baseline gap-1">
-            <span className="font-extrabold text-[#0B3B60] text-xs sm:text-sm tabular-nums">
-              <span className="text-[10px] font-semibold text-[#5A6872] mr-0.5">SLE</span>
+            <span className="font-extrabold text-[#0B3B60] dark:text-[#38BDF8] text-xs sm:text-sm tabular-nums">
+              <span className="text-[10px] font-semibold text-[#5A6872] dark:text-slate-400 mr-0.5">SLE</span>
               {new Intl.NumberFormat('en-US').format(product.priceSLE)}
             </span>
             {product.originalPriceSLE > product.priceSLE && (
-              <span className="text-[10px] text-[#8A99A8] line-through tabular-nums">
+              <span className="text-[10px] text-[#8A99A8] dark:text-slate-500 line-through tabular-nums">
                 SLE {new Intl.NumberFormat('en-US').format(product.originalPriceSLE)}
               </span>
             )}
@@ -141,7 +141,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <button
             type="button"
             onClick={(e) => onAddToCart(product, e)}
-            className="w-6 h-6 rounded bg-[#F4F6F8] hover:bg-[#0B3B60] text-[#0B3B60] hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+            className="w-6 h-6 rounded bg-[#F4F6F8] dark:bg-[#1E2E3D] hover:bg-[#0B3B60] dark:hover:bg-[#00875A] text-[#0B3B60] dark:text-slate-200 hover:text-white dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
             title="Add to cart"
             aria-label="Add to cart"
           >
@@ -153,4 +153,3 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     </article>
   );
 };
-

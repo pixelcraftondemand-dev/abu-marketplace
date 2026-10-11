@@ -50,10 +50,9 @@ import {
 import { 
   WhatsAppAuthModal 
 } from './components/WhatsAppAuthModal';
-import { 
-  LegalModal 
-} from './components/LegalModal';
+import { LegalModal } from './components/LegalModal';
 import { getActiveBetterAuthSession } from './lib/auth-client';
+import { getInitialTheme, applyTheme, ThemeMode } from './lib/theme';
 
 import { 
   Category, 
@@ -89,6 +88,21 @@ import {
 } from 'lucide-react';
 
 export default function App() {
+  // Theme state (persisted in localStorage and synced with HTML document)
+  const [theme, setTheme] = useState<ThemeMode>(() => getInitialTheme());
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      applyTheme(next);
+      return next;
+    });
+  };
+
   // WhatsApp Authentication state (persisted)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
     try {
@@ -98,7 +112,78 @@ export default function App() {
       return null;
     }
   });
-  const [isWhatsAppAuthOpen, setIsWhatsAppAuthOpen] = useState(false);
+  // Direct URL Path Routing (/login, /register, /auth, /account, /signin, /signup)
+  const [isWhatsAppAuthOpen, setIsWhatsAppAuthOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      return ['/login', '/register', '/auth', '/account', '/signin', '/signup'].includes(path);
+    }
+    return false;
+  });
+
+  const [authInitialTab, setAuthInitialTab] = useState<'phone' | 'email'>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      if (['/login', '/register', '/signin', '/signup'].includes(path)) return 'email';
+    }
+    return 'phone';
+  });
+
+  const [authInitialEmailMode, setAuthInitialEmailMode] = useState<'signin' | 'signup'>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      if (path === '/register' || path === '/signup') return 'signup';
+    }
+    return 'signin';
+  });
+
+  const handleOpenAuth = (mode: 'login' | 'register' | 'phone' = 'phone') => {
+    if (mode === 'login') {
+      setAuthInitialTab('email');
+      setAuthInitialEmailMode('signin');
+      if (typeof window !== 'undefined') window.history.pushState({}, '', '/login');
+    } else if (mode === 'register') {
+      setAuthInitialTab('email');
+      setAuthInitialEmailMode('signup');
+      if (typeof window !== 'undefined') window.history.pushState({}, '', '/register');
+    } else {
+      setAuthInitialTab('phone');
+      if (typeof window !== 'undefined') window.history.pushState({}, '', '/auth');
+    }
+    setIsWhatsAppAuthOpen(true);
+  };
+
+  const handleCloseAuth = () => {
+    setIsWhatsAppAuthOpen(false);
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      if (['/login', '/register', '/auth', '/account', '/signin', '/signup'].includes(path)) {
+        window.history.pushState({}, '', '/');
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname.toLowerCase();
+      if (path === '/login' || path === '/signin') {
+        setAuthInitialTab('email');
+        setAuthInitialEmailMode('signin');
+        setIsWhatsAppAuthOpen(true);
+      } else if (path === '/register' || path === '/signup') {
+        setAuthInitialTab('email');
+        setAuthInitialEmailMode('signup');
+        setIsWhatsAppAuthOpen(true);
+      } else if (path === '/auth' || path === '/account') {
+        setAuthInitialTab('phone');
+        setIsWhatsAppAuthOpen(true);
+      } else {
+        setIsWhatsAppAuthOpen(false);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // User's approved shop state (persisted)
   const [userStore, setUserStore] = useState<VendorStore | null>(() => {
@@ -392,7 +477,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] flex flex-col font-sans antialiased text-[#1A242D] relative">
+    <div className="min-h-screen bg-[#FAF9F6] dark:bg-[#091118] text-[#1A242D] dark:text-[#F1F5F9] flex flex-col font-sans antialiased relative transition-colors duration-200">
       {/* 1. Header with Abu Logo and 3-Track Mode navigation */}
       <Header
         currentLocation={currentLocation}
@@ -412,6 +497,8 @@ export default function App() {
         currentUser={currentUser}
         onOpenWhatsAppAuth={() => setIsWhatsAppAuthOpen(true)}
         isShopApproved={isShopApproved}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
 
       {/* VIEW: BLUE-COLLAR SERVICES */}
@@ -450,19 +537,19 @@ export default function App() {
           {/* Active Store Filter Notice if selected */}
           {selectedStoreFilter && (
             <div className="max-w-[1440px] mx-auto w-full px-3 sm:px-6 pt-2">
-              <div className="bg-white border border-[#E7ECF0] p-3 rounded flex items-center justify-between text-xs shadow-2xs">
+              <div className="bg-white dark:bg-[#111D27] border border-[#E7ECF0] dark:border-[#1E2E3D] p-3 rounded flex items-center justify-between text-xs shadow-2xs">
                 <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-[#0B3B60]" />
-                  <span className="font-bold text-[#0B3B60]">
+                  <Building2 className="w-4 h-4 text-[#0B3B60] dark:text-[#38BDF8]" />
+                  <span className="font-bold text-[#0B3B60] dark:text-[#38BDF8]">
                     Storefront: {selectedStoreFilter.name}
                   </span>
-                  <span className="text-[#5A6872] hidden sm:inline">
+                  <span className="text-[#5A6872] dark:text-slate-400 hidden sm:inline">
                     · {selectedStoreFilter.locationHub}
                   </span>
                 </div>
                 <button
                   onClick={() => setSelectedStoreFilter(null)}
-                  className="bg-[#F4F6F8] hover:bg-slate-200 text-[#1A242D] px-2.5 py-1 rounded font-semibold text-xs flex items-center gap-1 cursor-pointer"
+                  className="bg-[#F4F6F8] dark:bg-[#1E2E3D] hover:bg-slate-200 dark:hover:bg-[#2A3E50] text-[#1A242D] dark:text-slate-200 px-2.5 py-1 rounded font-semibold text-xs flex items-center gap-1 cursor-pointer transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
                   <span>Show All Products</span>
@@ -476,13 +563,13 @@ export default function App() {
             <div className="max-w-[1440px] mx-auto w-full px-3 sm:px-6 py-4 space-y-8">
               {/* SECTION 1: Top Picks */}
               <section>
-                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] pb-2">
-                  <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
+                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2">
+                  <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight">
                     Top Picks & Best Sellers
                   </h2>
                   <button
                     onClick={() => setSortBy('sold')}
-                    className="text-xs text-[#0B3B60] hover:underline font-semibold"
+                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer"
                   >
                     View All
                   </button>
@@ -503,16 +590,16 @@ export default function App() {
 
               {/* SECTION 2: Fashion & Footwear (West African Couture & Leather) */}
               <section>
-                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] pb-2">
+                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-[#D84315]" />
-                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight">
                       Fashion & Footwear Spotlight (West African Couture & Leather)
                     </h2>
                   </div>
                   <button
                     onClick={() => setSelectedCategory('Fashion & Footwear')}
-                    className="text-xs text-[#0B3B60] hover:underline font-semibold"
+                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer"
                   >
                     View All Fashion ({fashionProducts.length})
                   </button>
@@ -533,16 +620,16 @@ export default function App() {
 
               {/* SECTION 3: Solar & Power Backup */}
               <section>
-                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] pb-2">
+                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2">
                   <div className="flex items-center gap-2">
                     <Sun className="w-4 h-4 text-[#FF6600]" />
-                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight">
                       Solar & Power Backup Systems
                     </h2>
                   </div>
                   <button
                     onClick={() => setSelectedCategory('Solar & Power')}
-                    className="text-xs text-[#0B3B60] hover:underline font-semibold"
+                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer"
                   >
                     View All Solar ({solarProducts.length})
                   </button>
@@ -563,16 +650,16 @@ export default function App() {
 
               {/* SECTION 4: Phones & Technology */}
               <section>
-                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] pb-2">
+                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2">
                   <div className="flex items-center gap-2">
                     <Smartphone className="w-4 h-4 text-[#00875A]" />
-                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight">
                       Phones & Mobile Tech
                     </h2>
                   </div>
                   <button
                     onClick={() => setSelectedCategory('Phones & Tablets')}
-                    className="text-xs text-[#0B3B60] hover:underline font-semibold"
+                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer"
                   >
                     View All ({phoneProducts.length})
                   </button>
@@ -593,16 +680,16 @@ export default function App() {
 
               {/* SECTION 5: Audio & Gear */}
               <section>
-                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] pb-2">
+                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2">
                   <div className="flex items-center gap-2">
                     <Headphones className="w-4 h-4 text-[#7A1CAC]" />
-                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight">
                       Electronics & Audio Gear
                     </h2>
                   </div>
                   <button
                     onClick={() => setSelectedCategory('Electronics & Audio')}
-                    className="text-xs text-[#0B3B60] hover:underline font-semibold"
+                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer"
                   >
                     View All ({techProducts.length})
                   </button>
@@ -623,16 +710,16 @@ export default function App() {
 
               {/* SECTION 6: Home & Kitchen Living */}
               <section>
-                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] pb-2">
+                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2">
                   <div className="flex items-center gap-2">
-                    <UtensilsCrossed className="w-4 h-4 text-[#0B3B60]" />
-                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
+                    <UtensilsCrossed className="w-4 h-4 text-[#0B3B60] dark:text-[#38BDF8]" />
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight">
                       Home & Kitchen Living
                     </h2>
                   </div>
                   <button
                     onClick={() => setSelectedCategory('Home & Living')}
-                    className="text-xs text-[#0B3B60] hover:underline font-semibold"
+                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer"
                   >
                     View All ({homeProducts.length})
                   </button>
@@ -651,19 +738,18 @@ export default function App() {
                 </div>
               </section>
 
-
-              {/* SECTION 5: Certified Blue-Collar Technicians Strip */}
-              <section className="bg-white rounded-lg border border-[#E7ECF0] p-4 sm:p-5 shadow-2xs">
+              {/* SECTION 7: Certified Blue-Collar Technicians Strip */}
+              <section className="bg-white dark:bg-[#111D27] rounded-lg border border-[#E7ECF0] dark:border-[#1E2E3D] p-4 sm:p-5 shadow-2xs">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Wrench className="w-4 h-4 text-[#0B3B60]" />
-                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] tracking-tight">
+                    <Wrench className="w-4 h-4 text-[#0B3B60] dark:text-[#38BDF8]" />
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight">
                       Blue-Collar Artisans On Call
                     </h2>
                   </div>
                   <button
                     onClick={() => setActiveView('services')}
-                    className="text-xs text-[#0B3B60] hover:underline font-semibold flex items-center gap-1"
+                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
                   >
                     <span>View All Artisans</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -674,23 +760,23 @@ export default function App() {
                   {services.slice(0, 3).map((srv) => (
                     <div
                       key={srv.id}
-                      className="p-3 rounded border border-[#E7ECF0] bg-[#FAF9F6] flex items-center justify-between gap-3 hover:border-[#0B3B60] transition-colors"
+                      className="p-3 rounded border border-[#E7ECF0] dark:border-[#1E2E3D] bg-[#FAF9F6] dark:bg-[#0E1720] flex items-center justify-between gap-3 hover:border-[#0B3B60] dark:hover:border-[#38BDF8] transition-colors"
                     >
                       <div className="min-w-0">
-                        <span className="text-[10px] font-semibold text-[#0B3B60] bg-white px-1.5 py-0.5 rounded border border-[#E7ECF0]">
+                        <span className="text-[10px] font-semibold text-[#0B3B60] dark:text-[#38BDF8] bg-white dark:bg-[#15222E] px-1.5 py-0.5 rounded border border-[#E7ECF0] dark:border-[#223547]">
                           {srv.tradeCategory}
                         </span>
-                        <h4 className="font-bold text-xs text-[#1A242D] mt-1 truncate">
+                        <h4 className="font-bold text-xs text-[#1A242D] dark:text-[#F1F5F9] mt-1 truncate">
                           {srv.providerName}
                         </h4>
-                        <div className="text-[11px] text-[#5A6872]">
-                          Callout: <strong className="text-[#0B3B60]">SLE {srv.calloutFeeSLE}</strong> · {srv.locationHub}
+                        <div className="text-[11px] text-[#5A6872] dark:text-slate-400">
+                          Callout: <strong className="text-[#0B3B60] dark:text-[#38BDF8]">SLE {srv.calloutFeeSLE}</strong> · {srv.locationHub}
                         </div>
                       </div>
 
                       <button
                         onClick={() => setSelectedServiceToBook(srv)}
-                        className="px-2.5 py-1.5 bg-[#0B3B60] hover:bg-[#002541] text-white rounded text-xs font-bold shrink-0 transition-colors cursor-pointer"
+                        className="px-2.5 py-1.5 bg-[#0B3B60] hover:bg-[#002541] dark:bg-[#00875A] dark:hover:bg-[#00704A] text-white rounded text-xs font-bold shrink-0 transition-colors cursor-pointer"
                       >
                         Book
                       </button>
@@ -703,15 +789,15 @@ export default function App() {
             /* Filtered Catalog Grid */
             <div className="max-w-[1440px] mx-auto w-full px-3 sm:px-6 py-3">
               {/* Filter feedback row */}
-              <div className="flex items-center justify-between mb-3 text-xs text-[#5A6872]">
+              <div className="flex items-center justify-between mb-3 text-xs text-[#5A6872] dark:text-slate-400">
                 <div>
-                  Showing <strong className="text-[#0B3B60]">{filteredProducts.length}</strong> items in{' '}
-                  <span className="font-semibold text-[#1A242D]">{selectedCategory}</span>
+                  Showing <strong className="text-[#0B3B60] dark:text-[#38BDF8]">{filteredProducts.length}</strong> items in{' '}
+                  <span className="font-semibold text-[#1A242D] dark:text-slate-200">{selectedCategory}</span>
                 </div>
                 {selectedCategory !== 'All' && (
                   <button
                     onClick={() => setSelectedCategory('All')}
-                    className="text-[#0B3B60] hover:underline font-semibold"
+                    className="text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer"
                   >
                     Clear Filter
                   </button>
@@ -719,9 +805,9 @@ export default function App() {
               </div>
 
               {filteredProducts.length === 0 ? (
-                <div className="bg-white rounded border border-[#E7ECF0] p-12 text-center my-4">
-                  <PackageSearch className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-                  <h3 className="font-bold text-sm text-[#1A242D] mb-1">
+                <div className="bg-white dark:bg-[#111D27] rounded border border-[#E7ECF0] dark:border-[#1E2E3D] p-12 text-center my-4">
+                  <PackageSearch className="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-2" />
+                  <h3 className="font-bold text-sm text-[#1A242D] dark:text-[#F1F5F9] mb-1">
                     No items found matching criteria
                   </h3>
                   <button
@@ -730,7 +816,7 @@ export default function App() {
                       setSearchQuery('');
                       setSelectedStoreFilter(null);
                     }}
-                    className="px-3.5 py-1.5 bg-[#0B3B60] text-white rounded text-xs font-bold hover:bg-[#002541] mt-2 cursor-pointer"
+                    className="px-3.5 py-1.5 bg-[#0B3B60] dark:bg-[#00875A] text-white rounded text-xs font-bold hover:bg-[#002541] dark:hover:bg-[#00704A] mt-2 cursor-pointer"
                   >
                     Reset Filter
                   </button>
@@ -851,10 +937,12 @@ export default function App() {
       {/* WhatsApp Authentication Modal */}
       <WhatsAppAuthModal
         isOpen={isWhatsAppAuthOpen}
-        onClose={() => setIsWhatsAppAuthOpen(false)}
+        onClose={handleCloseAuth}
         currentUser={currentUser}
         onLoginSuccess={handleLoginSuccess}
         onLogout={handleLogout}
+        initialTab={authInitialTab}
+        initialEmailMode={authInitialEmailMode}
       />
 
       {/* Order Confirmation Receipt Modal */}

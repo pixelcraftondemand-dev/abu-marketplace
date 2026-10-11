@@ -41,6 +41,8 @@ interface AuthModalProps {
   currentUser: UserProfile | null;
   onLoginSuccess: (user: UserProfile) => void;
   onLogout: () => void;
+  initialTab?: 'phone' | 'email';
+  initialEmailMode?: 'signin' | 'signup';
 }
 
 type MainTab = 'phone' | 'email';
@@ -52,11 +54,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   currentUser,
   onLoginSuccess,
   onLogout,
+  initialTab = 'phone',
+  initialEmailMode = 'signin',
 }) => {
   // Navigation tabs
-  const [activeTab, setActiveTab] = useState<MainTab>('phone');
+  const [activeTab, setActiveTab] = useState<MainTab>(initialTab);
   const [authView, setAuthView] = useState<'form' | 'otp_verify'>('form');
-  const [emailMode, setEmailMode] = useState<EmailMode>('signin');
+  const [emailMode, setEmailMode] = useState<EmailMode>(initialEmailMode);
   const [activeChannel, setActiveChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
   
   // Phone form state
@@ -105,13 +109,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   // Reset inputs when modal opens or closes
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      if (initialTab) setActiveTab(initialTab);
+      if (initialEmailMode) setEmailMode(initialEmailMode);
+    } else {
       setAuthView('form');
       setErrorMessage('');
       setToastNotification(null);
       setIsSubmitting(false);
     }
-  }, [isOpen]);
+  }, [isOpen, initialTab, initialEmailMode]);
 
   if (!isOpen) return null;
 
@@ -345,7 +352,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div 
-        className="bg-white rounded-2xl w-full max-w-[440px] overflow-hidden shadow-2xl border border-slate-200/80 flex flex-col text-slate-800 animate-in zoom-in-95 duration-200 max-h-[92vh]"
+        className="bg-white dark:bg-[#111D27] rounded-2xl w-full max-w-[440px] overflow-hidden shadow-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col text-slate-800 dark:text-slate-100 animate-in zoom-in-95 duration-200 max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ======================================================== */}

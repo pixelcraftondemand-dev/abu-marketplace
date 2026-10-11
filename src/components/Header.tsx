@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { LocationNode, Category, UserProfile } from '../types';
 import { AbuLogo } from './AbuLogo';
+import { ThemeToggle } from './ThemeToggle';
+import { ThemeMode } from '../lib/theme';
 
 interface HeaderProps {
   currentLocation: LocationNode;
@@ -30,6 +32,8 @@ interface HeaderProps {
   currentUser?: UserProfile | null;
   onOpenWhatsAppAuth?: () => void;
   isShopApproved?: boolean;
+  theme?: ThemeMode;
+  onToggleTheme?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -47,6 +51,8 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   onOpenWhatsAppAuth,
   isShopApproved = false,
+  theme = 'light',
+  onToggleTheme,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-[#002541] text-white shadow-sm border-b border-[#0B3B60]">
@@ -170,6 +176,11 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
               <span className="hidden sm:inline font-bold">Cart</span>
             </button>
+
+            {/* Light / Dark Mode Toggle */}
+            {onToggleTheme && (
+              <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+            )}
 
             {/* 4. Sign In / User Account (Moved to the space occupied by cart, on the far right) */}
             {currentUser ? (
