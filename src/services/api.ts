@@ -1,4 +1,4 @@
-import type { 
+import { 
   Product, 
   LocationNode, 
   Order, 
@@ -67,11 +67,16 @@ export const api = {
     streetAddress: string;
     landmark?: string;
     paymentMethod: MobileMoneyProvider;
+    buyerId?: string;
   }): Promise<Order | null> {
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('better_auth_token') : null;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
       const res = await fetch('/api/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(orderPayload),
       });
       if (!res.ok) throw new Error('Failed to create order');
@@ -80,6 +85,23 @@ export const api = {
     } catch (err) {
       console.warn('API error creating order:', err);
       return null;
+    }
+  },
+
+  // 4b. Fetch Orders with Better Auth Row-Level Security
+  async getOrders(): Promise<Order[]> {
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('better_auth_token') : null;
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch('/api/orders', { headers });
+      if (!res.ok) throw new Error('Failed to fetch orders');
+      const data = await res.json();
+      return data.data;
+    } catch (err) {
+      console.warn('API error fetching orders:', err);
+      return [];
     }
   },
 

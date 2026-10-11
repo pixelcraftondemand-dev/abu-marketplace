@@ -66,8 +66,8 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     subtotalSLE: 1850,
     deliveryFeeSLE: 15,
     totalSLE: 1865,
-    recipientName: 'Kallon Sesay',
-    phone: '076 892 110',
+    recipientName: 'Verified Customer',
+    phone: '232-XXXXXXXX',
     destination: {
       id: 'freetown-central',
       name: 'Freetown (Central / CBD)',
@@ -134,7 +134,7 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2.5 rounded hover:bg-white/10 text-white/80 hover:text-white"
+            className="p-1 rounded hover:bg-white/10 text-white/80 hover:text-white"
             aria-label="Close order tracker"
           >
             <X className="w-5 h-5" />

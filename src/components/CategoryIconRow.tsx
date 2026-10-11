@@ -6,7 +6,6 @@ import {
   UtensilsCrossed, 
   Sparkles, 
   Wrench, 
-  Building2,
   Grid
 } from 'lucide-react';
 import { Category } from '../types';
@@ -28,6 +27,7 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
     {
       label: 'All Items',
       icon: Grid,
+      image: null,
       onClick: () => {
         onSelectView('marketplace');
         onSelectCategory('All');
@@ -35,8 +35,19 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
       isActive: activeView === 'marketplace' && selectedCategory === 'All',
     },
     {
+      label: 'Fashion',
+      icon: Sparkles,
+      image: '/products/leather_sandals_1791545917938.jpg',
+      onClick: () => {
+        onSelectView('marketplace');
+        onSelectCategory('Fashion & Footwear');
+      },
+      isActive: activeView === 'marketplace' && selectedCategory === 'Fashion & Footwear',
+    },
+    {
       label: 'Solar & Power',
       icon: Sun,
+      image: '/products/solar_inverter_power_station_1791485447453.jpg',
       onClick: () => {
         onSelectView('marketplace');
         onSelectCategory('Solar & Power');
@@ -46,6 +57,7 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
     {
       label: 'Phones & Tech',
       icon: Smartphone,
+      image: '/products/flagship_smartphone_device_1791485459581.jpg',
       onClick: () => {
         onSelectView('marketplace');
         onSelectCategory('Phones & Tablets');
@@ -53,8 +65,9 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
       isActive: activeView === 'marketplace' && selectedCategory === 'Phones & Tablets',
     },
     {
-      label: 'Audio & Gear',
+      label: 'Electronics',
       icon: Headphones,
+      image: '/products/wireless_earbuds_anc_1791546935073.jpg',
       onClick: () => {
         onSelectView('marketplace');
         onSelectCategory('Electronics & Audio');
@@ -62,8 +75,9 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
       isActive: activeView === 'marketplace' && selectedCategory === 'Electronics & Audio',
     },
     {
-      label: 'Home & Kitchen',
+      label: 'Home & Living',
       icon: UtensilsCrossed,
+      image: '/products/digital_air_fryer_1791546864135.jpg',
       onClick: () => {
         onSelectView('marketplace');
         onSelectCategory('Home & Living');
@@ -71,20 +85,20 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
       isActive: activeView === 'marketplace' && selectedCategory === 'Home & Living',
     },
     {
-      label: 'Fashion & Wear',
-      icon: Sparkles,
+      label: 'Artisans',
+      icon: Wrench,
+      image: null,
       onClick: () => {
-        onSelectView('marketplace');
-        onSelectCategory('Fashion & Footwear');
+        onSelectView('services');
       },
-      isActive: activeView === 'marketplace' && selectedCategory === 'Fashion & Footwear',
+      isActive: activeView === 'services',
     },
   ];
 
   return (
-    <div className="max-w-[1440px] w-full mx-auto px-3 sm:px-6 py-3">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-[#5A6872]">
+    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 pt-3 pb-1">
+      <div className="flex items-center justify-between mb-2.5">
+        <h3 className="text-sm font-bold text-[#1A242D] tracking-tight">
           Shop by Category
         </h3>
         <button
@@ -92,13 +106,14 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
             onSelectView('marketplace');
             onSelectCategory('All');
           }}
-          className="text-xs text-[#0B3B60] hover:underline font-semibold"
+          className="text-xs text-[#00875A] hover:underline font-bold"
         >
-          View All
+          View all &gt;
         </button>
       </div>
 
-      <div className="flex items-center gap-3 sm:gap-6 overflow-x-auto no-scrollbar py-1">
+      {/* Neat Rounded-2xl Category Cards (Matching User Reference Image) */}
+      <div className="flex items-center gap-3 sm:gap-5 overflow-x-auto no-scrollbar py-1">
         {items.map((item, idx) => {
           const Icon = item.icon;
           return (
@@ -108,17 +123,29 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
               className="flex flex-col items-center gap-1.5 shrink-0 group cursor-pointer focus:outline-none"
             >
               <div
-                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all ${
+                className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl p-2 flex items-center justify-center overflow-hidden transition-all duration-200 ${
                   item.isActive
-                    ? 'bg-[#0B3B60] text-white shadow-sm ring-2 ring-[#0B3B60] ring-offset-2'
-                    : 'bg-white text-[#1A242D] border border-[#E7ECF0] hover:border-[#0B3B60] group-hover:bg-[#F4F6F8]'
+                    ? 'bg-[#E6F4EA] ring-2 ring-[#00875A] shadow-xs'
+                    : 'bg-white border border-[#E7ECF0] hover:border-[#00875A] group-hover:shadow-xs group-hover:scale-102'
                 }`}
               >
-                <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                {item.image ? (
+                  <img
+                    src={item.image}
+                    alt={item.label}
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                    item.isActive ? 'bg-[#00875A] text-white' : 'bg-[#F4F6F8] text-[#0B3B60]'
+                  }`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                )}
               </div>
               <span
-                className={`text-[11px] font-semibold whitespace-nowrap ${
-                  item.isActive ? 'text-[#0B3B60] font-bold' : 'text-[#5A6872] group-hover:text-[#1A242D]'
+                className={`text-[11px] sm:text-xs font-semibold whitespace-nowrap text-center transition-colors ${
+                  item.isActive ? 'text-[#00875A] font-bold' : 'text-[#42474E] group-hover:text-[#1A242D]'
                 }`}
               >
                 {item.label}

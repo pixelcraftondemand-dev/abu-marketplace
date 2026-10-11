@@ -6,3 +6,9 @@ coverage/
 *.log
 .env*
 !.env.example
+.local-pg/
+tmp-pgdata/
+tmp-classifieds/
+.quickcart-ref/
+.dev.env.json
+.dev.pid

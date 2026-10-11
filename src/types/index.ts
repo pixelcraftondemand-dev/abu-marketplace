@@ -151,16 +151,20 @@ export interface ServiceBooking {
 }
 
 // ----------------------------------------------------
-// WHATSAPP USER AUTHENTICATION
+// USER AUTHENTICATION (WHATSAPP, GOOGLE, APPLE, PHONE)
 // ----------------------------------------------------
 export interface UserProfile {
   id: string;
   name: string;
-  whatsappNumber: string;
+  whatsappNumber?: string;
+  phoneNumber?: string;
+  email?: string;
+  provider: 'whatsapp' | 'google' | 'apple' | 'phone' | 'email';
   isVerified: boolean;
   avatar?: string;
   preferredCity?: string;
   role: 'buyer' | 'merchant' | 'artisan';
   joinedAt: string;
 }
+
 

@@ -14,7 +14,7 @@ export const MinimalHeroBanner: React.FC<MinimalHeroBannerProps> = ({
   onOpenWhatsAppAuth,
 }) => {
   return (
-    <div className="max-w-[1440px] w-full mx-auto px-3 sm:px-6 pt-3 pb-2">
+    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 pt-3 pb-2">
       <div className="relative rounded-xl overflow-hidden bg-gradient-to-r from-[#002541] via-[#0B3B60] to-[#05263B] text-white p-5 sm:p-7 shadow-sm border border-[#144b77]">
         {/* Subtle Background Doodles */}
         <EcommerceDoodles 
@@ -31,10 +31,14 @@ export const MinimalHeroBanner: React.FC<MinimalHeroBannerProps> = ({
               <span className="text-[11px] font-bold text-[#8df7c1] uppercase tracking-wider">
                 Official Sierra Leone Marketplace
               </span>
+              <span className="text-white/40">·</span>
+              <span className="text-[11px] text-white/90">
+                Cash on Delivery (No Mobile Money Initially)
+              </span>
             </div>
 
             <div className="flex items-start gap-3 sm:gap-4">
-              <AbuLogo size={64} className="shrink-0 mt-1" />
+              <AbuLogo size={48} className="shrink-0 mt-1" />
               <div>
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white leading-tight">
                   High-Density Digital Commerce & Verified Artisans
@@ -85,7 +89,7 @@ export const MinimalHeroBanner: React.FC<MinimalHeroBannerProps> = ({
                   className="px-3 py-1.5 bg-[#25D366] hover:bg-[#1EBE5D] text-[#002541] text-xs font-extrabold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer ml-auto sm:ml-0"
                 >
                   <MessageSquare className="w-3.5 h-3.5 fill-current" />
-                  <span>WhatsApp Login</span>
+                  <span>Sign In / Quick Access</span>
                 </button>
               )}
             </div>

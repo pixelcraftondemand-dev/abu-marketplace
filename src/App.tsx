@@ -3,14 +3,8 @@ import {
   Header 
 } from './components/Header';
 import { 
-  MinimalHeroBanner 
-} from './components/MinimalHeroBanner';
-import { 
   CategoryIconRow 
 } from './components/CategoryIconRow';
-import { 
-  CategoryChips 
-} from './components/CategoryChips';
 import { 
   ProductCard 
 } from './components/ProductCard';
@@ -56,6 +50,10 @@ import {
 import { 
   WhatsAppAuthModal 
 } from './components/WhatsAppAuthModal';
+import { 
+  LegalModal 
+} from './components/LegalModal';
+import { getActiveBetterAuthSession } from './lib/auth-client';
 
 import { 
   Category, 
@@ -102,6 +100,18 @@ export default function App() {
   });
   const [isWhatsAppAuthOpen, setIsWhatsAppAuthOpen] = useState(false);
 
+  // User's approved shop state (persisted)
+  const [userStore, setUserStore] = useState<VendorStore | null>(() => {
+    try {
+      const saved = localStorage.getItem('abu_user_shop');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const isShopApproved = Boolean(userStore || currentUser?.role === 'merchant');
+
   // 1. Navigation View Mode ('marketplace' | 'services' | 'stores')
   const [activeView, setActiveView] = useState<'marketplace' | 'services' | 'stores'>('marketplace');
 
@@ -134,6 +144,8 @@ export default function App() {
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const [isMerchantHubOpen, setIsMerchantHubOpen] = useState(false);
   const [isOrderTrackingOpen, setIsOrderTrackingOpen] = useState(false);
+  const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
+  const [activeLegalDocId, setActiveLegalDocId] = useState('terms-of-service');
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
 
@@ -162,6 +174,12 @@ export default function App() {
         }
         if (remoteServices && remoteServices.length > 0) {
           setServices(remoteServices);
+        }
+
+        // Hydrate active Better Auth session from server
+        const activeUser = await getActiveBetterAuthSession();
+        if (activeUser) {
+          setCurrentUser(activeUser);
         }
       } catch (e) {
         console.warn('Backend hydration notice:', e);
@@ -250,13 +268,14 @@ export default function App() {
   const homeProducts = useMemo(() => products.filter((p) => p.category === 'Home & Living'), [products]);
   const techProducts = useMemo(() => products.filter((p) => p.category === 'Electronics & Audio'), [products]);
 
-  // WhatsApp Auth Handlers
+  // Authentication Handlers (WhatsApp, Google, Apple)
   const handleLoginSuccess = (user: UserProfile) => {
     setCurrentUser(user);
     try {
       localStorage.setItem('abu_marketplace_user', JSON.stringify(user));
     } catch {}
-    showToast(`Signed in via WhatsApp as ${user.name}`);
+    const providerLabel = user.provider === 'google' ? 'Google' : user.provider === 'apple' ? 'Apple' : 'WhatsApp';
+    showToast(`Signed in via ${providerLabel} as ${user.name}`);
   };
 
   const handleLogout = () => {
@@ -264,7 +283,7 @@ export default function App() {
     try {
       localStorage.removeItem('abu_marketplace_user');
     } catch {}
-    showToast('Logged out of WhatsApp session');
+    showToast('Signed out of account session');
   };
 
   // Cart Handlers
@@ -350,7 +369,13 @@ export default function App() {
 
   const handleAddNewStore = (newStore: VendorStore) => {
     setStores((prev) => [newStore, ...prev]);
-    showToast(`Store "${newStore.name}" created successfully!`);
+    setUserStore(newStore);
+    try {
+      localStorage.setItem('abu_user_shop', JSON.stringify(newStore));
+    } catch (e) {
+      console.error(e);
+    }
+    showToast(`Store "${newStore.name}" approved! Access it anytime via "My Shop".`);
     setActiveView('stores');
   };
 
@@ -367,7 +392,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen w-full bg-[#FAF9F6] flex flex-col font-sans antialiased text-[#1A242D] relative [&>*]:min-w-0">
+    <div className="min-h-screen bg-[#FAF9F6] flex flex-col font-sans antialiased text-[#1A242D] relative">
       {/* 1. Header with Abu Logo and 3-Track Mode navigation */}
       <Header
         currentLocation={currentLocation}
@@ -386,6 +411,7 @@ export default function App() {
         onSelectView={setActiveView}
         currentUser={currentUser}
         onOpenWhatsAppAuth={() => setIsWhatsAppAuthOpen(true)}
+        isShopApproved={isShopApproved}
       />
 
       {/* VIEW: BLUE-COLLAR SERVICES */}
@@ -410,16 +436,10 @@ export default function App() {
         />
       )}
 
-      {/* VIEW: MARKETPLACE PRODUCTS (MINIMALIST SCREENSHOT LAYOUT) */}
+      {/* VIEW: MARKETPLACE PRODUCTS (CLEAN, MINIMALIST SHOP-BY-CATEGORY LAYOUT) */}
       {activeView === 'marketplace' && (
         <>
-          {/* Subtle Warm Lifestyle Hero Banner */}
-          <MinimalHeroBanner 
-            onSelectCategory={setSelectedCategory}
-            onOpenWhatsAppAuth={() => setIsWhatsAppAuthOpen(true)}
-          />
-
-          {/* "Shop by Category" Circular Icons Row */}
+          {/* "Shop by Category" Only - Clean, Distraction-Free Navigation */}
           <CategoryIconRow
             selectedCategory={selectedCategory}
             onSelectCategory={setSelectedCategory}
@@ -451,14 +471,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Minimal Horizontal Category Pill Filters */}
-          <CategoryChips
-            categories={categories}
-            selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
-            productCounts={productCounts}
-          />
-
           {/* Sectioned Feed matching Screenshot */}
           {isSectionedHome ? (
             <div className="max-w-[1440px] mx-auto w-full px-3 sm:px-6 py-4 space-y-8">
@@ -475,8 +487,8 @@ export default function App() {
                     View All
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4">
-                  {products.slice(0, 5).map((prod) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4">
+                  {products.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
                       product={prod}
@@ -506,7 +518,7 @@ export default function App() {
                   </button>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4">
-                  {fashionProducts.map((prod) => (
+                  {fashionProducts.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
                       product={prod}
@@ -535,8 +547,8 @@ export default function App() {
                     View All Solar ({solarProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-2.5 sm:gap-4">
-                  {solarProducts.map((prod) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4">
+                  {solarProducts.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
                       product={prod}
@@ -565,8 +577,8 @@ export default function App() {
                     View All ({phoneProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 gap-2.5 sm:gap-4">
-                  {phoneProducts.map((prod) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4">
+                  {phoneProducts.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
                       product={prod}
@@ -595,8 +607,8 @@ export default function App() {
                     View All ({techProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 gap-2.5 sm:gap-4">
-                  {techProducts.map((prod) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4">
+                  {techProducts.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
                       product={prod}
@@ -625,8 +637,8 @@ export default function App() {
                     View All ({homeProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-2.5 sm:gap-4">
-                  {homeProducts.map((prod) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4">
+                  {homeProducts.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
                       product={prod}
@@ -724,7 +736,7 @@ export default function App() {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-4">
                   {filteredProducts.map((product) => (
                     <ProductCard
                       key={product.id}
@@ -776,6 +788,10 @@ export default function App() {
         onOpenLocationPicker={() => setIsLocationPickerOpen(true)}
         onOpenMerchantHub={() => setIsMerchantHubOpen(true)}
         onOpenOrderTracking={() => setIsOrderTrackingOpen(true)}
+        onOpenLegal={(docId) => {
+          if (docId) setActiveLegalDocId(docId);
+          setIsLegalModalOpen(true);
+        }}
       />
 
       {/* Modals & Slide-Overs */}
@@ -880,6 +896,13 @@ export default function App() {
           onClose={() => setIsLocationPickerOpen(false)}
         />
       )}
+
+      {/* Legal & Row-Level Security Modal */}
+      <LegalModal
+        isOpen={isLegalModalOpen}
+        initialDocId={activeLegalDocId}
+        onClose={() => setIsLegalModalOpen(false)}
+      />
 
       {/* Functional & Responsive Q&A Chatbot */}
       <ChatbotWidget

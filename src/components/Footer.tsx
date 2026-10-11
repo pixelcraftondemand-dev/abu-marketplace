@@ -1,27 +1,24 @@
 import React from 'react';
-import { ShieldCheck, Truck, Phone, MapPin, Store, RotateCcw, Mail } from 'lucide-react';
+import { ShieldCheck, Truck, Phone, MapPin, Store, RotateCcw } from 'lucide-react';
 import { AbuLogo } from './AbuLogo';
-import {
-  MARKETPLACE_ADDRESS,
-  MARKETPLACE_SUPPORT_EMAIL,
-  WHATSAPP_SUPPORT_DISPLAY_NUMBER,
-} from '../data/contactDetails';
 
 interface FooterProps {
   onOpenLocationPicker: () => void;
   onOpenMerchantHub: () => void;
   onOpenOrderTracking: () => void;
+  onOpenLegal?: (docId?: string) => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onOpenLocationPicker,
   onOpenMerchantHub,
   onOpenOrderTracking,
+  onOpenLegal,
 }) => {
   return (
     <footer className="bg-[#002541] text-white pt-8 pb-8 border-t border-[#144b77] mt-12">
       {/* 4 Trust Pillars */}
-      <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 pb-6 border-b border-[#144b77]">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 pb-6 border-b border-[#144b77]">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-xs">
           <div className="flex items-start gap-3 p-3 bg-[#082d49] rounded border border-[#144b77]">
             <Truck className="w-4 h-4 text-[#8df7c1] shrink-0 mt-0.5" />
@@ -68,12 +65,12 @@ export const Footer: React.FC<FooterProps> = ({
       </div>
 
       {/* Main Footer Links & Information - Clean Balanced 3-Column Layout */}
-      <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 py-8">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 text-xs text-[#d0e4ff]">
           {/* Column 1: Brand & Mission (5 cols) */}
           <div className="md:col-span-5 space-y-3">
             <div className="flex items-center gap-2.5">
-              <AbuLogo size={48} />
+              <AbuLogo size={36} />
               <div>
                 <span className="font-extrabold text-lg text-white tracking-tight block leading-tight">
                   Abu Marketplace
@@ -127,6 +124,24 @@ export const Footer: React.FC<FooterProps> = ({
                   <span>Change Delivery Destination</span>
                 </button>
               </li>
+              <li>
+                <button
+                  onClick={() => onOpenLegal && onOpenLegal('terms-of-service')}
+                  className="hover:text-white hover:underline flex items-center gap-2 text-left cursor-pointer transition-colors"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#7fa6d0] shrink-0" />
+                  <span>Terms of Service & Agreement</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => onOpenLegal && onOpenLegal('database-rls-policy')}
+                  className="hover:text-white hover:underline flex items-center gap-2 text-left cursor-pointer transition-colors"
+                >
+                  <span className="w-2 h-2 rounded-full bg-[#8df7c1]"></span>
+                  <span className="text-[#8df7c1]">Row-Level Security (RLS)</span>
+                </button>
+              </li>
             </ul>
           </div>
 
@@ -139,35 +154,56 @@ export const Footer: React.FC<FooterProps> = ({
               <div className="flex items-start gap-2.5">
                 <Phone className="w-4 h-4 text-[#8df7c1] shrink-0 mt-0.5" />
                 <div>
-                  <span className="text-white font-bold block">{WHATSAPP_SUPPORT_DISPLAY_NUMBER}</span>
+                  <span className="text-white font-bold block">+232 76 000 888 / +232 88 111 222</span>
                   <span className="text-[11px] text-[#7fa6d0]">Mon–Sat: 8:00 AM – 7:00 PM GMT</span>
                 </div>
               </div>
               <div className="flex items-start gap-2.5">
-                <Mail className="w-4 h-4 text-[#8df7c1] shrink-0 mt-0.5" />
-                <a
-                  href={`mailto:${MARKETPLACE_SUPPORT_EMAIL}`}
-                  className="text-white/90 hover:text-white hover:underline"
-                >
-                  {MARKETPLACE_SUPPORT_EMAIL}
-                </a>
-              </div>
-              <div className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-[#8df7c1] shrink-0 mt-0.5" />
-                <span className="text-white/90">{MARKETPLACE_ADDRESS}</span>
+                <span className="text-white/90">
+                  Siaka Stevens Street, Freetown, Sierra Leone
+                </span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Copyright & Legal Note */}
-      <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-6 pt-5 border-t border-[#144b77] flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-[#7fa6d0]">
-        <div>
-          © 2026 Abu Marketplace SL Ltd. All rights reserved.
+      {/* Copyright & Legal Bar */}
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 pt-5 border-t border-[#144b77] flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-[#7fa6d0]">
+        <div className="flex items-center gap-4 flex-wrap">
+          <span>© 2026 Abu Marketplace SL Ltd. All rights reserved.</span>
+          <span className="hidden sm:inline">•</span>
+          <button 
+            onClick={() => onOpenLegal && onOpenLegal('terms-of-service')}
+            className="hover:text-white hover:underline cursor-pointer"
+          >
+            Terms of Service
+          </button>
+          <span>•</span>
+          <button 
+            onClick={() => onOpenLegal && onOpenLegal('privacy-policy')}
+            className="hover:text-white hover:underline cursor-pointer"
+          >
+            Privacy Policy
+          </button>
+          <span>•</span>
+          <button 
+            onClick={() => onOpenLegal && onOpenLegal('merchant-terms')}
+            className="hover:text-white hover:underline cursor-pointer"
+          >
+            Merchant Seller Agreement
+          </button>
+          <span>•</span>
+          <button 
+            onClick={() => onOpenLegal && onOpenLegal('database-rls-policy')}
+            className="text-[#8df7c1] hover:underline cursor-pointer font-medium"
+          >
+            Row-Level Security (RLS)
+          </button>
         </div>
-        <div className="text-[11px]">
-          Registered & operating under the Laws of Sierra Leone.
+        <div className="text-[11px] text-right">
+          Registered under the Laws of Sierra Leone.
         </div>
       </div>
     </footer>

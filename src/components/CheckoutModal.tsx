@@ -37,11 +37,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   currentUser,
 }) => {
   const [step, setStep] = useState<'details' | 'payment' | 'ussd_push'>('details');
-  const [recipientName, setRecipientName] = useState(currentUser?.name || 'Mohamed Kamara');
-  const [rawPhone, setRawPhone] = useState(currentUser?.whatsappNumber || '076 123 456');
+  const [recipientName, setRecipientName] = useState(currentUser?.name || '');
+  const [rawPhone, setRawPhone] = useState(currentUser?.whatsappNumber || '');
   const [selectedLocation, setSelectedLocation] = useState<LocationNode>(currentLocation);
-  const [streetAddress, setStreetAddress] = useState('14 Rawdon Street, Central');
-  const [landmark, setLandmark] = useState('Opposite St. George Cathedral');
+  const [streetAddress, setStreetAddress] = useState('');
+  const [landmark, setLandmark] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<MobileMoneyProvider>('cash');
   const [isProcessing, setIsProcessing] = useState(false);
   const [ussdTimer, setUssdTimer] = useState(45);
@@ -144,7 +144,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2.5 rounded hover:bg-white/10 text-white/80 hover:text-white"
+            className="p-1 rounded hover:bg-white/10 text-white/80 hover:text-white"
             aria-label="Close checkout"
           >
             <X className="w-5 h-5" />
@@ -228,7 +228,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     type="text"
                     value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
-                    placeholder="e.g. Foday Koroma"
+                    placeholder="Enter recipient full name"
                     className="w-full h-10 px-3 bg-white border border-[#DCE1E5] rounded text-xs focus:outline-none focus:border-[#0B3B60] focus:ring-2 focus:ring-[#0B3B60]/10"
                   />
                 </div>
@@ -256,7 +256,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       type="text"
                       value={rawPhone}
                       onChange={(e) => handlePhoneChange(e.target.value)}
-                      placeholder="076 123 456 or 088 123 456"
+                      placeholder="Enter mobile number"
                       className="w-full h-10 px-3 bg-white border border-[#DCE1E5] rounded-r text-xs focus:outline-none focus:border-[#0B3B60] focus:ring-2 focus:ring-[#0B3B60]/10"
                     />
                   </div>

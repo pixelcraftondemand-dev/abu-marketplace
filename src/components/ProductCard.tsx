@@ -10,6 +10,14 @@ interface ProductCardProps {
   onToggleWishlist: (product: Product, e: React.MouseEvent) => void;
 }
 
+const CATEGORY_FALLBACK_IMAGES: Record<string, string> = {
+  'Fashion & Footwear': 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=800&q=80',
+  'Solar & Power': 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80',
+  'Phones & Tablets': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
+  'Electronics & Audio': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
+  'Home & Living': 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
+};
+
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   onSelect,
@@ -17,7 +25,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   isWishlisted,
   onToggleWishlist,
 }) => {
+  const [currentImgSrc, setCurrentImgSrc] = useState(product.image);
+  const [hasTriedFallback, setHasTriedFallback] = useState(false);
   const [imageError, setImageError] = useState(false);
+
+  const handleImageError = () => {
+    if (!hasTriedFallback) {
+      const fallback = CATEGORY_FALLBACK_IMAGES[product.category] || CATEGORY_FALLBACK_IMAGES['Fashion & Footwear'];
+      setHasTriedFallback(true);
+      setCurrentImgSrc(fallback);
+    } else {
+      setImageError(true);
+    }
+  };
 
   // Category Icon helper for fallback
   const renderCategoryFallbackIcon = () => {
@@ -46,11 +66,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       <div className="relative aspect-square w-full bg-[#F4F6F8] overflow-hidden flex items-center justify-center">
         {!imageError ? (
           <img
-            src={product.image}
+            src={currentImgSrc}
             alt={product.title}
             referrerPolicy="no-referrer"
             loading="lazy"
-            onError={() => setImageError(true)}
+            onError={handleImageError}
             className="w-full h-full object-cover object-center group-hover:scale-102 transition-transform duration-300"
           />
         ) : (
@@ -76,19 +96,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <button
           type="button"
           onClick={(e) => onToggleWishlist(product, e)}
-          className={`absolute top-2 right-2 p-2.5 rounded-full bg-white/85 backdrop-blur-xs hover:bg-white transition-colors shadow-2xs ${
+          className={`absolute top-2 right-2 p-1.5 rounded-full bg-white/85 backdrop-blur-xs hover:bg-white transition-colors shadow-2xs ${
             isWishlisted ? 'text-[#0B3B60]' : 'text-gray-400 hover:text-[#0B3B60]'
           }`}
           aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
         >
           <Heart
-            className={`w-4 h-4 ${isWishlisted ? 'fill-current' : ''}`}
+            className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-current' : ''}`}
           />
         </button>
       </div>
 
-      {/* Clean Details */}
-      <div className="p-2 sm:p-2.5 flex-1 flex flex-col justify-between">
+      {/* Clean Details without excessive spacing */}
+      <div className="p-2 sm:p-2.5 flex flex-col justify-between">
         <div>
           {/* Subtle seller line */}
           <div className="text-[10px] text-[#5A6872] truncate mb-0.5 flex items-center gap-1">
@@ -98,37 +118,38 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             )}
           </div>
 
-          {/* Clean 2-line title */}
-          <h3 className="text-xs sm:text-[13px] font-semibold text-[#1A242D] line-clamp-2 leading-snug group-hover:text-[#0B3B60] transition-colors mb-1">
+          {/* Clean 2-line title with snug line height */}
+          <h3 className="text-xs sm:text-[13px] font-semibold text-[#1A242D] line-clamp-2 leading-snug group-hover:text-[#0B3B60] transition-colors min-h-[32px] sm:min-h-[36px]">
             {product.title}
           </h3>
         </div>
 
-        {/* Clean price, COD hint and add button */}
+        {/* Snug price and add button row */}
         <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-[#F0F4F8]">
-          <div>
-            <div className="font-extrabold text-[#0B3B60] text-xs sm:text-sm tabular-nums">
+          <div className="flex items-baseline gap-1">
+            <span className="font-extrabold text-[#0B3B60] text-xs sm:text-sm tabular-nums">
               <span className="text-[10px] font-semibold text-[#5A6872] mr-0.5">SLE</span>
               {new Intl.NumberFormat('en-US').format(product.priceSLE)}
-            </div>
+            </span>
             {product.originalPriceSLE > product.priceSLE && (
-              <div className="text-[10px] text-[#8A99A8] line-through tabular-nums -mt-0.5">
+              <span className="text-[10px] text-[#8A99A8] line-through tabular-nums">
                 SLE {new Intl.NumberFormat('en-US').format(product.originalPriceSLE)}
-              </div>
+              </span>
             )}
           </div>
 
           <button
             type="button"
             onClick={(e) => onAddToCart(product, e)}
-            className="w-9 h-9 rounded bg-[#F4F6F8] hover:bg-[#0B3B60] text-[#0B3B60] hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+            className="w-6 h-6 rounded bg-[#F4F6F8] hover:bg-[#0B3B60] text-[#0B3B60] hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
             title="Add to cart"
             aria-label="Add to cart"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
+
     </article>
   );
 };

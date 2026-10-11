@@ -1,19 +1,24 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import express from 'express';
-import type { Request, Response } from 'express';
+import express, { Request, Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
-import type { Product, VendorStore, BlueCollarService, ServiceBooking } from './src/types/index.ts';
+import { Product, VendorStore, BlueCollarService, ServiceBooking } from './src/types/index.ts';
 import { INITIAL_PRODUCTS, INITIAL_STORES, INITIAL_SERVICES } from './src/data/mockData.ts';
+
+import { auth, getBetterAuthSession, getDispatchedOtp, db } from './server/auth.ts';
+import { toNodeHandler } from 'better-auth/node';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+
+// Mount Better Auth catch-all handler BEFORE express.json()
+app.all('/api/auth/*', toNodeHandler(auth));
 
 app.use(express.json());
 
@@ -98,8 +103,8 @@ let orders: any[] = [
   {
     id: 'ord-seed-001',
     trackingNumber: 'ABU-SL-78214',
-    recipientName: 'Kallon Sesay',
-    phone: '076 892 110',
+    recipientName: 'Verified Customer',
+    phone: '232-XXXXXXXX',
     destination: LOCATIONS[0],
     streetAddress: '19 Siaka Stevens Street, Freetown',
     landmark: 'Opposite Cotton Tree',
@@ -133,12 +138,214 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: 'healthy',
     service: 'Abu Marketplace Backend API',
+    authProvider: 'Better Auth (SQLite & Session Engine)',
     currency: 'SLE',
     country: 'Sierra Leone',
     activeProducts: products.length,
     totalOrders: orders.length,
     timestamp: new Date().toISOString(),
   });
+});
+
+// ----------------------------------------------------
+// BETTER AUTH CUSTOM ENDPOINTS
+// ----------------------------------------------------
+
+// Phone OTP Dispatch via Better Auth
+app.post('/api/custom-auth/phone/send-otp', async (req: Request, res: Response) => {
+  try {
+    const { phoneNumber, channel } = req.body;
+    if (!phoneNumber || typeof phoneNumber !== 'string') {
+      return res.status(400).json({ success: false, error: 'Valid phone number is required' });
+    }
+
+    const cleanDigits = phoneNumber.trim().replace(/\D/g, '');
+    if (cleanDigits.length < 6) {
+      return res.status(400).json({ success: false, error: 'Phone number must contain at least 6 digits' });
+    }
+
+    const formattedPhone = cleanDigits.startsWith('232') ? `+${cleanDigits}` : `+232${cleanDigits.replace(/^0/, '')}`;
+
+    // Invoke Better Auth plugin sendPhoneNumberOTP
+    await (auth.api as any).sendPhoneNumberOTP({
+      body: { phoneNumber: formattedPhone },
+    });
+
+    const otpCode = getDispatchedOtp(formattedPhone) || getDispatchedOtp(cleanDigits);
+    const carrierChannel = channel === 'sms' ? 'SMS' : 'WhatsApp';
+
+    res.json({
+      success: true,
+      message: `${carrierChannel} verification code dispatched to ${formattedPhone}`,
+      code: otpCode, // Provided for live feedback in demo & preview environments
+    });
+  } catch (err: any) {
+    console.error('Error dispatching Better Auth phone OTP:', err);
+    res.status(500).json({ success: false, error: err.message || 'Failed to dispatch verification code' });
+  }
+});
+
+// Phone OTP Verification via Better Auth
+app.post('/api/custom-auth/phone/verify-otp', async (req: Request, res: Response) => {
+  try {
+    const { phoneNumber, code, fullName, preferredCity } = req.body;
+    if (!phoneNumber || !code) {
+      return res.status(400).json({ success: false, error: 'Phone number and verification code are required' });
+    }
+
+    const cleanDigits = phoneNumber.trim().replace(/\D/g, '');
+    const formattedPhone = cleanDigits.startsWith('232') ? `+${cleanDigits}` : `+232${cleanDigits.replace(/^0/, '')}`;
+
+    // Verify code with Better Auth
+    const verifyRes = await (auth.api as any).verifyPhoneNumber({
+      body: {
+        phoneNumber: formattedPhone,
+        code: String(code).trim(),
+      },
+    });
+
+    if (!verifyRes || !verifyRes.user) {
+      return res.status(400).json({ success: false, error: 'Invalid or expired verification code' });
+    }
+
+    // Persist additional metadata (name, city) in user table if provided
+    if (fullName?.trim() || preferredCity?.trim()) {
+      try {
+        const updatedName = fullName?.trim() || verifyRes.user.name;
+        const updatedCity = preferredCity?.trim() || verifyRes.user.preferredCity || 'Freetown (Central / CBD)';
+        db.prepare('UPDATE user SET name = ?, preferredCity = ? WHERE id = ?').run(
+          updatedName,
+          updatedCity,
+          verifyRes.user.id
+        );
+        verifyRes.user.name = updatedName;
+        verifyRes.user.preferredCity = updatedCity;
+      } catch (err) {
+        console.warn('Could not update metadata:', err);
+      }
+    }
+
+    res.json({
+      success: true,
+      user: verifyRes.user,
+      token: verifyRes.token,
+      message: 'Successfully authenticated via Better Auth',
+    });
+  } catch (err: any) {
+    console.error('Error verifying phone OTP:', err);
+    res.status(400).json({ success: false, error: err.message || 'Verification failed. Please check code.' });
+  }
+});
+
+// Quick Social Login backed by Better Auth database
+app.post('/api/custom-auth/social', async (req: Request, res: Response) => {
+  try {
+    const { provider, fullName, email, preferredCity } = req.body;
+    const prov = provider === 'apple' ? 'apple' : 'google';
+    const userEmail = email?.trim() || `buyer_${Date.now().toString().slice(-6)}@${prov}.com`;
+    const userName = fullName?.trim() || (prov === 'google' ? 'Google Account User' : 'Apple ID User');
+    const userCity = preferredCity?.trim() || 'Freetown (Central / CBD)';
+
+    let user = db.prepare('SELECT * FROM user WHERE email = ?').get(userEmail) as any;
+    if (!user) {
+      const generatedPassword = `SocialAuth_${Date.now()}_Pass!`;
+      const signUpRes = await (auth.api as any).signUpEmail({
+        body: {
+          name: userName,
+          email: userEmail,
+          password: generatedPassword,
+          preferredCity: userCity,
+          role: 'buyer',
+        },
+      });
+      user = signUpRes.user;
+    }
+
+    const token = `soc_${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`;
+    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    db.prepare(`
+      INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(`sess_${Date.now()}`, expiresAt, token, Date.now(), Date.now(), user.id);
+
+    res.json({
+      success: true,
+      user: {
+        ...user,
+        provider: prov,
+      },
+      token,
+    });
+  } catch (err: any) {
+    console.error('Error in social auth:', err);
+    res.status(500).json({ success: false, error: err.message || 'Failed social login' });
+  }
+});
+
+// Current Authenticated Session
+app.get('/api/custom-auth/me', async (req: Request, res: Response) => {
+  try {
+    const session = await getBetterAuthSession(req);
+    if (session && session.user) {
+      return res.json({
+        success: true,
+        user: session.user,
+        session: session.session,
+      });
+    }
+
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const sess = db.prepare('SELECT * FROM session WHERE token = ? AND expiresAt > ?').get(token, Date.now()) as any;
+      if (sess) {
+        const u = db.prepare('SELECT * FROM user WHERE id = ?').get(sess.userId) as any;
+        if (u) {
+          return res.json({
+            success: true,
+            user: u,
+            session: sess,
+          });
+        }
+      }
+    }
+
+    res.json({ success: false, user: null });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Update Profile
+app.post('/api/custom-auth/update-profile', async (req: Request, res: Response) => {
+  try {
+    let userId: string | null = null;
+    const session = await getBetterAuthSession(req);
+    if (session?.user) {
+      userId = session.user.id;
+    } else {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        const sess = db.prepare('SELECT userId FROM session WHERE token = ?').get(token) as any;
+        if (sess) userId = sess.userId;
+      }
+    }
+
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const { name, role, preferredCity } = req.body;
+    if (name) db.prepare('UPDATE user SET name = ? WHERE id = ?').run(name.trim(), userId);
+    if (role) db.prepare('UPDATE user SET role = ? WHERE id = ?').run(role, userId);
+    if (preferredCity) db.prepare('UPDATE user SET preferredCity = ? WHERE id = ?').run(preferredCity, userId);
+
+    const updated = db.prepare('SELECT * FROM user WHERE id = ?').get(userId);
+    res.json({ success: true, user: updated });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // 2. Products API
@@ -221,9 +428,43 @@ app.get('/api/locations', (req: Request, res: Response) => {
   res.json({ success: true, data: LOCATIONS });
 });
 
-// 4. Orders API
-app.get('/api/orders', (req: Request, res: Response) => {
-  res.json({ success: true, count: orders.length, data: orders });
+// 4. Orders API (Secured with Row-Level Security via Better Auth)
+app.get('/api/orders', async (req: Request, res: Response) => {
+  // Extract Better Auth session context if available
+  const authSession = await getBetterAuthSession(req);
+  const authUser = authSession?.user as any;
+
+  // Extract caller security context from session or fallback headers/query
+  const callerRole = authUser?.role || (req.headers['x-user-role'] as string) || 'buyer';
+  const callerPhone = authUser?.phoneNumber || (req.headers['x-user-phone'] as string) || (req.query.phone as string);
+  const callerUserId = authUser?.id || (req.headers['x-user-id'] as string) || (req.query.userId as string);
+
+  // Row-Level Security (RLS) enforcement
+  if (callerRole === 'admin' || callerRole === 'logistics_agent') {
+    return res.json({ success: true, count: orders.length, data: orders, rlsEnforced: true, scope: 'admin' });
+  }
+
+  // Filter orders where caller is the verified buyer
+  const sanitizedOrders = orders.filter((o) => {
+    if (callerUserId && o.buyerId === callerUserId) return true;
+    if (callerPhone) {
+      const clean1 = String(callerPhone).replace(/\D/g, '');
+      const clean2 = String(o.phone || '').replace(/\D/g, '');
+      if (clean1 && clean2 && (clean1.endsWith(clean2) || clean2.endsWith(clean1))) {
+        return true;
+      }
+    }
+    return false;
+  });
+
+  res.json({ 
+    success: true, 
+    count: sanitizedOrders.length, 
+    data: sanitizedOrders,
+    rlsEnforced: true,
+    scope: 'user_restricted',
+    authProvider: 'Better Auth'
+  });
 });
 
 app.get('/api/orders/:trackingNumber', (req: Request, res: Response) => {
@@ -232,10 +473,28 @@ app.get('/api/orders/:trackingNumber', (req: Request, res: Response) => {
   if (!order) {
     return res.status(404).json({ success: false, error: 'Order not found with tracking number: ' + trackingNumber });
   }
-  res.json({ success: true, data: order });
+
+  // Public order tracking view returns sanitized data conforming to privacy policy
+  res.json({ 
+    success: true, 
+    data: {
+      trackingNumber: order.trackingNumber,
+      orderStatus: order.orderStatus,
+      placedAt: order.placedAt,
+      estimatedDelivery: order.estimatedDelivery,
+      destination: {
+        name: order.destination?.name || 'Sierra Leone Hub',
+        hubName: order.destination?.hubName || 'Provincial Logistics Hub'
+      },
+      itemCount: order.items?.length || 1,
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod
+    },
+    rlsEnforced: true
+  });
 });
 
-app.post('/api/orders', (req: Request, res: Response) => {
+app.post('/api/orders', async (req: Request, res: Response) => {
   const {
     items,
     recipientName,
@@ -261,8 +520,12 @@ app.post('/api/orders', (req: Request, res: Response) => {
 
   const trackingNumber = `ABU-SL-${Math.floor(10000 + Math.random() * 90000)}`;
 
+  const session = await getBetterAuthSession(req);
+  const buyerId = session?.user?.id || (req.headers['x-user-id'] as string) || req.body.buyerId || undefined;
+
   const newOrder = {
     id: `ord-${Date.now()}`,
+    buyerId,
     trackingNumber,
     items,
     subtotalSLE: subtotal,

@@ -42,7 +42,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   const [storeDesc, setStoreDesc] = useState('');
   const [storeHub, setStoreHub] = useState('Freetown Central');
   const [storeStreet, setStoreStreet] = useState('');
-  const [storePhone, setStorePhone] = useState('076 111 222');
+  const [storePhone, setStorePhone] = useState('');
 
   // 2. Single Product Form State
   const [singleTitle, setSingleTitle] = useState('');
@@ -50,7 +50,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   const [singlePrice, setSinglePrice] = useState('');
   const [singleCondition, setSingleCondition] = useState<ItemCondition>('brand_new');
   const [singleSellerName, setSingleSellerName] = useState('');
-  const [singlePhone, setSinglePhone] = useState('078 333 444');
+  const [singlePhone, setSinglePhone] = useState('');
   const [singleLocation, setSingleLocation] = useState('Aberdeen, Freetown');
   const [singleDesc, setSingleDesc] = useState('');
 
@@ -58,12 +58,12 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   const [serviceTitle, setServiceTitle] = useState('');
   const [tradeCategory, setTradeCategory] = useState<TradeCategory>('Solar & Inverter Technician');
   const [providerName, setProviderName] = useState('');
-  const [servicePhone, setServicePhone] = useState('076 777 888');
-  const [experienceYears, setExperienceYears] = useState('5');
-  const [calloutFeeSLE, setCalloutFeeSLE] = useState('100');
+  const [servicePhone, setServicePhone] = useState('');
+  const [experienceYears, setExperienceYears] = useState('');
+  const [calloutFeeSLE, setCalloutFeeSLE] = useState('');
   const [serviceHub, setServiceHub] = useState('Lumley & Aberdeen');
-  const [skillsText, setSkillsText] = useState('Inverter load calculation, LiFePO4 battery wiring, rooftop mounting');
-  const [certification, setCertification] = useState('Certified Energy Technician SL');
+  const [skillsText, setSkillsText] = useState('');
+  const [certification, setCertification] = useState('');
 
   if (!isOpen) return null;
 
@@ -256,7 +256,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
         {/* Header with Abu Logo */}
         <div className="bg-[#0B3B60] text-white px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <AbuLogo size={44} />
+            <AbuLogo size={32} />
             <div>
               <h2 className="font-bold text-sm sm:text-base">
                 Abu Merchant & Trade Hub
@@ -268,7 +268,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-2.5 rounded hover:bg-white/10 text-white/80 hover:text-white"
+            className="p-1 rounded hover:bg-white/10 text-white/80 hover:text-white"
             aria-label="Close merchant hub"
           >
             <X className="w-5 h-5" />
@@ -636,7 +636,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                     required
                     value={providerName}
                     onChange={(e) => setProviderName(e.target.value)}
-                    placeholder="e.g. Osman Kamara"
+                    placeholder="Technician or business name"
                     className="w-full h-9 px-3 bg-white border border-[#DCE1E5] rounded text-xs focus:outline-none focus:border-[#0B3B60]"
                   />
                 </div>
