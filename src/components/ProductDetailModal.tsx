@@ -73,7 +73,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 alt={product.title}
                 referrerPolicy="no-referrer"
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect fill="%23f1f5f9" width="400" height="400"/><text fill="%230b3b60" font-family="sans-serif" font-size="20" font-weight="bold" x="50%" y="45%" text-anchor="middle">Abu Marketplace</text><text fill="%2364748b" font-family="sans-serif" font-size="14" x="50%" y="55%" text-anchor="middle">Verified Product</text></svg>';
+                  (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect fill="%23f1f5f9" width="400" height="400"/><text fill="%230b3b60" font-family="sans-serif" font-size="20" font-weight="bold" x="50%" y="45%" text-anchor="middle">ABU Marketplace</text><text fill="%2364748b" font-family="sans-serif" font-size="14" x="50%" y="55%" text-anchor="middle">Verified Product</text></svg>';
                 }}
                 className="w-full h-full object-cover object-center"
               />

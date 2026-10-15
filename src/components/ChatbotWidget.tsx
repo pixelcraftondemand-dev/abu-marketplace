@@ -57,7 +57,7 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
     {
       id: 'welcome-1',
       sender: 'assistant',
-      text: "Hello! Welcome to Abu Marketplace Sierra Leone. I'm your instant assistant. Please note: NO mobile money is being used initially — all orders are strictly Cash on Delivery / Pay on Delivery upon physical inspection. Ask me anything about delivery across Sierra Leone, placing orders, opening a vendor store, or tracking a shipment!",
+      text: "Hello! Welcome to ABU Marketplace Sierra Leone. I'm your instant assistant. Please note: NO mobile money is being used initially — all orders are strictly Cash on Delivery / Pay on Delivery upon physical inspection. Ask me anything about delivery across Sierra Leone, placing orders, opening a vendor store, or tracking a shipment!",
       timestamp: 'Just now',
     },
   ]);
@@ -182,7 +182,7 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
               </div>
               <div>
                 <div className="text-xs sm:text-sm font-bold flex items-center gap-1.5 leading-tight">
-                  <span>Abu Assistant</span>
+                  <span>ABU Assistant</span>
                   <span className="bg-[#8df7c1]/20 text-[#8df7c1] text-[9px] px-1.5 py-0.2 rounded font-semibold uppercase">
                     AI Support
                   </span>

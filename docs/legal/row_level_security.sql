@@ -1,5 +1,5 @@
 -- ==============================================================================
--- Abu Marketplace - PostgreSQL Row-Level Security (RLS) Policy Specification
+-- ABU Marketplace - PostgreSQL Row-Level Security (RLS) Policy Specification
 -- Compliant with Open Source E-Commerce Security & Privacy Standards
 -- Jurisdiction: Sierra Leone (Data Protection & Merchant Regulation)
 -- ==============================================================================

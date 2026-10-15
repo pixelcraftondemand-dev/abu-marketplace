@@ -78,7 +78,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     const storePayload: Partial<VendorStore> = {
       name: storeName.trim(),
       tagline: storeTagline.trim() || 'Verified Sierra Leone Merchant Store',
-      description: storeDesc.trim() || 'Authorized distributor on Abu Marketplace.',
+      description: storeDesc.trim() || 'Authorized distributor on ABU Marketplace.',
       locationHub: storeHub,
       streetAddress: storeStreet.trim() || 'Freetown',
       phone: storePhone.trim(),
@@ -93,7 +93,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       name: storeName.trim(),
       slug: storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       tagline: storeTagline.trim() || 'Verified Merchant Store',
-      description: storeDesc.trim() || 'Authorized storefront on Abu Marketplace.',
+      description: storeDesc.trim() || 'Authorized storefront on ABU Marketplace.',
       locationHub: storeHub,
       province: 'Western Area',
       streetAddress: storeStreet.trim() || 'Freetown',
@@ -181,13 +181,13 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       },
       features: [
         'Single verified inventory item',
-        'Direct inquiry or instant Abu courier checkout',
+        'Direct inquiry or instant ABU courier checkout',
       ],
     };
 
     onAddProduct(finalProduct);
     setIsSubmitting(false);
-    setSuccessMessage(`Single item "${finalProduct.title}" is now listed live on Abu Marketplace!`);
+    setSuccessMessage(`Single item "${finalProduct.title}" is now listed live on ABU Marketplace!`);
     setSingleTitle('');
     setSinglePrice('');
     setSingleDesc('');
@@ -259,7 +259,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
             <AbuLogo size={32} />
             <div>
               <h2 className="font-bold text-sm sm:text-base">
-                Abu Merchant & Trade Hub
+                ABU Merchant & Trade Hub
               </h2>
               <p className="text-[11px] text-[#8df7c1]">
                 Stores · Single Product Listings · Blue-Collar Services
@@ -588,7 +588,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                   Blue-Collar Artisan & Technician Registration
                 </h4>
                 <p className="text-[11px] text-[#5A6872]">
-                  Join Abu Marketplace's verified trade network. Get booked by homeowners and businesses for solar setups, electrical work, plumbing, AC maintenance, and auto diagnostics.
+                  Join ABU Marketplace's verified trade network. Get booked by homeowners and businesses for solar setups, electrical work, plumbing, AC maintenance, and auto diagnostics.
                 </p>
               </div>
 

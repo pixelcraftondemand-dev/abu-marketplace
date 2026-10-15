@@ -94,7 +94,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
 
             {/* WhatsApp Receipt & Direct Updates */}
             <a
-              href={`https://wa.me/23276892411?text=${encodeURIComponent(`Hello Abu Marketplace! I just placed order ${order.trackingNumber} for ${order.recipientName}. Total: SLE ${order.totalSLE} (Cash on Delivery). Please send dispatch updates to my WhatsApp!`)}`}
+              href={`https://wa.me/23276892411?text=${encodeURIComponent(`Hello ABU Marketplace! I just placed order ${order.trackingNumber} for ${order.recipientName}. Total: SLE ${order.totalSLE} (Cash on Delivery). Please send dispatch updates to my WhatsApp!`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="w-full h-10 bg-[#25D366] hover:bg-[#1EBE5D] text-[#002541] rounded font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-colors"
@@ -109,7 +109,7 @@ export const OrderConfirmationModal: React.FC<OrderConfirmationModalProps> = ({
               onClick={onClose}
               className="w-full h-9 bg-white hover:bg-slate-50 text-[#5A6872] border border-[#DCE1E5] rounded text-xs font-semibold transition-colors cursor-pointer"
             >
-              Continue Shopping on Abu Marketplace
+              Continue Shopping on ABU Marketplace
             </button>
 
           </div>

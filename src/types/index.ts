@@ -16,6 +16,15 @@ export type Category =
   | 'Electronics & Audio'
   | 'Home & Living'
   | 'Fashion & Footwear'
+  | 'Groceries & Non-Perishables'
+  | 'Home & Office Furniture'
+  | 'Appliances & Utensils'
+  | 'Beauty, Perfumes & Hygiene'
+  | 'Baby & Kids Toys'
+  | 'Sports Gears & Jerseys'
+  | 'Power Tools & Safety Gear'
+  | 'Vehicles & E-Bikes'
+  | 'Books, Art & Stationery'
   | 'Blue Collar Services';
 
 export type ItemCondition = 'brand_new' | 'like_new' | 'used';

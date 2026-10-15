@@ -135,7 +135,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             <ShieldCheck className="w-5 h-5 text-[#8df7c1]" />
             <div>
               <h2 className="font-bold text-sm sm:text-base">
-                Abu Marketplace Secure Checkout
+                ABU Marketplace Secure Checkout
               </h2>
               <p className="text-[11px] text-[#d0e4ff]">
                 Sierra Leone Leones (SLE) · Direct Mobile Money Settlement
@@ -478,10 +478,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   <span>{paymentMethod === 'orange' ? '*144#' : '*161#'}</span>
                 </div>
                 <div className="text-[#8df7c1] font-bold mb-1">
-                  Abu Marketplace Payment
+                  ABU Marketplace Payment
                 </div>
                 <div className="text-white text-[11px] mb-2">
-                  Pay SLE {new Intl.NumberFormat('en-US').format(totalAmount)} to Abu Logistics SL?
+                  Pay SLE {new Intl.NumberFormat('en-US').format(totalAmount)} to ABU Logistics SL?
                 </div>
                 <div className="bg-[#002541] p-1.5 rounded text-[10px] text-[#d0e4ff] flex items-center justify-between">
                   <span>Enter 4-digit PIN:</span>

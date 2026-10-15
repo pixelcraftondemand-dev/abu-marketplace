@@ -16,7 +16,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenLegal,
 }) => {
   return (
-    <footer className="bg-[#002541] text-white pt-8 pb-8 border-t border-[#144b77] mt-12">
+    <footer className="bg-[#002541] text-white pt-8 pb-8 border-t border-[#144b77] mt-12 w-full max-w-full overflow-hidden">
       {/* 4 Trust Pillars */}
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 pb-6 border-b border-[#144b77]">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-xs">
@@ -73,7 +73,7 @@ export const Footer: React.FC<FooterProps> = ({
               <AbuLogo size={36} />
               <div>
                 <span className="font-extrabold text-lg text-white tracking-tight block leading-tight">
-                  Abu Marketplace
+                  ABU Marketplace
                 </span>
                 <span className="text-[10px] font-semibold text-[#8df7c1] uppercase tracking-wider">
                   Sierra Leone
@@ -135,11 +135,11 @@ export const Footer: React.FC<FooterProps> = ({
               </li>
               <li>
                 <button
-                  onClick={() => onOpenLegal && onOpenLegal('database-rls-policy')}
+                  onClick={() => onOpenLegal && onOpenLegal('privacy-policy')}
                   className="hover:text-white hover:underline flex items-center gap-2 text-left cursor-pointer transition-colors"
                 >
-                  <span className="w-2 h-2 rounded-full bg-[#8df7c1]"></span>
-                  <span className="text-[#8df7c1]">Row-Level Security (RLS)</span>
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#8df7c1] shrink-0" />
+                  <span>Privacy & Buyer Protection</span>
                 </button>
               </li>
             </ul>
@@ -172,7 +172,7 @@ export const Footer: React.FC<FooterProps> = ({
       {/* Copyright & Legal Bar */}
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 pt-5 border-t border-[#144b77] flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-[#7fa6d0]">
         <div className="flex items-center gap-4 flex-wrap">
-          <span>© 2026 Abu Marketplace SL Ltd. All rights reserved.</span>
+          <span>© 2026 ABU Marketplace SL Ltd. All rights reserved.</span>
           <span className="hidden sm:inline">•</span>
           <button 
             onClick={() => onOpenLegal && onOpenLegal('terms-of-service')}
@@ -193,13 +193,6 @@ export const Footer: React.FC<FooterProps> = ({
             className="hover:text-white hover:underline cursor-pointer"
           >
             Merchant Seller Agreement
-          </button>
-          <span>•</span>
-          <button 
-            onClick={() => onOpenLegal && onOpenLegal('database-rls-policy')}
-            className="text-[#8df7c1] hover:underline cursor-pointer font-medium"
-          >
-            Row-Level Security (RLS)
           </button>
         </div>
         <div className="text-[11px] text-right">

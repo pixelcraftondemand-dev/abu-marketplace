@@ -32,7 +32,7 @@ export const AbuLogo: React.FC<AbuLogoProps> = ({
         xmlns="http://www.w3.org/2000/svg"
         shapeRendering="geometricPrecision"
         className="shrink-0 transition-transform duration-300 hover:scale-105 select-none"
-        aria-label="Abu Official Brand Logo"
+        aria-label="ABU Official Brand Logo"
       >
         <defs>
           {/* Subtle Outer Green Neon Glow Filter */}
@@ -141,8 +141,8 @@ export const AbuLogo: React.FC<AbuLogoProps> = ({
 
       {showText && (
         <div className="flex flex-col text-left leading-none">
-          <span className={`font-extrabold tracking-tight text-lg sm:text-xl ${textColor}`}>
-            Abu
+          <span className={`font-black tracking-tight text-lg sm:text-xl ${textColor}`}>
+            ABU
           </span>
           <span className="text-[10px] uppercase tracking-wider font-semibold text-[#00E676] mt-0.5">
             Sierra Leone

@@ -84,7 +84,14 @@ import {
   Smartphone,
   Headphones,
   UtensilsCrossed,
-  ShieldCheck
+  ShieldCheck,
+  Armchair,
+  Baby,
+  Trophy,
+  Hammer,
+  Bike,
+  BookOpen,
+  ShoppingBag
 } from 'lucide-react';
 
 export default function App() {
@@ -283,22 +290,40 @@ export default function App() {
   // Categories list
   const categories: Category[] = [
     'All',
+    'Groceries & Non-Perishables',
+    'Home & Office Furniture',
+    'Appliances & Utensils',
+    'Beauty, Perfumes & Hygiene',
+    'Baby & Kids Toys',
+    'Fashion & Footwear',
+    'Sports Gears & Jerseys',
+    'Power Tools & Safety Gear',
+    'Vehicles & E-Bikes',
+    'Books, Art & Stationery',
     'Solar & Power',
     'Phones & Tablets',
     'Electronics & Audio',
     'Home & Living',
-    'Fashion & Footwear',
   ];
 
   // Product counts per category
   const productCounts = useMemo(() => {
     const counts: Record<Category, number> = {
       'All': products.length,
+      'Groceries & Non-Perishables': 0,
+      'Home & Office Furniture': 0,
+      'Appliances & Utensils': 0,
+      'Beauty, Perfumes & Hygiene': 0,
+      'Baby & Kids Toys': 0,
+      'Fashion & Footwear': 0,
+      'Sports Gears & Jerseys': 0,
+      'Power Tools & Safety Gear': 0,
+      'Vehicles & E-Bikes': 0,
+      'Books, Art & Stationery': 0,
       'Solar & Power': 0,
       'Phones & Tablets': 0,
       'Electronics & Audio': 0,
       'Home & Living': 0,
-      'Fashion & Footwear': 0,
       'Blue Collar Services': services.length,
     };
     products.forEach((p) => {
@@ -352,6 +377,15 @@ export default function App() {
   const phoneProducts = useMemo(() => products.filter((p) => p.category === 'Phones & Tablets'), [products]);
   const homeProducts = useMemo(() => products.filter((p) => p.category === 'Home & Living'), [products]);
   const techProducts = useMemo(() => products.filter((p) => p.category === 'Electronics & Audio'), [products]);
+  const groceryProducts = useMemo(() => products.filter((p) => p.category === 'Groceries & Non-Perishables'), [products]);
+  const furnitureProducts = useMemo(() => products.filter((p) => p.category === 'Home & Office Furniture'), [products]);
+  const applianceProducts = useMemo(() => products.filter((p) => p.category === 'Appliances & Utensils'), [products]);
+  const beautyProducts = useMemo(() => products.filter((p) => p.category === 'Beauty, Perfumes & Hygiene'), [products]);
+  const babyProducts = useMemo(() => products.filter((p) => p.category === 'Baby & Kids Toys'), [products]);
+  const sportsProducts = useMemo(() => products.filter((p) => p.category === 'Sports Gears & Jerseys'), [products]);
+  const toolsProducts = useMemo(() => products.filter((p) => p.category === 'Power Tools & Safety Gear'), [products]);
+  const vehicleProducts = useMemo(() => products.filter((p) => p.category === 'Vehicles & E-Bikes'), [products]);
+  const booksArtProducts = useMemo(() => products.filter((p) => p.category === 'Books, Art & Stationery'), [products]);
 
   // Authentication Handlers (WhatsApp, Google, Apple)
   const handleLoginSuccess = (user: UserProfile) => {
@@ -477,8 +511,8 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] dark:bg-[#091118] text-[#1A242D] dark:text-[#F1F5F9] flex flex-col font-sans antialiased relative transition-colors duration-200">
-      {/* 1. Header with Abu Logo and 3-Track Mode navigation */}
+    <div className="min-h-screen bg-[#FAF9F6] dark:bg-[#091118] text-[#1A242D] dark:text-[#F1F5F9] flex flex-col font-sans antialiased relative transition-colors duration-200 w-full max-w-full overflow-x-hidden">
+      {/* 1. Header with ABU Logo and 3-Track Mode navigation */}
       <Header
         currentLocation={currentLocation}
         onOpenLocationPicker={() => setIsLocationPickerOpen(true)}
@@ -500,6 +534,9 @@ export default function App() {
         theme={theme}
         onToggleTheme={handleToggleTheme}
       />
+
+      {/* Primary Semantic H1 for SEO Ranking (#1 for ABU, abu, Marketplace) */}
+      <h1 className="sr-only">ABU Marketplace (abu) — Sierra Leone&apos;s #1 Online Marketplace</h1>
 
       {/* VIEW: BLUE-COLLAR SERVICES */}
       {activeView === 'services' && (
@@ -560,21 +597,21 @@ export default function App() {
 
           {/* Sectioned Feed matching Screenshot */}
           {isSectionedHome ? (
-            <div className="max-w-[1440px] mx-auto w-full px-3 sm:px-6 py-4 space-y-8">
+            <div className="max-w-[1440px] mx-auto w-full px-3 sm:px-6 py-4 space-y-6 sm:space-y-8 overflow-hidden">
               {/* SECTION 1: Top Picks */}
-              <section>
-                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2">
-                  <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight">
+              <section className="w-full">
+                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2 gap-2">
+                  <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight min-w-0 truncate">
                     Top Picks & Best Sellers
                   </h2>
                   <button
                     onClick={() => setSortBy('sold')}
-                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer"
+                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer shrink-0 whitespace-nowrap"
                   >
                     View All
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
                   {products.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
@@ -589,22 +626,22 @@ export default function App() {
               </section>
 
               {/* SECTION 2: Fashion & Footwear (West African Couture & Leather) */}
-              <section>
-                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[#D84315]" />
-                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight">
-                      Fashion & Footwear Spotlight (West African Couture & Leather)
+              <section className="w-full">
+                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2 gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                    <Sparkles className="w-4 h-4 text-[#D84315] shrink-0" />
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight truncate">
+                      Fashion & Footwear Spotlight
                     </h2>
                   </div>
                   <button
                     onClick={() => setSelectedCategory('Fashion & Footwear')}
-                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer"
+                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer shrink-0 whitespace-nowrap"
                   >
-                    View All Fashion ({fashionProducts.length})
+                    View All ({fashionProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
                   {fashionProducts.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
@@ -619,22 +656,22 @@ export default function App() {
               </section>
 
               {/* SECTION 3: Solar & Power Backup */}
-              <section>
-                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2">
-                  <div className="flex items-center gap-2">
-                    <Sun className="w-4 h-4 text-[#FF6600]" />
-                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight">
+              <section className="w-full">
+                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2 gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                    <Sun className="w-4 h-4 text-[#FF6600] shrink-0" />
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight truncate">
                       Solar & Power Backup Systems
                     </h2>
                   </div>
                   <button
                     onClick={() => setSelectedCategory('Solar & Power')}
-                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer"
+                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer shrink-0 whitespace-nowrap"
                   >
-                    View All Solar ({solarProducts.length})
+                    View All ({solarProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
                   {solarProducts.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
@@ -649,22 +686,22 @@ export default function App() {
               </section>
 
               {/* SECTION 4: Phones & Technology */}
-              <section>
-                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2">
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="w-4 h-4 text-[#00875A]" />
-                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight">
+              <section className="w-full">
+                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2 gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                    <Smartphone className="w-4 h-4 text-[#00875A] shrink-0" />
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight truncate">
                       Phones & Mobile Tech
                     </h2>
                   </div>
                   <button
                     onClick={() => setSelectedCategory('Phones & Tablets')}
-                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer"
+                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer shrink-0 whitespace-nowrap"
                   >
                     View All ({phoneProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
                   {phoneProducts.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
@@ -679,22 +716,22 @@ export default function App() {
               </section>
 
               {/* SECTION 5: Audio & Gear */}
-              <section>
-                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2">
-                  <div className="flex items-center gap-2">
-                    <Headphones className="w-4 h-4 text-[#7A1CAC]" />
-                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight">
+              <section className="w-full">
+                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2 gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                    <Headphones className="w-4 h-4 text-[#7A1CAC] shrink-0" />
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight truncate">
                       Electronics & Audio Gear
                     </h2>
                   </div>
                   <button
                     onClick={() => setSelectedCategory('Electronics & Audio')}
-                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer"
+                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer shrink-0 whitespace-nowrap"
                   >
                     View All ({techProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
                   {techProducts.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
@@ -709,22 +746,22 @@ export default function App() {
               </section>
 
               {/* SECTION 6: Home & Kitchen Living */}
-              <section>
-                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2">
-                  <div className="flex items-center gap-2">
-                    <UtensilsCrossed className="w-4 h-4 text-[#0B3B60] dark:text-[#38BDF8]" />
-                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight">
+              <section className="w-full">
+                <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2 gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                    <UtensilsCrossed className="w-4 h-4 text-[#0B3B60] dark:text-[#38BDF8] shrink-0" />
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight truncate">
                       Home & Kitchen Living
                     </h2>
                   </div>
                   <button
                     onClick={() => setSelectedCategory('Home & Living')}
-                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer"
+                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer shrink-0 whitespace-nowrap"
                   >
                     View All ({homeProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
                   {homeProducts.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
@@ -738,18 +775,306 @@ export default function App() {
                 </div>
               </section>
 
+              {/* SECTION: Groceries & Non-Perishable Foods */}
+              {groceryProducts.length > 0 && (
+                <section className="w-full">
+                  <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2 gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                      <ShoppingBag className="w-4 h-4 text-[#059669] shrink-0" />
+                      <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight truncate">
+                        Groceries, Pantry Foods & Beverages
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => setSelectedCategory('Groceries & Non-Perishables')}
+                      className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer shrink-0 whitespace-nowrap"
+                    >
+                      View All ({groceryProducts.length})
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                    {groceryProducts.slice(0, 6).map((prod) => (
+                      <ProductCard
+                        key={prod.id}
+                        product={prod}
+                        onSelect={(p) => setSelectedProduct(p)}
+                        onAddToCart={(p, e) => handleAddToCart(p, 1, e)}
+                        isWishlisted={isWishlisted(prod)}
+                        onToggleWishlist={handleToggleWishlist}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* SECTION: Appliances, Kitchen Utensils & Cleaning */}
+              {applianceProducts.length > 0 && (
+                <section className="w-full">
+                  <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2 gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                      <UtensilsCrossed className="w-4 h-4 text-[#EA580C] shrink-0" />
+                      <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight truncate">
+                        Kitchen Utensils, Cookware & Home Appliances
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => setSelectedCategory('Appliances & Utensils')}
+                      className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer shrink-0 whitespace-nowrap"
+                    >
+                      View All ({applianceProducts.length})
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                    {applianceProducts.slice(0, 6).map((prod) => (
+                      <ProductCard
+                        key={prod.id}
+                        product={prod}
+                        onSelect={(p) => setSelectedProduct(p)}
+                        onAddToCart={(p, e) => handleAddToCart(p, 1, e)}
+                        isWishlisted={isWishlisted(prod)}
+                        onToggleWishlist={handleToggleWishlist}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* SECTION: Home & Office Furniture */}
+              {furnitureProducts.length > 0 && (
+                <section className="w-full">
+                  <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2 gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                      <Armchair className="w-4 h-4 text-[#B45309] shrink-0" />
+                      <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight truncate">
+                        Home & Office Furniture (Lumbar Chairs & Desks)
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => setSelectedCategory('Home & Office Furniture')}
+                      className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer shrink-0 whitespace-nowrap"
+                    >
+                      View All ({furnitureProducts.length})
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                    {furnitureProducts.slice(0, 6).map((prod) => (
+                      <ProductCard
+                        key={prod.id}
+                        product={prod}
+                        onSelect={(p) => setSelectedProduct(p)}
+                        onAddToCart={(p, e) => handleAddToCart(p, 1, e)}
+                        isWishlisted={isWishlisted(prod)}
+                        onToggleWishlist={handleToggleWishlist}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* SECTION: Vehicles & E-Mobility */}
+              {vehicleProducts.length > 0 && (
+                <section className="w-full">
+                  <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2 gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                      <Bike className="w-4 h-4 text-[#0D9488] shrink-0" />
+                      <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight truncate">
+                        Vehicles, E-Bikes & Electric Scooters
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => setSelectedCategory('Vehicles & E-Bikes')}
+                      className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer shrink-0 whitespace-nowrap"
+                    >
+                      View All ({vehicleProducts.length})
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                    {vehicleProducts.slice(0, 6).map((prod) => (
+                      <ProductCard
+                        key={prod.id}
+                        product={prod}
+                        onSelect={(p) => setSelectedProduct(p)}
+                        onAddToCart={(p, e) => handleAddToCart(p, 1, e)}
+                        isWishlisted={isWishlisted(prod)}
+                        onToggleWishlist={handleToggleWishlist}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* SECTION: Power Tools & Construction Safety */}
+              {toolsProducts.length > 0 && (
+                <section className="w-full">
+                  <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2 gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                      <Hammer className="w-4 h-4 text-[#E11D48] shrink-0" />
+                      <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight truncate">
+                        Power Tools & Certified Safety Gear (Boots & Vests)
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => setSelectedCategory('Power Tools & Safety Gear')}
+                      className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer shrink-0 whitespace-nowrap"
+                    >
+                      View All ({toolsProducts.length})
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                    {toolsProducts.slice(0, 6).map((prod) => (
+                      <ProductCard
+                        key={prod.id}
+                        product={prod}
+                        onSelect={(p) => setSelectedProduct(p)}
+                        onAddToCart={(p, e) => handleAddToCart(p, 1, e)}
+                        isWishlisted={isWishlisted(prod)}
+                        onToggleWishlist={handleToggleWishlist}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* SECTION: Sports Gears & Jerseys */}
+              {sportsProducts.length > 0 && (
+                <section className="w-full">
+                  <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2 gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                      <Trophy className="w-4 h-4 text-[#10B981] shrink-0" />
+                      <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight truncate">
+                        Sports Gears & Official Leone Stars Match Jerseys
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => setSelectedCategory('Sports Gears & Jerseys')}
+                      className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer shrink-0 whitespace-nowrap"
+                    >
+                      View All ({sportsProducts.length})
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                    {sportsProducts.slice(0, 6).map((prod) => (
+                      <ProductCard
+                        key={prod.id}
+                        product={prod}
+                        onSelect={(p) => setSelectedProduct(p)}
+                        onAddToCart={(p, e) => handleAddToCart(p, 1, e)}
+                        isWishlisted={isWishlisted(prod)}
+                        onToggleWishlist={handleToggleWishlist}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* SECTION: Books, Art & Stationery */}
+              {booksArtProducts.length > 0 && (
+                <section className="w-full">
+                  <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2 gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                      <BookOpen className="w-4 h-4 text-[#4F46E5] shrink-0" />
+                      <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight truncate">
+                        Books, Sierra Leone Fine Art & Stationery Supplies
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => setSelectedCategory('Books, Art & Stationery')}
+                      className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer shrink-0 whitespace-nowrap"
+                    >
+                      View All ({booksArtProducts.length})
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                    {booksArtProducts.slice(0, 6).map((prod) => (
+                      <ProductCard
+                        key={prod.id}
+                        product={prod}
+                        onSelect={(p) => setSelectedProduct(p)}
+                        onAddToCart={(p, e) => handleAddToCart(p, 1, e)}
+                        isWishlisted={isWishlisted(prod)}
+                        onToggleWishlist={handleToggleWishlist}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* SECTION: Beauty, Perfumes & Personal Hygiene */}
+              {beautyProducts.length > 0 && (
+                <section className="w-full">
+                  <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2 gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                      <Sparkles className="w-4 h-4 text-[#EC4899] shrink-0" />
+                      <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight truncate">
+                        Skincare, Arabian Oud Perfumes & Hygiene
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => setSelectedCategory('Beauty, Perfumes & Hygiene')}
+                      className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer shrink-0 whitespace-nowrap"
+                    >
+                      View All ({beautyProducts.length})
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                    {beautyProducts.slice(0, 6).map((prod) => (
+                      <ProductCard
+                        key={prod.id}
+                        product={prod}
+                        onSelect={(p) => setSelectedProduct(p)}
+                        onAddToCart={(p, e) => handleAddToCart(p, 1, e)}
+                        isWishlisted={isWishlisted(prod)}
+                        onToggleWishlist={handleToggleWishlist}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* SECTION: Baby Care & STEM Kids Toys */}
+              {babyProducts.length > 0 && (
+                <section className="w-full">
+                  <div className="flex items-center justify-between mb-3 border-b border-[#E7ECF0] dark:border-[#1E2E3D] pb-2 gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                      <Baby className="w-4 h-4 text-[#8B5CF6] shrink-0" />
+                      <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight truncate">
+                        Baby Essentials & Educational Kids Toys
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => setSelectedCategory('Baby & Kids Toys')}
+                      className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold cursor-pointer shrink-0 whitespace-nowrap"
+                    >
+                      View All ({babyProducts.length})
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                    {babyProducts.slice(0, 6).map((prod) => (
+                      <ProductCard
+                        key={prod.id}
+                        product={prod}
+                        onSelect={(p) => setSelectedProduct(p)}
+                        onAddToCart={(p, e) => handleAddToCart(p, 1, e)}
+                        isWishlisted={isWishlisted(prod)}
+                        onToggleWishlist={handleToggleWishlist}
+                      />
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* SECTION 7: Certified Blue-Collar Technicians Strip */}
               <section className="bg-white dark:bg-[#111D27] rounded-lg border border-[#E7ECF0] dark:border-[#1E2E3D] p-4 sm:p-5 shadow-2xs">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Wrench className="w-4 h-4 text-[#0B3B60] dark:text-[#38BDF8]" />
-                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight">
+                <div className="flex items-center justify-between mb-3 gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                    <Wrench className="w-4 h-4 text-[#0B3B60] dark:text-[#38BDF8] shrink-0" />
+                    <h2 className="text-sm sm:text-base font-bold text-[#1A242D] dark:text-[#F1F5F9] tracking-tight truncate">
                       Blue-Collar Artisans On Call
                     </h2>
                   </div>
                   <button
                     onClick={() => setActiveView('services')}
-                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                    className="text-xs text-[#0B3B60] dark:text-[#38BDF8] hover:underline font-semibold flex items-center gap-1 cursor-pointer shrink-0 whitespace-nowrap"
                   >
                     <span>View All Artisans</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -985,7 +1310,7 @@ export default function App() {
         />
       )}
 
-      {/* Legal & Row-Level Security Modal */}
+      {/* Legal & Trust Center Modal */}
       <LegalModal
         isOpen={isLegalModalOpen}
         initialDocId={activeLegalDocId}

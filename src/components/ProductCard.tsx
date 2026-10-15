@@ -16,6 +16,15 @@ const CATEGORY_FALLBACK_IMAGES: Record<string, string> = {
   'Phones & Tablets': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
   'Electronics & Audio': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
   'Home & Living': 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
+  'Groceries & Non-Perishables': 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80',
+  'Home & Office Furniture': 'https://images.unsplash.com/photo-1580481077190-7361356a15f1?auto=format&fit=crop&w=800&q=80',
+  'Appliances & Utensils': 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
+  'Beauty, Perfumes & Hygiene': 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80',
+  'Baby & Kids Toys': 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80',
+  'Sports Gears & Jerseys': 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=800&q=80',
+  'Power Tools & Safety Gear': 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=800&q=80',
+  'Vehicles & E-Bikes': 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
+  'Books, Art & Stationery': 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&q=80',
 };
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -125,14 +134,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         {/* Snug price and add button row */}
-        <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-[#F0F4F8] dark:border-[#1E2E3D]">
-          <div className="flex items-baseline gap-1">
-            <span className="font-extrabold text-[#0B3B60] dark:text-[#38BDF8] text-xs sm:text-sm tabular-nums">
+        <div className="flex items-center justify-between pt-1.5 mt-1 border-t border-[#F0F4F8] dark:border-[#1E2E3D] gap-1">
+          <div className="flex flex-col sm:flex-row sm:items-baseline gap-0 sm:gap-1 min-w-0">
+            <span className="font-extrabold text-[#0B3B60] dark:text-[#38BDF8] text-xs sm:text-sm tabular-nums whitespace-nowrap">
               <span className="text-[10px] font-semibold text-[#5A6872] dark:text-slate-400 mr-0.5">SLE</span>
               {new Intl.NumberFormat('en-US').format(product.priceSLE)}
             </span>
             {product.originalPriceSLE > product.priceSLE && (
-              <span className="text-[10px] text-[#8A99A8] dark:text-slate-500 line-through tabular-nums">
+              <span className="text-[9px] sm:text-[10px] text-[#8A99A8] dark:text-slate-500 line-through tabular-nums whitespace-nowrap">
                 SLE {new Intl.NumberFormat('en-US').format(product.originalPriceSLE)}
               </span>
             )}

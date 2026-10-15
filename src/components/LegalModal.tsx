@@ -41,7 +41,7 @@ export const LegalModal: React.FC<LegalModalProps> = ({
 ${currentDoc.title}
 Effective Date: ${currentDoc.effectiveDate} | Version: ${currentDoc.version}
 Jurisdiction: Republic of Sierra Leone
-Platform: Abu Marketplace
+Platform: ABU Marketplace
 ================================================================================
 
 ${currentDoc.sections.map(s => `
@@ -86,7 +86,7 @@ ${s.bullets ? s.bullets.map(b => `  • ${b}`).join('\n') : ''}
                 </span>
               </div>
               <p className="text-xs text-[#7fa6d0]">
-                Governed under the laws of Sierra Leone · Row-Level Security Enabled
+                Governed under the laws of Sierra Leone · Buyer Inspection Guarantee
               </p>
             </div>
           </div>
@@ -120,9 +120,7 @@ ${s.bullets ? s.bullets.map(b => `  • ${b}`).join('\n') : ''}
                     }`}
                   >
                     <div className="flex items-center gap-2 truncate">
-                      {doc.category === 'security' ? (
-                        <Database className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#8df7c1]' : 'text-gray-400'}`} />
-                      ) : doc.category === 'privacy' ? (
+                      {doc.category === 'privacy' ? (
                         <Lock className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#8df7c1]' : 'text-gray-400'}`} />
                       ) : doc.category === 'merchant' ? (
                         <Building2 className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#8df7c1]' : 'text-gray-400'}`} />
@@ -137,14 +135,14 @@ ${s.bullets ? s.bullets.map(b => `  • ${b}`).join('\n') : ''}
               })}
             </div>
 
-            {/* Row Level Security Badge Box */}
+            {/* Buyer Guarantee Badge Box */}
             <div className="mt-6 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
               <div className="flex items-center gap-1.5 text-emerald-800 font-bold text-xs">
                 <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Active RLS Defense</span>
+                <span>Buyer Inspection Guarantee</span>
               </div>
               <p className="text-[11px] text-emerald-700 mt-1 leading-snug">
-                PostgreSQL Row-Level Security policies isolate buyer orders and merchant tenant rows.
+                Every order comes with mandatory on-arrival physical inspection before payment.
               </p>
             </div>
           </div>
@@ -213,31 +211,6 @@ ${s.bullets ? s.bullets.map(b => `  • ${b}`).join('\n') : ''}
                 </section>
               ))}
             </div>
-
-            {/* RLS Technical Code Preview if Security Doc is selected */}
-            {currentDoc.id === 'database-rls-policy' && (
-              <div className="mt-6 pt-4 border-t border-gray-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-bold text-xs uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-                    <Database className="w-3.5 h-3.5 text-blue-600" />
-                    <span>PostgreSQL DDL & Policy Sample (docs/legal/row_level_security.sql)</span>
-                  </h4>
-                  <span className="text-[10px] bg-blue-100 text-blue-800 font-mono px-2 py-0.5 rounded">
-                    ALTER TABLE ENABLE ROW LEVEL SECURITY
-                  </span>
-                </div>
-                <div className="bg-gray-900 text-gray-200 p-3.5 rounded-lg text-xs font-mono overflow-x-auto border border-gray-800 space-y-1">
-                  <p className="text-emerald-400">-- 1. Enable RLS on Orders Table</p>
-                  <p className="text-white">ALTER TABLE orders ENABLE ROW LEVEL SECURITY;</p>
-                  <p className="text-emerald-400 mt-2">-- 2. Restrict SELECT to authenticated buyer, assigned courier, or admin</p>
-                  <p className="text-white">CREATE POLICY orders_select_policy ON orders FOR SELECT</p>
-                  <p className="text-gray-300 pl-4">USING (buyer_id = current_user_id() OR is_admin() OR current_user_role() = 'logistics_agent');</p>
-                  <p className="text-emerald-400 mt-2">-- 3. Prevent tampering with historical audit logs</p>
-                  <p className="text-white">ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;</p>
-                  <p className="text-gray-300 pl-4">-- UPDATE & DELETE omitted to strictly enforce append-only immutability</p>
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
