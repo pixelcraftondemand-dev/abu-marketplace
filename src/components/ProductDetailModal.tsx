@@ -40,23 +40,23 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [activeTab, setActiveTab] = useState<'specs' | 'reviews'>('specs');
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#002541]/70 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#002541]/70 dark:bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
       <div 
-        className="relative bg-white dark:bg-[#111D27] text-[#1A242D] dark:text-[#F1F5F9] rounded-lg shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto border border-[#DCE1E5] dark:border-[#1E2E3D]"
+        className="relative bg-white dark:bg-[#111D27] text-[#1A242D] dark:text-[#F1F5F9] rounded-t-2xl sm:rounded-lg shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto border border-[#DCE1E5] dark:border-[#1E2E3D]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sticky Header Close */}
         <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#111D27]/95 backdrop-blur-xs px-4 py-3 border-b border-[#DCE1E5] dark:border-[#1E2E3D] flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-[#5A6872] dark:text-slate-400">
-            <span>{product.category}</span>
-            <span aria-hidden="true">/</span>
-            <span className="font-semibold text-[#0B3B60] dark:text-[#38BDF8] truncate max-w-[220px] sm:max-w-md">
+            <span className="hidden xs:inline">{product.category}</span>
+            <span aria-hidden="true" className="hidden xs:inline">/</span>
+            <span className="font-semibold text-[#0B3B60] dark:text-[#38BDF8] truncate max-w-[200px] sm:max-w-md">
               {product.title}
             </span>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-[#5A6872] dark:text-slate-400 hover:text-[#0f1d26] dark:hover:text-white transition-colors cursor-pointer"
+            className="w-9 h-9 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-[#5A6872] dark:text-slate-400 hover:text-[#0f1d26] dark:hover:text-white transition-colors cursor-pointer flex items-center justify-center"
             aria-label="Close dialog"
           >
             <X className="w-5 h-5" />

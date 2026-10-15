@@ -105,7 +105,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <button
           type="button"
           onClick={(e) => onToggleWishlist(product, e)}
-          className={`absolute top-2 right-2 p-1.5 rounded-full bg-white/85 dark:bg-slate-900/85 backdrop-blur-xs hover:bg-white dark:hover:bg-slate-800 transition-colors shadow-2xs cursor-pointer ${
+          className={`absolute top-2 right-2 w-7 h-7 sm:w-7 sm:h-7 rounded-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-xs hover:bg-white dark:hover:bg-slate-800 transition-all shadow-2xs cursor-pointer flex items-center justify-center active:scale-95 ${
             isWishlisted ? 'text-[#0B3B60] dark:text-[#38BDF8]' : 'text-gray-400 hover:text-[#0B3B60] dark:hover:text-[#38BDF8]'
           }`}
           aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
@@ -117,11 +117,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       </div>
 
       {/* Clean Details without excessive spacing */}
-      <div className="p-2 sm:p-2.5 flex flex-col justify-between">
+      <div className="p-2 sm:p-2.5 flex flex-col justify-between flex-1">
         <div>
           {/* Subtle seller line */}
           <div className="text-[10px] text-[#5A6872] dark:text-slate-400 truncate mb-0.5 flex items-center gap-1">
-            <span>{product.sellerName}</span>
+            <span className="truncate">{product.sellerName}</span>
             {product.isVerifiedSeller && (
               <CheckCircle2 className="w-3 h-3 text-[#00875A] shrink-0" />
             )}
@@ -141,7 +141,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               {new Intl.NumberFormat('en-US').format(product.priceSLE)}
             </span>
             {product.originalPriceSLE > product.priceSLE && (
-              <span className="text-[9px] sm:text-[10px] text-[#8A99A8] dark:text-slate-500 line-through tabular-nums whitespace-nowrap">
+              <span className="text-[9px] sm:text-[10px] text-[#8A99A8] dark:text-slate-500 line-through tabular-nums whitespace-nowrap hidden sm:inline">
                 SLE {new Intl.NumberFormat('en-US').format(product.originalPriceSLE)}
               </span>
             )}
@@ -150,11 +150,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <button
             type="button"
             onClick={(e) => onAddToCart(product, e)}
-            className="w-6 h-6 rounded bg-[#F4F6F8] dark:bg-[#1E2E3D] hover:bg-[#0B3B60] dark:hover:bg-[#00875A] text-[#0B3B60] dark:text-slate-200 hover:text-white dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer shrink-0"
+            className="w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-lg bg-[#F4F6F8] dark:bg-[#1E2E3D] hover:bg-[#0B3B60] dark:hover:bg-[#00875A] text-[#0B3B60] dark:text-slate-200 hover:text-white dark:hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0 active:scale-95 shadow-2xs"
             title="Add to cart"
             aria-label="Add to cart"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4" />
           </button>
         </div>
       </div>

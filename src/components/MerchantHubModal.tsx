@@ -248,13 +248,13 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#002541]/75 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#002541]/75 dark:bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
       <div 
-        className="relative bg-white rounded-lg shadow-2xl max-w-2xl w-full border border-[#DCE1E5] overflow-hidden"
+        className="relative bg-white dark:bg-[#111D27] text-[#1A242D] dark:text-[#F1F5F9] rounded-t-2xl sm:rounded-lg shadow-2xl max-w-2xl w-full border border-[#DCE1E5] dark:border-[#1E2E3D] overflow-hidden max-h-[92vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with Abu Logo */}
-        <div className="bg-[#0B3B60] text-white px-4 py-3 flex items-center justify-between">
+        <div className="bg-[#0B3B60] dark:bg-[#002541] text-white px-4 py-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <AbuLogo size={32} />
             <div>
@@ -268,7 +268,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-white/10 text-white/80 hover:text-white"
+            className="w-8 h-8 rounded-full hover:bg-white/10 text-white/80 hover:text-white flex items-center justify-center cursor-pointer"
             aria-label="Close merchant hub"
           >
             <X className="w-5 h-5" />
@@ -276,20 +276,20 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
         </div>
 
         {/* 3-Track Selector Bar */}
-        <div className="grid grid-cols-3 bg-[#eaf5ff] border-b border-[#DCE1E5] p-1.5 gap-1.5 text-xs">
+        <div className="grid grid-cols-3 bg-[#eaf5ff] dark:bg-[#152738] border-b border-[#DCE1E5] dark:border-[#1E2E3D] p-1.5 gap-1.5 text-xs shrink-0">
           <button
             onClick={() => {
               setActiveTab('store');
               setSuccessMessage('');
             }}
-            className={`py-2 px-2 rounded font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`py-2 px-1.5 sm:px-2 rounded font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
               activeTab === 'store'
-                ? 'bg-[#0B3B60] text-white shadow-xs'
-                : 'bg-white text-[#1A242D] hover:bg-slate-50'
+                ? 'bg-[#0B3B60] dark:bg-[#00875A] text-white shadow-xs'
+                : 'bg-white dark:bg-[#0E1720] text-[#1A242D] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
           >
             <Building2 className="w-4 h-4 shrink-0" />
-            <span className="truncate">Create a Store</span>
+            <span className="truncate text-[11px] sm:text-xs">Create Store</span>
           </button>
 
           <button
@@ -297,14 +297,14 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
               setActiveTab('single_product');
               setSuccessMessage('');
             }}
-            className={`py-2 px-2 rounded font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`py-2 px-1.5 sm:px-2 rounded font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
               activeTab === 'single_product'
-                ? 'bg-[#0B3B60] text-white shadow-xs'
-                : 'bg-white text-[#1A242D] hover:bg-slate-50'
+                ? 'bg-[#0B3B60] dark:bg-[#00875A] text-white shadow-xs'
+                : 'bg-white dark:bg-[#0E1720] text-[#1A242D] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
           >
             <Tag className="w-4 h-4 shrink-0" />
-            <span className="truncate">List Single Item</span>
+            <span className="truncate text-[11px] sm:text-xs">List Product</span>
           </button>
 
           <button
@@ -312,14 +312,14 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
               setActiveTab('service');
               setSuccessMessage('');
             }}
-            className={`py-2 px-2 rounded font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            className={`py-2 px-1.5 sm:px-2 rounded font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
               activeTab === 'service'
-                ? 'bg-[#0B3B60] text-white shadow-xs'
-                : 'bg-white text-[#1A242D] hover:bg-slate-50'
+                ? 'bg-[#0B3B60] dark:bg-[#00875A] text-white shadow-xs'
+                : 'bg-white dark:bg-[#0E1720] text-[#1A242D] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
           >
             <Wrench className="w-4 h-4 shrink-0" />
-            <span className="truncate">Offer a Service</span>
+            <span className="truncate text-[11px] sm:text-xs">Offer Service</span>
           </button>
         </div>
 

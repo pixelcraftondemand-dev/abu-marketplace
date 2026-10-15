@@ -51,6 +51,7 @@ import {
   WhatsAppAuthModal 
 } from './components/WhatsAppAuthModal';
 import { LegalModal } from './components/LegalModal';
+import { MobileBottomBar } from './components/MobileBottomBar';
 import { getActiveBetterAuthSession } from './lib/auth-client';
 import { getInitialTheme, applyTheme, ThemeMode } from './lib/theme';
 
@@ -511,7 +512,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-[#FAF9F6] dark:bg-[#091118] text-[#1A242D] dark:text-[#F1F5F9] flex flex-col font-sans antialiased relative transition-colors duration-200 w-full max-w-full overflow-x-hidden">
+    <div className="min-h-screen bg-[#FAF9F6] dark:bg-[#091118] text-[#1A242D] dark:text-[#F1F5F9] flex flex-col font-sans antialiased relative transition-colors duration-200 w-full max-w-full overflow-x-hidden pb-16 md:pb-0">
       {/* 1. Header with ABU Logo and 3-Track Mode navigation */}
       <Header
         currentLocation={currentLocation}
@@ -611,7 +612,7 @@ export default function App() {
                     View All
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
                   {products.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
@@ -641,7 +642,7 @@ export default function App() {
                     View All ({fashionProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
                   {fashionProducts.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
@@ -671,7 +672,7 @@ export default function App() {
                     View All ({solarProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
                   {solarProducts.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
@@ -701,7 +702,7 @@ export default function App() {
                     View All ({phoneProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
                   {phoneProducts.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
@@ -731,7 +732,7 @@ export default function App() {
                     View All ({techProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
                   {techProducts.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
@@ -761,7 +762,7 @@ export default function App() {
                     View All ({homeProducts.length})
                   </button>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
                   {homeProducts.slice(0, 6).map((prod) => (
                     <ProductCard
                       key={prod.id}
@@ -792,7 +793,7 @@ export default function App() {
                       View All ({groceryProducts.length})
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
                     {groceryProducts.slice(0, 6).map((prod) => (
                       <ProductCard
                         key={prod.id}
@@ -824,7 +825,7 @@ export default function App() {
                       View All ({applianceProducts.length})
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
                     {applianceProducts.slice(0, 6).map((prod) => (
                       <ProductCard
                         key={prod.id}
@@ -856,7 +857,7 @@ export default function App() {
                       View All ({furnitureProducts.length})
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
                     {furnitureProducts.slice(0, 6).map((prod) => (
                       <ProductCard
                         key={prod.id}
@@ -888,7 +889,7 @@ export default function App() {
                       View All ({vehicleProducts.length})
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
                     {vehicleProducts.slice(0, 6).map((prod) => (
                       <ProductCard
                         key={prod.id}
@@ -920,7 +921,7 @@ export default function App() {
                       View All ({toolsProducts.length})
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
                     {toolsProducts.slice(0, 6).map((prod) => (
                       <ProductCard
                         key={prod.id}
@@ -952,7 +953,7 @@ export default function App() {
                       View All ({sportsProducts.length})
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
                     {sportsProducts.slice(0, 6).map((prod) => (
                       <ProductCard
                         key={prod.id}
@@ -984,7 +985,7 @@ export default function App() {
                       View All ({booksArtProducts.length})
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
                     {booksArtProducts.slice(0, 6).map((prod) => (
                       <ProductCard
                         key={prod.id}
@@ -1016,7 +1017,7 @@ export default function App() {
                       View All ({beautyProducts.length})
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
                     {beautyProducts.slice(0, 6).map((prod) => (
                       <ProductCard
                         key={prod.id}
@@ -1048,7 +1049,7 @@ export default function App() {
                       View All ({babyProducts.length})
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-4 w-full">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
                     {babyProducts.slice(0, 6).map((prod) => (
                       <ProductCard
                         key={prod.id}
@@ -1165,28 +1166,30 @@ export default function App() {
         </>
       )}
 
-      {/* Floating Mobile Cart (Under 15% sticky cap) */}
+      {/* Floating Mobile Cart (Positioned above MobileBottomBar on mobile) */}
       {cartItems.length > 0 && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#002541] text-white px-4 py-2.5 shadow-[0_-2px_10px_rgba(0,0,0,0.15)] flex items-center justify-between border-t border-[#144b77]">
+        <div 
+          className="md:hidden fixed bottom-14 left-0 right-0 z-30 bg-[#002541]/95 dark:bg-[#091118]/95 backdrop-blur-md text-white px-3 sm:px-4 py-2 shadow-[0_-2px_10px_rgba(0,0,0,0.2)] flex items-center justify-between border-t border-[#144b77] transition-all"
+        >
           <div>
             <div className="text-[10px] text-[#7fa6d0] font-semibold uppercase tracking-wide">
               {totalCartCount} item{totalCartCount > 1 ? 's' : ''} in cart
             </div>
-            <div className="text-sm font-extrabold tabular-nums text-white">
+            <div className="text-xs sm:text-sm font-extrabold tabular-nums text-white">
               SLE {new Intl.NumberFormat('en-US').format(totalCartAmount)}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={() => setIsCartOpen(true)}
-              className="px-3 py-1.5 bg-[#082d49] border border-[#144b77] hover:bg-[#0b3b60] rounded text-xs font-bold transition-colors cursor-pointer"
+              className="px-2.5 sm:px-3 py-1.5 bg-[#082d49] border border-[#144b77] hover:bg-[#0b3b60] rounded text-xs font-bold transition-colors cursor-pointer"
             >
               View Cart
             </button>
             <button
               onClick={() => setIsCheckoutOpen(true)}
-              className="px-4 py-1.5 bg-[#00875A] hover:bg-[#00704a] text-white rounded text-xs font-extrabold shadow-sm transition-colors cursor-pointer"
+              className="px-3.5 sm:px-4 py-1.5 bg-[#00875A] hover:bg-[#00704a] text-white rounded text-xs font-extrabold shadow-sm transition-colors cursor-pointer"
             >
               Checkout
             </button>
@@ -1203,6 +1206,18 @@ export default function App() {
           if (docId) setActiveLegalDocId(docId);
           setIsLegalModalOpen(true);
         }}
+      />
+
+      {/* Mobile Bottom Navigation Dock */}
+      <MobileBottomBar
+        activeView={activeView}
+        onSelectView={setActiveView}
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+        cartCount={totalCartCount}
+        onOpenCart={() => setIsCartOpen(true)}
+        currentUser={currentUser}
+        onOpenWhatsAppAuth={() => setIsWhatsAppAuthOpen(true)}
       />
 
       {/* Modals & Slide-Overs */}

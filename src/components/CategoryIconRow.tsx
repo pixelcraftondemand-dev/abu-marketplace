@@ -229,9 +229,9 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
   ];
 
   return (
-    <div className="max-w-[1440px] mx-auto px-3 sm:px-6 pt-3 pb-1 w-full max-w-full overflow-hidden">
+    <div id="category-scroll-container" className="max-w-[1440px] mx-auto px-3 sm:px-6 pt-3 pb-1 w-full max-w-full overflow-hidden scroll-mt-24">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+        <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">
           Shop by Category
         </h3>
         <button
@@ -245,15 +245,15 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
         </button>
       </div>
 
-      {/* Pure Icon-Based Category Cards (Zero Pictures/Photos, Smooth Mobile & Desktop Carousel) */}
-      <div className="flex gap-2 sm:gap-2.5 py-1 overflow-x-auto no-scrollbar scroll-smooth w-full pb-2">
+      {/* Pure Icon-Based Category Cards (Zero Pictures/Photos, Smooth Mobile & Desktop Carousel with touch snap) */}
+      <div className="flex gap-2 sm:gap-2.5 py-1 overflow-x-auto no-scrollbar scroll-smooth w-full pb-2 snap-x snap-mandatory touch-pan-x">
         {items.map((item, idx) => {
           const Icon = item.icon;
           return (
             <button
               key={idx}
               onClick={item.onClick}
-              className={`flex flex-col items-center justify-center p-2 sm:p-2.5 rounded-2xl transition-all duration-200 group cursor-pointer focus:outline-none border text-center shrink-0 w-[84px] sm:w-[94px] ${
+              className={`flex flex-col items-center justify-center p-2 sm:p-2.5 rounded-2xl transition-all duration-200 group cursor-pointer focus:outline-none border text-center shrink-0 w-[78px] sm:w-[94px] snap-start min-h-[82px] sm:min-h-[96px] ${
                 item.isActive
                   ? 'bg-emerald-50/80 dark:bg-emerald-950/40 border-[#00875A] shadow-xs ring-1 ring-[#00875A]/30'
                   : 'bg-white dark:bg-[#111D27] border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-2xs active:scale-[0.98]'
@@ -261,13 +261,13 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
             >
               {/* Icon Container */}
               <div 
-                className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-all duration-200 mb-1.5 ${
+                className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-all duration-200 mb-1.5 ${
                   item.isActive 
                     ? 'bg-[#00875A] text-white shadow-xs scale-105' 
                     : `${item.bgColor} ${item.textColor} group-hover:scale-105`
                 }`}
               >
-                <Icon className="w-5 h-5 sm:w-5.5 sm:h-5.5" strokeWidth={2.2} />
+                <Icon className="w-4.5 h-4.5 sm:w-5.5 sm:h-5.5" strokeWidth={2.2} />
               </div>
 
               {/* Label */}

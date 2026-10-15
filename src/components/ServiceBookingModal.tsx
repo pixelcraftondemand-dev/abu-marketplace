@@ -65,13 +65,13 @@ export const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#002541]/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#002541]/75 dark:bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
       <div 
-        className="relative bg-white rounded-lg shadow-2xl max-w-lg w-full border border-[#DCE1E5] overflow-hidden"
+        className="relative bg-white dark:bg-[#111D27] text-[#1A242D] dark:text-[#F1F5F9] rounded-t-2xl sm:rounded-lg shadow-2xl max-w-lg w-full border border-[#DCE1E5] dark:border-[#1E2E3D] overflow-hidden max-h-[92vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-[#0B3B60] text-white px-4 py-3 flex items-center justify-between">
+        <div className="bg-[#0B3B60] dark:bg-[#002541] text-white px-4 py-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <Wrench className="w-5 h-5 text-[#8df7c1]" />
             <div>
@@ -85,7 +85,7 @@ export const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded hover:bg-white/10 text-white/80 hover:text-white"
+            className="w-8 h-8 rounded-full hover:bg-white/10 text-white/80 hover:text-white flex items-center justify-center cursor-pointer"
             aria-label="Close booking modal"
           >
             <X className="w-5 h-5" />
