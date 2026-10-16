@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { Heart, Plus, CheckCircle2, Sparkles, Sun, Smartphone, Headphones, UtensilsCrossed, ShoppingBag } from 'lucide-react';
 import { Product } from '../types';
 
@@ -8,61 +8,54 @@ interface ProductCardProps {
   onAddToCart: (product: Product, e: React.MouseEvent) => void;
   isWishlisted: boolean;
   onToggleWishlist: (product: Product, e: React.MouseEvent) => void;
+  priority?: boolean;
 }
 
-const CATEGORY_FALLBACK_IMAGES: Record<string, string> = {
-  'Fashion & Footwear': 'https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=800&q=80',
-  'Solar & Power': 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80',
-  'Phones & Tablets': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80',
-  'Electronics & Audio': 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
-  'Home & Living': 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
-  'Groceries & Non-Perishables': 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80',
-  'Home & Office Furniture': 'https://images.unsplash.com/photo-1580481077190-7361356a15f1?auto=format&fit=crop&w=800&q=80',
-  'Appliances & Utensils': 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80',
-  'Beauty, Perfumes & Hygiene': 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=800&q=80',
-  'Baby & Kids Toys': 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80',
-  'Sports Gears & Jerseys': 'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=800&q=80',
-  'Power Tools & Safety Gear': 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=800&q=80',
-  'Vehicles & E-Bikes': 'https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=800&q=80',
-  'Books, Art & Stationery': 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=800&q=80',
-};
-
-export const ProductCard: React.FC<ProductCardProps> = ({
+export const ProductCard: React.FC<ProductCardProps> = memo(({
   product,
   onSelect,
   onAddToCart,
   isWishlisted,
   onToggleWishlist,
+  priority = false,
 }) => {
   const [currentImgSrc, setCurrentImgSrc] = useState(product.image);
-  const [hasTriedFallback, setHasTriedFallback] = useState(false);
+  const [hasTriedAlternativeExt, setHasTriedAlternativeExt] = useState(false);
   const [imageError, setImageError] = useState(false);
 
+  // If a webp image fails, try jpg format of the exact same asset before falling back to icon
   const handleImageError = () => {
-    if (!hasTriedFallback) {
-      const fallback = CATEGORY_FALLBACK_IMAGES[product.category] || CATEGORY_FALLBACK_IMAGES['Fashion & Footwear'];
-      setHasTriedFallback(true);
-      setCurrentImgSrc(fallback);
-    } else {
-      setImageError(true);
+    if (!hasTriedAlternativeExt) {
+      setHasTriedAlternativeExt(true);
+      if (currentImgSrc.endsWith('.webp')) {
+        setCurrentImgSrc(currentImgSrc.replace(/\.webp$/, '.jpg'));
+        return;
+      } else if (currentImgSrc.endsWith('.jpg')) {
+        setCurrentImgSrc(currentImgSrc.replace(/\.jpg$/, '.webp'));
+        return;
+      }
     }
+    // When failing, render the branded category SVG placeholder specific to this product
+    // (Never show a misleading photo of a different product)
+    setImageError(true);
   };
 
-  // Category Icon helper for fallback
+  // Category Icon helper for graceful fallback placeholder
   const renderCategoryFallbackIcon = () => {
     switch (product.category) {
       case 'Fashion & Footwear':
-        return <Sparkles className="w-10 h-10 text-[#0B3B60]/40 dark:text-sky-400/40" />;
+        return <Sparkles className="w-8 h-8 text-[#0B3B60]/40 dark:text-sky-400/40" />;
       case 'Solar & Power':
-        return <Sun className="w-10 h-10 text-[#FF6600]/40 dark:text-amber-400/40" />;
+        return <Sun className="w-8 h-8 text-[#FF6600]/40 dark:text-amber-400/40" />;
       case 'Phones & Tablets':
-        return <Smartphone className="w-10 h-10 text-[#00875A]/40 dark:text-emerald-400/40" />;
+        return <Smartphone className="w-8 h-8 text-[#00875A]/40 dark:text-emerald-400/40" />;
       case 'Electronics & Audio':
-        return <Headphones className="w-10 h-10 text-[#7A1CAC]/40 dark:text-purple-400/40" />;
+        return <Headphones className="w-8 h-8 text-[#7A1CAC]/40 dark:text-purple-400/40" />;
       case 'Home & Living':
-        return <UtensilsCrossed className="w-10 h-10 text-[#0B3B60]/40 dark:text-orange-400/40" />;
+      case 'Appliances & Utensils':
+        return <UtensilsCrossed className="w-8 h-8 text-[#0B3B60]/40 dark:text-orange-400/40" />;
       default:
-        return <ShoppingBag className="w-10 h-10 text-[#5A6872]/40 dark:text-slate-400/40" />;
+        return <ShoppingBag className="w-8 h-8 text-[#5A6872]/40 dark:text-slate-400/40" />;
     }
   };
 
@@ -71,19 +64,21 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       onClick={() => onSelect(product)}
       className="group bg-white dark:bg-[#111D27] rounded-md border border-[#E7ECF0] dark:border-[#1E2E3D] hover:border-[#0B3B60] dark:hover:border-[#38BDF8] transition-all cursor-pointer flex flex-col justify-between overflow-hidden shadow-2xs hover:shadow-sm h-full"
     >
-      {/* 1:1 Image Container with Graceful Fallback */}
+      {/* 1:1 Image Container with Strict Aspect Ratio & Zero Layout Shift */}
       <div className="relative aspect-square w-full bg-[#F4F6F8] dark:bg-[#091118] overflow-hidden flex items-center justify-center">
         {!imageError ? (
           <img
             src={currentImgSrc}
             alt={product.title}
             referrerPolicy="no-referrer"
-            loading="lazy"
+            loading={priority ? 'eager' : 'lazy'}
+            decoding="async"
+            fetchPriority={priority ? 'high' : 'auto'}
             onError={handleImageError}
             className="w-full h-full object-cover object-center group-hover:scale-102 transition-transform duration-300"
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#F8FAFC] to-[#EDF2F7] dark:from-[#091118] dark:to-[#15222E] p-3 text-center">
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-[#F8FAFC] to-[#EDF2F7] dark:from-[#091118] dark:to-[#15222E] p-3 text-center select-none">
             {renderCategoryFallbackIcon()}
             <span className="text-[10px] font-bold text-[#5A6872] dark:text-slate-400 mt-1 line-clamp-1">
               {product.category}
@@ -116,7 +111,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </button>
       </div>
 
-      {/* Clean Details without excessive spacing */}
+      {/* Clean Details */}
       <div className="p-2 sm:p-2.5 flex flex-col justify-between flex-1">
         <div>
           {/* Subtle seller line */}
@@ -158,7 +153,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </button>
         </div>
       </div>
-
     </article>
   );
-};
+});
+
+ProductCard.displayName = 'ProductCard';

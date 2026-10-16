@@ -124,7 +124,7 @@ export const LEGAL_DOCS: LegalDocument[] = [
         content: 'When an order is received, merchants must package and stage items at the designated ABU Logistics Hub (Freetown CBD, Bo Clocktower, or Makeni Depot) within 12 business hours. Fulfillment failure rates exceeding 5% trigger merchant review.'
       },
       {
-        heading: '4. Artisan Service Callout Standards',
+        heading: '4. Artisan Service Consultation Standards',
         content: 'Blue-collar service providers (solar technicians, electricians, refrigeration mechanics) must arrive punctually for booked diagnostic appointments, provide itemized estimates, and honor their 30-day workmanship guarantee.'
       }
     ]

@@ -90,3 +90,9 @@ body {
 .dark ::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }
+
+/* High-speed rendering for below-the-fold catalog grids */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 360px;
+}

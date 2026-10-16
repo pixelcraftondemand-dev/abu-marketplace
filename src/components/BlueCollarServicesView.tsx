@@ -74,7 +74,7 @@ export const BlueCollarServicesView: React.FC<BlueCollarServicesViewProps> = ({
             Hire Certified Blue-Collar Technicians & Artisans
           </h2>
           <p className="text-xs sm:text-sm text-[#d0e4ff] mt-1 max-w-2xl leading-relaxed">
-            Connect directly with tested solar installers, residential electricians, AC mechanics, master plumbers, and auto diagnostic technicians on ABU Marketplace. Transparent callout rates in SLE.
+            Connect directly with tested solar installers, residential electricians, AC mechanics, master plumbers, and auto diagnostic technicians on ABU Marketplace. Transparent consultation rates in SLE.
           </p>
         </div>
 
@@ -222,7 +222,7 @@ export const BlueCollarServicesView: React.FC<BlueCollarServicesViewProps> = ({
             {/* Bottom Row: Callout Fee & Action Triggers */}
             <div className="pt-3 border-t border-[#DCE1E5] dark:border-[#1E2E3D]">
               <div className="flex items-baseline justify-between mb-3">
-                <span className="text-xs text-[#5A6872] dark:text-slate-400">Callout Inspection:</span>
+                <span className="text-xs text-[#5A6872] dark:text-slate-400">Consultation / Inspection:</span>
                 <div className="font-extrabold text-[#1A242D] dark:text-[#F1F5F9] text-base tabular-nums flex items-baseline">
                   <span className="text-[11px] font-semibold text-[#1A242D] dark:text-slate-200 mr-0.5">
                     SLE
@@ -245,7 +245,7 @@ export const BlueCollarServicesView: React.FC<BlueCollarServicesViewProps> = ({
                   className="h-9 bg-[#0B3B60] hover:bg-[#002541] dark:bg-[#00875A] dark:hover:bg-[#00704A] text-white rounded text-xs font-bold flex items-center justify-center gap-1.5 shadow transition-colors cursor-pointer"
                 >
                   <Zap className="w-3.5 h-3.5 text-[#8df7c1]" />
-                  <span>Book Callout</span>
+                  <span>Book Consultation</span>
                 </button>
               </div>
             </div>

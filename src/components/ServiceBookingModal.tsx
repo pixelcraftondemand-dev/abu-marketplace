@@ -54,12 +54,12 @@ export const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
 
       setIsSubmitting(false);
       onBookingSuccess(
-        `Dispatched callout for ${service.providerName}! They will contact +232 ${rawPhone} shortly to confirm.`
+        `Dispatched consultation request for ${service.providerName}! They will contact +232 ${rawPhone} shortly to confirm.`
       );
       onClose();
     } catch (err) {
       setIsSubmitting(false);
-      onBookingSuccess(`Callout booked with ${service.providerName}!`);
+      onBookingSuccess(`Consultation booked with ${service.providerName}!`);
       onClose();
     }
   };
@@ -76,7 +76,7 @@ export const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
             <Wrench className="w-5 h-5 text-[#8df7c1]" />
             <div>
               <h2 className="font-bold text-sm sm:text-base">
-                Book Trade Technician Callout
+                Book Trade Technician Consultation
               </h2>
               <p className="text-[11px] text-[#d0e4ff]">
                 {service.tradeCategory} · Sierra Leone
@@ -107,7 +107,7 @@ export const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
           </div>
 
           <div className="text-right">
-            <span className="text-[10px] text-[#5A6872] uppercase block">Callout Fee</span>
+            <span className="text-[10px] text-[#5A6872] uppercase block">Consultation Fee</span>
             <span className="font-extrabold text-[#0B3B60] text-sm tabular-nums">
               SLE {service.calloutFeeSLE}
             </span>
@@ -191,7 +191,7 @@ export const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
 
             <div>
               <label className="block font-bold text-[#1A242D] mb-1">
-                Callout Fee Payment
+                Consultation Fee Payment
               </label>
               <select
                 value={paymentMethod}
@@ -201,7 +201,7 @@ export const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
                 <option value="cash">Cash on Arrival (Inspect & Pay on site)</option>
               </select>
               <p className="text-[10px] text-[#5A6872] mt-1">
-                Notice: No mobile money used initially. Pay callout fee directly to technician in cash.
+                Notice: No mobile money used initially. Pay consultation fee directly to technician in cash.
               </p>
             </div>
           </div>
@@ -222,7 +222,7 @@ export const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
           <div className="p-2.5 bg-[#fafbfc] rounded border border-[#DCE1E5] text-[11px] text-[#5A6872] flex items-center justify-between">
             <span className="flex items-center gap-1">
               <ShieldCheck className="w-3.5 h-3.5 text-[#00875A]" />
-              <span>Diagnostic callout fee:</span>
+              <span>Diagnostic consultation fee:</span>
             </span>
             <span className="font-extrabold text-[#0B3B60] text-xs">
               SLE {service.calloutFeeSLE}
@@ -236,7 +236,7 @@ export const ServiceBookingModal: React.FC<ServiceBookingModalProps> = ({
           >
             <Zap className="w-4 h-4 text-[#8df7c1]" />
             <span>
-              {isSubmitting ? 'Confirming with Technician...' : `Dispatch Technician (SLE ${service.calloutFeeSLE})`}
+              {isSubmitting ? 'Confirming with Technician...' : `Book Consultation (SLE ${service.calloutFeeSLE})`}
             </span>
           </button>
         </form>

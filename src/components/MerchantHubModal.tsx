@@ -657,7 +657,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
 
                 <div>
                   <label className="block font-bold text-[#1A242D] mb-1">
-                    Callout Diagnostic Fee (SLE) *
+                    Consultation & Diagnostic Fee (SLE) *
                   </label>
                   <div className="flex items-stretch">
                     <span className="h-9 px-2 bg-[#eaf5ff] border border-r-0 border-[#DCE1E5] rounded-l text-xs font-bold text-[#0B3B60] flex items-center">

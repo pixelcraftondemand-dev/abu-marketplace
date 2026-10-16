@@ -7,7 +7,8 @@ import {
   Store, 
   ChevronDown, 
   X,
-  User
+  User,
+  Sliders
 } from 'lucide-react';
 import { LocationNode, Category, UserProfile } from '../types';
 import { AbuLogo } from './AbuLogo';
@@ -34,6 +35,7 @@ interface HeaderProps {
   isShopApproved?: boolean;
   theme?: ThemeMode;
   onToggleTheme?: () => void;
+  onOpenCMS?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -53,6 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
   isShopApproved = false,
   theme = 'light',
   onToggleTheme,
+  onOpenCMS,
 }) => {
   return (
     <header className="sticky top-0 z-40 bg-[#002541] text-white shadow-sm border-b border-[#0B3B60] w-full max-w-full overflow-x-clip">
@@ -184,6 +187,19 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Light / Dark Mode Toggle */}
             {onToggleTheme && (
               <ThemeToggle theme={theme} onToggle={onToggleTheme} className="shrink-0" />
+            )}
+
+            {/* Admin Content Management System (CMS) */}
+            {onOpenCMS && (
+              <button
+                type="button"
+                onClick={onOpenCMS}
+                className="bg-[#0b3b60] hover:bg-[#154d7d] border border-amber-400/50 hover:border-amber-400 text-amber-300 hover:text-amber-200 px-2 sm:px-2.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-2xs hover:shadow-xs cursor-pointer shrink-0 min-h-[36px]"
+                title="Open Admin Content Management System (CMS)"
+              >
+                <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-[11px] font-extrabold tracking-wide">CMS</span>
+              </button>
             )}
 
             {/* 4. Sign In / User Account */}

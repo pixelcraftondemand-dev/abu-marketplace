@@ -243,4 +243,69 @@ export const api = {
       };
     }
   },
+
+  // 10. Standard CMS Operations
+  async updateProduct(id: string, updates: Partial<Product>): Promise<Product | null> {
+    try {
+      const res = await fetch(`/api/products/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) throw new Error('Failed to update product');
+      const data = await res.json();
+      return data.data;
+    } catch (err) {
+      console.warn('API error updating product:', err);
+      return null;
+    }
+  },
+
+  async deleteProduct(id: string): Promise<boolean> {
+    try {
+      const res = await fetch(`/api/products/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      return res.ok;
+    } catch (err) {
+      console.warn('API error deleting product:', err);
+      return false;
+    }
+  },
+
+  async duplicateProduct(id: string): Promise<Product | null> {
+    try {
+      const res = await fetch(`/api/products/${encodeURIComponent(id)}/duplicate`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error('Failed to duplicate product');
+      const data = await res.json();
+      return data.data;
+    } catch (err) {
+      console.warn('API error duplicating product:', err);
+      return null;
+    }
+  },
+
+  async resetCatalog(): Promise<boolean> {
+    try {
+      const res = await fetch('/api/cms/reset', { method: 'POST' });
+      return res.ok;
+    } catch (err) {
+      console.warn('API error resetting catalog:', err);
+      return false;
+    }
+  },
+
+  async getMediaAssets(): Promise<Array<{ fileName: string; url: string; usedBy: any }>> {
+    try {
+      const res = await fetch('/api/cms/media');
+      if (!res.ok) throw new Error('Failed to fetch media assets');
+      const data = await res.json();
+      return data.data || [];
+    } catch (err) {
+      console.warn('API error fetching media assets:', err);
+      return [];
+    }
+  },
 };

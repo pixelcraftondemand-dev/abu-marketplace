@@ -52,6 +52,7 @@ import {
 } from './components/WhatsAppAuthModal';
 import { LegalModal } from './components/LegalModal';
 import { MobileBottomBar } from './components/MobileBottomBar';
+import { AdminCMSModal } from './components/AdminCMSModal';
 import { getActiveBetterAuthSession } from './lib/auth-client';
 import { getInitialTheme, applyTheme, ThemeMode } from './lib/theme';
 
@@ -171,6 +172,30 @@ export default function App() {
     }
   };
 
+  // CMS State & URL Routing (/cms, /admin)
+  const [isCMSOpen, setIsCMSOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      return ['/cms', '/admin'].includes(path);
+    }
+    return false;
+  });
+
+  const handleOpenCMS = () => {
+    setIsCMSOpen(true);
+    if (typeof window !== 'undefined') window.history.pushState({}, '', '/cms');
+  };
+
+  const handleCloseCMS = () => {
+    setIsCMSOpen(false);
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      if (['/cms', '/admin'].includes(path)) {
+        window.history.pushState({}, '', '/');
+      }
+    }
+  };
+
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname.toLowerCase();
@@ -185,8 +210,11 @@ export default function App() {
       } else if (path === '/auth' || path === '/account') {
         setAuthInitialTab('phone');
         setIsWhatsAppAuthOpen(true);
+      } else if (path === '/cms' || path === '/admin') {
+        setIsCMSOpen(true);
       } else {
         setIsWhatsAppAuthOpen(false);
+        setIsCMSOpen(false);
       }
     };
     window.addEventListener('popstate', handlePopState);
@@ -209,8 +237,19 @@ export default function App() {
   const [activeView, setActiveView] = useState<'marketplace' | 'services' | 'stores'>('marketplace');
 
 
-  // 2. Core Datasets
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  // 2. Core Datasets (Cached for instant 0ms homepage initial render)
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const saved = localStorage.getItem('abu_cms_products');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {
+      // fallback
+    }
+    return INITIAL_PRODUCTS;
+  });
   const [stores, setStores] = useState<VendorStore[]>(INITIAL_STORES);
   const [services, setServices] = useState<BlueCollarService[]>(INITIAL_SERVICES);
   const [selectedCategory, setSelectedCategory] = useState<Category>('All');
@@ -505,6 +544,52 @@ export default function App() {
     setActiveView('services');
   };
 
+  // CMS Handlers
+  const handleUpdateProductCMS = (updated: Product) => {
+    setProducts((prev) => {
+      const next = prev.map((p) => (p.id === updated.id ? updated : p));
+      try {
+        localStorage.setItem('abu_cms_products', JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+  };
+
+  const handleCreateProductCMS = (newProd: Product) => {
+    setProducts((prev) => {
+      const next = [newProd, ...prev];
+      try {
+        localStorage.setItem('abu_cms_products', JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+  };
+
+  const handleDeleteProductCMS = (productId: string) => {
+    setProducts((prev) => {
+      const next = prev.filter((p) => p.id !== productId);
+      try {
+        localStorage.setItem('abu_cms_products', JSON.stringify(next));
+      } catch (e) {
+        console.error(e);
+      }
+      return next;
+    });
+  };
+
+  const handleResetCatalogCMS = () => {
+    try {
+      localStorage.removeItem('abu_cms_products');
+    } catch (e) {
+      console.error(e);
+    }
+    setProducts(INITIAL_PRODUCTS);
+  };
+
   const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const totalCartAmount = cartItems.reduce(
     (sum, item) => sum + item.product.priceSLE * item.quantity,
@@ -534,6 +619,7 @@ export default function App() {
         isShopApproved={isShopApproved}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        onOpenCMS={handleOpenCMS}
       />
 
       {/* Primary Semantic H1 for SEO Ranking (#1 for ABU, abu, Marketplace) */}
@@ -613,10 +699,11 @@ export default function App() {
                   </button>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 w-full">
-                  {products.slice(0, 6).map((prod) => (
+                  {products.slice(0, 6).map((prod, idx) => (
                     <ProductCard
                       key={prod.id}
                       product={prod}
+                      priority={idx < 4}
                       onSelect={(p) => setSelectedProduct(p)}
                       onAddToCart={(p, e) => handleAddToCart(p, 1, e)}
                       isWishlisted={isWishlisted(prod)}
@@ -1096,7 +1183,7 @@ export default function App() {
                           {srv.providerName}
                         </h4>
                         <div className="text-[11px] text-[#5A6872] dark:text-slate-400">
-                          Callout: <strong className="text-[#0B3B60] dark:text-[#38BDF8]">SLE {srv.calloutFeeSLE}</strong> · {srv.locationHub}
+                          Consultation: <strong className="text-[#0B3B60] dark:text-[#38BDF8]">SLE {srv.calloutFeeSLE}</strong> · {srv.locationHub}
                         </div>
                       </div>
 
@@ -1342,6 +1429,20 @@ export default function App() {
           setActiveView('marketplace');
         }}
         onOpenCart={() => setIsCartOpen(true)}
+      />
+
+      {/* Administrative Content Management System (CMS) */}
+      <AdminCMSModal
+        isOpen={isCMSOpen}
+        onClose={handleCloseCMS}
+        products={products}
+        stores={stores}
+        services={services}
+        onUpdateProduct={handleUpdateProductCMS}
+        onCreateProduct={handleCreateProductCMS}
+        onDeleteProduct={handleDeleteProductCMS}
+        onResetCatalog={handleResetCatalogCMS}
+        onShowToast={showToast}
       />
 
       {/* Toast Notification */}

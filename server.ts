@@ -3,6 +3,7 @@ dotenv.config();
 
 import express, { Request, Response } from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
 import { Product, VendorStore, BlueCollarService, ServiceBooking } from './src/types/index.ts';
@@ -51,10 +52,11 @@ app.all('/api/auth/*', toNodeHandler(auth));
 
 app.use(express.json());
 
-// Serve public static assets
-app.use('/products', express.static(path.resolve(__dirname, 'public', 'products')));
-app.use('/images', express.static(path.resolve(__dirname, 'public', 'images')));
-app.use('/src/assets/images', express.static(path.resolve(__dirname, 'public', 'products')));
+// Serve public static assets with high-performance browser caching
+const STATIC_CACHE_OPTIONS = { maxAge: '7d', etag: true };
+app.use('/products', express.static(path.resolve(__dirname, 'public', 'products'), STATIC_CACHE_OPTIONS));
+app.use('/images', express.static(path.resolve(__dirname, 'public', 'images'), STATIC_CACHE_OPTIONS));
+app.use('/src/assets/images', express.static(path.resolve(__dirname, 'public', 'products'), STATIC_CACHE_OPTIONS));
 
 // Sierra Leone logistics locations
 const LOCATIONS = [
@@ -452,6 +454,89 @@ app.post('/api/products', (req: Request, res: Response) => {
   res.status(201).json({ success: true, data: newProduct });
 });
 
+// ----------------------------------------------------
+// CMS & CATALOG MANAGEMENT ENDPOINTS
+// ----------------------------------------------------
+
+// Update an existing product
+app.put('/api/products/:id', (req: Request, res: Response) => {
+  const index = products.findIndex((p) => p.id === req.params.id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, error: 'Product not found' });
+  }
+
+  const updated: Product = {
+    ...products[index],
+    ...req.body,
+    id: req.params.id, // Preserve ID
+  };
+  products[index] = updated;
+  res.json({ success: true, data: updated });
+});
+
+// Delete a product
+app.delete('/api/products/:id', (req: Request, res: Response) => {
+  const index = products.findIndex((p) => p.id === req.params.id);
+  if (index === -1) {
+    return res.status(404).json({ success: false, error: 'Product not found' });
+  }
+
+  const [deleted] = products.splice(index, 1);
+  res.json({ success: true, data: deleted, message: 'Product removed from catalog' });
+});
+
+// Duplicate a product
+app.post('/api/products/:id/duplicate', (req: Request, res: Response) => {
+  const source = products.find((p) => p.id === req.params.id);
+  if (!source) {
+    return res.status(404).json({ success: false, error: 'Source product not found' });
+  }
+
+  const duplicated: Product = {
+    ...source,
+    id: `prod-copy-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    title: `${source.title} (Copy)`,
+    soldCount: 0,
+    reviewCount: 0,
+    rating: 5.0,
+  };
+
+  products.unshift(duplicated);
+  res.status(201).json({ success: true, data: duplicated });
+});
+
+// CMS Factory Reset: Reverts catalog to initial 105 verified products
+app.post('/api/cms/reset', (_req: Request, res: Response) => {
+  products = [...INITIAL_PRODUCTS];
+  res.json({ success: true, count: products.length, message: 'Catalog reset to standard verified inventory' });
+});
+
+// CMS Media Assets: List verified local product assets
+app.get('/api/cms/media', (_req: Request, res: Response) => {
+  try {
+    const productsDir = path.resolve(__dirname, 'public', 'products');
+    if (!fs.existsSync(productsDir)) {
+      return res.json({ success: true, files: [] });
+    }
+
+    const files = fs.readdirSync(productsDir)
+      .filter((f) => f.endsWith('.webp') || f.endsWith('.jpg') || f.endsWith('.png'))
+      .map((fileName) => {
+        const url = `/products/${fileName}`;
+        const matched = products.find((p) => p.image === url || p.image.endsWith(fileName));
+        return {
+          fileName,
+          url,
+          usedBy: matched ? { id: matched.id, title: matched.title, category: matched.category } : null,
+        };
+      });
+
+    res.json({ success: true, count: files.length, data: files });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 3. Locations API
 app.get('/api/locations', (req: Request, res: Response) => {
   res.json({ success: true, data: LOCATIONS });
@@ -754,7 +839,7 @@ app.post('/api/services/book', (req: Request, res: Response) => {
   res.status(201).json({
     success: true,
     data: booking,
-    message: `Callout request dispatched! ${targetService.providerName} will call +232 ${customerPhone} to confirm arrival.`,
+    message: `Consultation request dispatched! ${targetService.providerName} will call +232 ${customerPhone} to confirm arrival.`,
   });
 });
 
@@ -859,7 +944,7 @@ Keep answers concise, direct, courteous, and specifically relevant to shopping a
   } else if (normalizedQuery.includes('return') || normalizedQuery.includes('refund') || normalizedQuery.includes('warranty') || normalizedQuery.includes('guarantee')) {
     reply = "All purchases are backed by Abu Marketplace's 7-Day Buyer Protection guarantee. If an item arrives damaged or does not match its description, you inspect it upon delivery before paying in cash, or request an exchange.";
   } else if (normalizedQuery.includes('service') || normalizedQuery.includes('artisan') || normalizedQuery.includes('technician') || normalizedQuery.includes('electrician') || normalizedQuery.includes('plumber')) {
-    reply = "Need skilled technical help? You can book certified trade artisans (certified solar installers, master electricians, plumbers, and refrigeration techs) with transparent callout fees and direct phone dispatch.";
+    reply = "Need skilled technical help? You can book certified trade artisans (certified solar installers, master electricians, plumbers, and refrigeration techs) with transparent consultation fees and direct phone dispatch.";
     action = { type: 'open_merchant', label: 'Offer Trade Services' };
   } else {
     reply = "Welcome to Abu Marketplace! I can help you with payment policies (Cash on Delivery only — no mobile money used initially), delivery times across Sierra Leone, tracking your orders, or creating your own vendor store. How can I assist you today?";
