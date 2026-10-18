@@ -1293,6 +1293,7 @@ export default function App() {
           if (docId) setActiveLegalDocId(docId);
           setIsLegalModalOpen(true);
         }}
+        onOpenCMS={handleOpenCMS}
       />
 
       {/* Mobile Bottom Navigation Dock */}
@@ -1398,6 +1399,7 @@ export default function App() {
         onAddProduct={handleAddNewProduct}
         onAddStore={handleAddNewStore}
         onAddService={handleAddNewService}
+        onOpenCMS={handleOpenCMS}
       />
 
       {/* Location Picker Modal */}

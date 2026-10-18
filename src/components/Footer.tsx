@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, Truck, Phone, MapPin, Store, RotateCcw } from 'lucide-react';
+import { ShieldCheck, Truck, Phone, MapPin, Store, RotateCcw, Sliders } from 'lucide-react';
 import { AbuLogo } from './AbuLogo';
 
 interface FooterProps {
@@ -7,6 +7,7 @@ interface FooterProps {
   onOpenMerchantHub: () => void;
   onOpenOrderTracking: () => void;
   onOpenLegal?: (docId?: string) => void;
+  onOpenCMS?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -14,6 +15,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenMerchantHub,
   onOpenOrderTracking,
   onOpenLegal,
+  onOpenCMS,
 }) => {
   return (
     <footer className="bg-[#002541] text-white pt-8 pb-8 border-t border-[#144b77] mt-12 w-full max-w-full overflow-hidden">
@@ -142,6 +144,18 @@ export const Footer: React.FC<FooterProps> = ({
                   <span>Privacy & Buyer Protection</span>
                 </button>
               </li>
+              {onOpenCMS && (
+                <li>
+                  <button
+                    onClick={onOpenCMS}
+                    className="hover:text-white hover:underline flex items-center gap-2 text-left cursor-pointer transition-colors text-amber-300/90 hover:text-amber-200"
+                    title="Open Store & Catalog Management System"
+                  >
+                    <Sliders className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span>Store & Catalog CMS Portal</span>
+                  </button>
+                </li>
+              )}
             </ul>
           </div>
 
@@ -194,6 +208,18 @@ export const Footer: React.FC<FooterProps> = ({
           >
             Merchant Seller Agreement
           </button>
+          {onOpenCMS && (
+            <>
+              <span>•</span>
+              <button 
+                onClick={onOpenCMS}
+                className="hover:text-amber-300 text-slate-400 hover:underline cursor-pointer flex items-center gap-1"
+                title="Admin Content Management System"
+              >
+                <span>Admin CMS</span>
+              </button>
+            </>
+          )}
         </div>
         <div className="text-[11px] text-right">
           Registered under the Laws of Sierra Leone.

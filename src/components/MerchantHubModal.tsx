@@ -10,7 +10,8 @@ import {
   Wrench, 
   Tag, 
   MapPin, 
-  Phone
+  Phone,
+  Sliders
 } from 'lucide-react';
 import { Category, Product, VendorStore, BlueCollarService, TradeCategory, ItemCondition } from '../types';
 import { detectCarrier } from '../data/mockData';
@@ -23,6 +24,7 @@ interface MerchantHubModalProps {
   onAddProduct: (product: Product) => void;
   onAddStore?: (store: VendorStore) => void;
   onAddService?: (service: BlueCollarService) => void;
+  onOpenCMS?: () => void;
 }
 
 export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
@@ -31,6 +33,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   onAddProduct,
   onAddStore,
   onAddService,
+  onOpenCMS,
 }) => {
   const [activeTab, setActiveTab] = useState<'store' | 'single_product' | 'service'>('store');
   const [successMessage, setSuccessMessage] = useState('');
@@ -266,13 +269,29 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full hover:bg-white/10 text-white/80 hover:text-white flex items-center justify-center cursor-pointer"
-            aria-label="Close merchant hub"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenCMS && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenCMS();
+                }}
+                className="bg-[#082d49] hover:bg-[#144b77] text-amber-300 border border-amber-400/40 text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Manage Live Store Catalog & Inventory in CMS"
+              >
+                <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">Store CMS</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full hover:bg-white/10 text-white/80 hover:text-white flex items-center justify-center cursor-pointer"
+              aria-label="Close merchant hub"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* 3-Track Selector Bar */}
