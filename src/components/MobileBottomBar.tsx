@@ -112,6 +112,24 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
           <span className="text-[10px] font-bold mt-1 leading-none tracking-tight">Artisans</span>
         </button>
 
+        {/* 3. Shopping Cart */}
+        <button
+          type="button"
+          onClick={onOpenCart}
+          className="flex flex-col items-center justify-center min-h-[44px] py-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer relative"
+          aria-label="Shopping Cart"
+        >
+          <div className="relative">
+            <ShoppingCart className="w-5 h-5" strokeWidth={2} />
+            {cartCount > 0 && (
+              <span className="absolute -top-1.5 -right-2.5 bg-[#00875A] text-white text-[9px] font-black h-4 min-w-4 px-1 rounded-full flex items-center justify-center shadow-xs">
+                {cartCount}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] font-bold mt-1 leading-none tracking-tight">Cart</span>
+        </button>
+
         {/* 4. Showroom Stores */}
         <button
           type="button"
@@ -135,22 +153,30 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
           <span className="text-[10px] font-bold mt-1 leading-none tracking-tight">Stores</span>
         </button>
 
-        {/* 5. Cart or Account */}
+        {/* 5. Account / Sign In with Live User Avatar */}
         <button
           type="button"
-          onClick={onOpenCart}
+          onClick={onOpenWhatsAppAuth}
           className="flex flex-col items-center justify-center min-h-[44px] py-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer relative"
-          aria-label="Shopping Cart"
+          aria-label={currentUser ? "User Profile" : "Sign In"}
         >
-          <div className="relative">
-            <ShoppingCart className="w-5 h-5" strokeWidth={2} />
-            {cartCount > 0 && (
-              <span className="absolute -top-1.5 -right-2.5 bg-[#00875A] text-white text-[9px] font-black h-4 min-w-4 px-1 rounded-full flex items-center justify-center shadow-xs">
-                {cartCount}
-              </span>
-            )}
-          </div>
-          <span className="text-[10px] font-bold mt-1 leading-none tracking-tight">Cart</span>
+          {currentUser ? (
+            <div className="relative">
+              <img
+                src={currentUser.avatar}
+                alt={currentUser.name}
+                className="w-5 h-5 rounded-full object-cover border border-[#00875A]"
+              />
+              <span className="w-2 h-2 rounded-full bg-[#16A34A] absolute -bottom-0.5 -right-0.5 ring-1 ring-white dark:ring-[#002541]" />
+            </div>
+          ) : (
+            <div className="relative">
+              <User className="w-5 h-5" strokeWidth={2} />
+            </div>
+          )}
+          <span className="text-[10px] font-bold mt-1 leading-none tracking-tight truncate max-w-[56px]">
+            {currentUser ? currentUser.name.split(' ')[0] : 'Sign In'}
+          </span>
         </button>
       </div>
     </nav>

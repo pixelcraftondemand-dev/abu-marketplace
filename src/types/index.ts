@@ -168,7 +168,7 @@ export interface UserProfile {
   whatsappNumber?: string;
   phoneNumber?: string;
   email?: string;
-  provider: 'whatsapp' | 'google' | 'apple' | 'phone' | 'email';
+  provider: 'clerk' | 'whatsapp' | 'google' | 'facebook' | 'apple' | 'phone' | 'email';
   isVerified: boolean;
   avatar?: string;
   preferredCity?: string;

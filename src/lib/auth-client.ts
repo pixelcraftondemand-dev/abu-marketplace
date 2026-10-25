@@ -23,15 +23,16 @@ export interface BetterAuthUser {
 /**
  * Format Better Auth User to app UserProfile
  */
-export function formatBetterAuthUser(user: any, provider: 'whatsapp' | 'sms' | 'google' | 'apple' | 'email' | 'phone' = 'phone'): UserProfile {
+export function formatBetterAuthUser(user: any, provider: 'whatsapp' | 'sms' | 'google' | 'facebook' | 'apple' | 'email' | 'phone' = 'phone'): UserProfile {
   const cleanPhone = user.phoneNumber || '';
+  const finalProvider = user.provider || (provider === 'sms' ? 'phone' : provider);
   return {
     id: user.id || `usr_${Date.now()}`,
     name: user.name || (user.email ? user.email.split('@')[0] : 'Verified Customer'),
     whatsappNumber: cleanPhone || undefined,
     phoneNumber: cleanPhone || undefined,
-    email: user.email?.includes('@phone.abumarketplace.sl') ? undefined : user.email,
-    provider: provider === 'sms' ? 'phone' : provider,
+    email: (user.email?.includes('@phone.abumarketplace.sl') || user.email?.includes('@phone.abumarketplace.shop')) ? undefined : user.email,
+    provider: finalProvider,
     isVerified: true,
     avatar: user.image || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.name || cleanPhone || 'User')}&backgroundColor=0B3B60,002541&textColor=ffffff`,
     role: user.role || 'buyer',
@@ -175,19 +176,126 @@ export async function signUpWithBetterAuthEmail(params: {
 }
 
 /**
- * 5. Quick Social Sign-In (Google / Apple) backed by Better Auth
+ * Check if external OAuth is configured and get OAuth URL
+ */
+export async function getOAuthUrl(provider: 'google' | 'facebook' | 'apple'): Promise<{ configured: boolean; url: string | null }> {
+  try {
+    const res = await fetch(`/api/custom-auth/oauth-url?provider=${provider}`);
+    if (!res.ok) return { configured: false, url: null };
+    return await res.json();
+  } catch {
+    return { configured: false, url: null };
+  }
+}
+
+/**
+ * 4b. Send 6-digit alphanumeric OTP to user's email inbox
+ */
+export async function sendEmailOtp(
+  email: string, 
+  provider: 'google' | 'facebook' | 'apple' | 'email' = 'google'
+): Promise<{ success: boolean; message: string; previewUrl?: string | null; code?: string }> {
+  try {
+    const res = await fetch('/api/custom-auth/email-otp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, provider }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Failed to dispatch verification code');
+    }
+
+    return {
+      success: true,
+      message: data.message,
+      previewUrl: data.previewUrl,
+      code: data.code,
+    };
+  } catch (err: any) {
+    console.error('Error sending email OTP:', err);
+    throw new Error(err.message || 'Error communicating with verification service');
+  }
+}
+
+/**
+ * 4c. Verify 6-digit alphanumeric OTP and establish session
+ */
+export async function verifyEmailOtp(
+  email: string,
+  code: string,
+  provider: 'google' | 'facebook' | 'apple' | 'email' = 'google'
+): Promise<UserProfile> {
+  try {
+    const res = await fetch('/api/custom-auth/email-otp/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code, provider }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Verification failed. Please check your code.');
+    }
+
+    if (data.token) {
+      localStorage.setItem('better_auth_token', data.token);
+    }
+
+    const profile = formatBetterAuthUser(data.user, provider);
+    localStorage.setItem('abu_marketplace_user', JSON.stringify(profile));
+    return profile;
+  } catch (err: any) {
+    console.error('Error verifying email OTP:', err);
+    throw new Error(err.message || 'Verification failed');
+  }
+}
+
+/**
+ * 4d. Instant 1-Tap Google Identity Services (GIS) Sign-In
+ */
+export async function signInWithGoogleGis(credential: string): Promise<UserProfile> {
+  try {
+    const res = await fetch('/api/custom-auth/google-gis', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || 'Google account sign-in failed');
+    }
+
+    if (data.token) {
+      localStorage.setItem('better_auth_token', data.token);
+    }
+
+    const profile = formatBetterAuthUser(data.user, 'google');
+    localStorage.setItem('abu_marketplace_user', JSON.stringify(profile));
+    return profile;
+  } catch (err: any) {
+    console.error('Google GIS sign-in error:', err);
+    throw new Error(err.message || 'Google Sign-In failed');
+  }
+}
+
+/**
+ * 5. Quick Social Sign-In (Google / Facebook / Apple) backed by Better Auth
  */
 export async function quickSocialLogin(
-  provider: 'google' | 'apple', 
+  provider: 'google' | 'facebook' | 'apple', 
   fullName?: string, 
   email?: string,
+  password?: string,
   preferredCity?: string
 ): Promise<UserProfile> {
   try {
     const res = await fetch('/api/custom-auth/social', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider, fullName, email, preferredCity }),
+      body: JSON.stringify({ provider, fullName, email, password, preferredCity }),
     });
 
     const data = await res.json();

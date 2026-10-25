@@ -1,7 +1,7 @@
 import React from 'react';
 import { AbuLogo } from './AbuLogo';
 import { EcommerceDoodles } from './EcommerceDoodles';
-import { Sparkles, Sun, Smartphone, ShieldCheck, Truck, MessageSquare, ArrowRight } from 'lucide-react';
+import { Sparkles, Sun, Smartphone, ShieldCheck, Truck, MessageSquare, ArrowRight, User } from 'lucide-react';
 import { Category } from '../types';
 
 interface MinimalHeroBannerProps {
@@ -38,7 +38,7 @@ export const MinimalHeroBanner: React.FC<MinimalHeroBannerProps> = ({
             </div>
 
             <div className="flex items-start gap-3 sm:gap-4">
-              <AbuLogo size={48} className="shrink-0 mt-1" />
+              <AbuLogo size={44} className="hidden sm:inline-flex shrink-0 mt-1" />
               <div>
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight text-white leading-tight">
                   High-Density Digital Commerce & Verified Artisans
@@ -86,10 +86,10 @@ export const MinimalHeroBanner: React.FC<MinimalHeroBannerProps> = ({
                 <button
                   type="button"
                   onClick={onOpenWhatsAppAuth}
-                  className="px-3 py-1.5 bg-[#25D366] hover:bg-[#1EBE5D] text-[#002541] text-xs font-extrabold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer ml-auto sm:ml-0"
+                  className="px-3 py-1.5 bg-white hover:bg-slate-100 text-[#002541] text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer ml-auto sm:ml-0"
                 >
-                  <MessageSquare className="w-3.5 h-3.5 fill-current" />
-                  <span>Sign In / Quick Access</span>
+                  <User className="w-3.5 h-3.5 text-[#00875A]" />
+                  <span>Sign In</span>
                 </button>
               )}
             </div>

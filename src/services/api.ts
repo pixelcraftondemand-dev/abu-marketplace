@@ -220,7 +220,10 @@ export const api = {
   },
 
   // 9. Interactive Chatbot Q&A API
-  async sendChatMessage(message: string): Promise<{
+  async sendChatMessage(
+    message: string,
+    history?: { sender: 'user' | 'assistant'; text: string }[]
+  ): Promise<{
     reply: string;
     action?: { type: string; label: string; payload?: string };
   }> {
@@ -228,7 +231,7 @@ export const api = {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, history }),
       });
       if (!res.ok) throw new Error('Chatbot service unavailable');
       const data = await res.json();
@@ -237,9 +240,39 @@ export const api = {
         action: data.action,
       };
     } catch (err) {
-      console.warn('API error in chat, using instant fallback:', err);
+      console.warn('API error in chat, using versatile client fallback:', err);
+      const query = message.toLowerCase();
+      if (query.includes('login') || query.includes('sign in') || query.includes('signing') || query.includes('signup') || query.includes('register') || query.includes('auth')) {
+        return {
+          reply: "To optimize login and sign-up pages: 1) Support instant WhatsApp/SMS phone OTP for mobile convenience. 2) Provide a 1-tap password visibility toggle. 3) Reduce registration fields to essentials. 4) Offer social login (Google/Apple). 5) Keep sessions persistent so returning shoppers stay logged in.",
+          action: { type: 'open_auth', label: 'Try Login Flow' },
+        };
+      }
+      if (query.includes('design') || query.includes('ui') || query.includes('ux') || query.includes('improve')) {
+        return {
+          reply: "Top e-commerce UX best practices: 1) Fast above-the-fold loading with lazy-loaded catalog sections. 2) Thumb-friendly touch targets (min 44px) on mobile. 3) High-contrast light and dark themes. 4) Clear call-to-actions on product and cart cards.",
+        };
+      }
+      if (query.includes('store') || query.includes('sell') || query.includes('vendor')) {
+        return {
+          reply: "Opening a store on Abu Marketplace takes just 2 minutes! Open the Merchant Hub to configure your storefront, list products, or register as a certified trade artisan.",
+          action: { type: 'open_merchant', label: 'Open Merchant Hub' },
+        };
+      }
+      if (query.includes('track') || query.includes('order')) {
+        return {
+          reply: "You can track your order status live anytime using your tracking number in the Order Tracking portal.",
+          action: { type: 'open_tracking', label: 'Track Order' },
+        };
+      }
+      if (query.includes('pay') || query.includes('money') || query.includes('cash')) {
+        return {
+          reply: "Orders on Abu Marketplace are fulfilled via Cash on Delivery / Pay on Delivery. Buyers physically inspect items upon delivery before completing payment in cash.",
+          action: { type: 'view_cart', label: 'View Cart' },
+        };
+      }
       return {
-        reply: "Please note that no mobile money will be used initially. All marketplace orders are handled via Cash on Delivery / Pay on Delivery upon physical inspection of your items. You can also click 'Create Store' to register your business.",
+        reply: "I am Abu Marketplace's AI Assistant, ready to help with products, delivery schedules across Sierra Leone, vendor stores, account features, or technical questions. How can I assist you?",
       };
     }
   },

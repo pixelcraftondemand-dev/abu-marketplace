@@ -427,14 +427,15 @@ export default function App() {
   const vehicleProducts = useMemo(() => products.filter((p) => p.category === 'Vehicles & E-Bikes'), [products]);
   const booksArtProducts = useMemo(() => products.filter((p) => p.category === 'Books, Art & Stationery'), [products]);
 
-  // Authentication Handlers (WhatsApp, Google, Apple)
+  // Authentication Handlers (Email OTP, Google, Social)
   const handleLoginSuccess = (user: UserProfile) => {
     setCurrentUser(user);
     try {
       localStorage.setItem('abu_marketplace_user', JSON.stringify(user));
     } catch {}
-    const providerLabel = user.provider === 'google' ? 'Google' : user.provider === 'apple' ? 'Apple' : 'WhatsApp';
-    showToast(`Signed in via ${providerLabel} as ${user.name}`);
+    const providerLabel = user.provider === 'google' ? 'Google' : user.provider === 'facebook' ? 'Facebook' : user.provider === 'apple' ? 'Apple ID' : 'Email';
+    showToast(`Welcome back, ${user.name}! Signed in via ${providerLabel}`);
+    handleCloseAuth();
   };
 
   const handleLogout = () => {
@@ -1362,13 +1363,15 @@ export default function App() {
         currentUser={currentUser}
       />
 
-      {/* WhatsApp Authentication Modal */}
+      {/* Minimalist Authentication Modal (Google, Facebook, Apple) */}
       <WhatsAppAuthModal
         isOpen={isWhatsAppAuthOpen}
         onClose={handleCloseAuth}
         currentUser={currentUser}
         onLoginSuccess={handleLoginSuccess}
         onLogout={handleLogout}
+        onOpenTerms={() => setIsLegalModalOpen(true)}
+        onOpenPrivacy={() => setIsLegalModalOpen(true)}
         initialTab={authInitialTab}
         initialEmailMode={authInitialEmailMode}
       />
@@ -1431,6 +1434,7 @@ export default function App() {
           setActiveView('marketplace');
         }}
         onOpenCart={() => setIsCartOpen(true)}
+        onOpenAuth={() => handleOpenAuth('login')}
       />
 
       {/* Administrative Content Management System (CMS) */}

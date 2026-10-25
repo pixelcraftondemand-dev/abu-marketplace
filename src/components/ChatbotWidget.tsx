@@ -32,15 +32,17 @@ interface ChatbotWidgetProps {
   onOpenLocationPicker: () => void;
   onSelectCategory: (category: Category) => void;
   onOpenCart: () => void;
+  onOpenAuth?: () => void;
 }
 
 const QUICK_QUESTIONS = [
-  { label: '🚚 Delivery & Transit', query: 'How does delivery and shipping work across Sierra Leone?' },
-  { label: '💵 Payment & COD', query: 'What payment methods are used? Can I pay with mobile money?' },
+  { label: '💡 Improving Login / UX', query: 'How can I improve login and sign-in pages for our users?' },
   { label: '🏪 Create a Store', query: 'How do I create a store or sell items as a vendor?' },
+  { label: '🚚 Delivery & Transit', query: 'How does delivery and shipping work across Sierra Leone?' },
   { label: '📦 Track My Order', query: 'How can I track my order status?' },
   { label: '⚡ Solar Stations', query: 'Tell me about solar generators and backup power equipment.' },
   { label: '🛠️ Trade Artisans', query: 'Can I book blue-collar trade services like electricians?' },
+  { label: '💵 Payment Methods', query: 'What payment methods are supported on Abu Marketplace?' },
 ];
 
 export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
@@ -49,6 +51,7 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
   onOpenLocationPicker,
   onSelectCategory,
   onOpenCart,
+  onOpenAuth,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputMessage, setInputMessage] = useState('');
@@ -57,7 +60,7 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
     {
       id: 'welcome-1',
       sender: 'assistant',
-      text: "Hello! Welcome to ABU Marketplace Sierra Leone. I'm your instant assistant. Please note: NO mobile money is being used initially — all orders are strictly Cash on Delivery / Pay on Delivery upon physical inspection. Ask me anything about delivery across Sierra Leone, placing orders, opening a vendor store, or tracking a shipment!",
+      text: "Hello! Welcome to Abu Marketplace Sierra Leone. I'm your AI shopping and vendor advisor. Ask me anything—from product recommendations and delivery timelines, to store registration, e-commerce UX advice, or technical tips!",
       timestamp: 'Just now',
     },
   ]);
@@ -88,12 +91,16 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const updatedHistory = [...messages, userMessage];
+    setMessages(updatedHistory);
     setInputMessage('');
     setIsLoading(true);
 
     try {
-      const response = await api.sendChatMessage(text);
+      const response = await api.sendChatMessage(
+        text, 
+        updatedHistory.map((m) => ({ sender: m.sender, text: m.text }))
+      );
       const assistantMessage: ChatMessage = {
         id: `ast-${Date.now()}`,
         sender: 'assistant',
@@ -108,7 +115,7 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
         {
           id: `ast-${Date.now()}`,
           sender: 'assistant',
-          text: "Please note: No mobile money is being used initially. All orders are fulfilled with Cash on Delivery (Pay on Delivery) upon arrival and inspection. You can enjoy fast delivery across Sierra Leone, or click 'Create Store' at the top to sell items.",
+          text: "I'm here to assist! You can ask about our catalog items, vendor stores, improving your account & sign-in experience, delivery routes across Sierra Leone, or order tracking.",
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -126,10 +133,11 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
       onOpenLocationPicker();
     } else if (action.type === 'view_cart') {
       onOpenCart();
+    } else if (action.type === 'open_auth') {
+      onOpenAuth ? onOpenAuth() : onOpenMerchantHub();
     } else if (action.type === 'filter_category' && action.payload) {
       onSelectCategory(action.payload as Category);
     }
-    // Optionally close chat or keep open
   };
 
   const handleResetChat = () => {
@@ -137,7 +145,7 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
       {
         id: 'welcome-reset',
         sender: 'assistant',
-        text: 'Chat history cleared. How else can I assist you with shopping or selling today?',
+        text: 'Chat history cleared. How else can I assist you with shopping, selling, or account features today?',
         timestamp: 'Just now',
       },
     ]);

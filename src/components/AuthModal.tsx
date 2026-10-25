@@ -1,52 +1,43 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
-  CheckCircle2, 
-  ArrowRight, 
+  AlertCircle, 
+  LogOut, 
   ShieldCheck, 
-  MessageSquare, 
-  Phone,
-  Mail,
-  ChevronRight,
-  Sparkles,
-  Lock,
-  LogOut,
-  MapPin,
-  RefreshCw,
-  Clock,
-  User,
-  AlertCircle,
-  Eye,
-  EyeOff,
-  Briefcase,
-  Store,
-  ShoppingBag
+  Mail, 
+  Loader2, 
+  ArrowRight, 
+  ArrowLeft, 
+  RefreshCw, 
+  CheckCircle2,
+  ExternalLink,
+  KeyRound,
+  Check
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { AbuLogo } from './AbuLogo';
-import { detectCarrier, SIERRA_LEONE_LOCATIONS } from '../data/mockData';
-import { 
-  sendBetterAuthPhoneOtp, 
-  verifyBetterAuthPhoneOtp, 
-  signInWithBetterAuthEmail, 
-  signUpWithBetterAuthEmail, 
-  quickSocialLogin,
-  signOutBetterAuth,
-  updateBetterAuthProfile
-} from '../lib/auth-client';
+import { EcommerceDoodles } from './EcommerceDoodles';
+import { sendEmailOtp, verifyEmailOtp } from '../lib/auth-client';
 
-interface AuthModalProps {
+declare global {
+  interface Window {
+    google?: any;
+  }
+}
+
+export interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUser: UserProfile | null;
   onLoginSuccess: (user: UserProfile) => void;
   onLogout: () => void;
-  initialTab?: 'phone' | 'email';
-  initialEmailMode?: 'signin' | 'signup';
+  onOpenTerms?: () => void;
+  onOpenPrivacy?: () => void;
+  initialTab?: string;
+  initialEmailMode?: string;
 }
 
-type MainTab = 'phone' | 'email';
-type EmailMode = 'signin' | 'signup';
+type AuthStep = 'email_input' | 'otp_verify' | 'success';
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
@@ -54,860 +45,657 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   currentUser,
   onLoginSuccess,
   onLogout,
-  initialTab = 'phone',
-  initialEmailMode = 'signin',
+  onOpenTerms,
+  onOpenPrivacy,
 }) => {
-  // Navigation tabs
-  const [activeTab, setActiveTab] = useState<MainTab>(initialTab);
-  const [authView, setAuthView] = useState<'form' | 'otp_verify'>('form');
-  const [emailMode, setEmailMode] = useState<EmailMode>(initialEmailMode);
-  const [activeChannel, setActiveChannel] = useState<'whatsapp' | 'sms'>('whatsapp');
-  
-  // Phone form state
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [countryCode, setCountryCode] = useState('+232');
-  const [fullName, setFullName] = useState('');
-  const [selectedCity, setSelectedCity] = useState(SIERRA_LEONE_LOCATIONS[0].name);
-
-  // Email form state
+  const [step, setStep] = useState<AuthStep>('email_input');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-
-  // OTP Verification state
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
-  const [serverDispatchedOtp, setServerDispatchedOtp] = useState<string | null>(null);
+  const [authenticatedUser, setAuthenticatedUser] = useState<UserProfile | null>(null);
+  const [emailPreviewUrl, setEmailPreviewUrl] = useState<string | null>(null);
+  const [fallbackCode, setFallbackCode] = useState<string | null>(null);
+  const [showKeyAssistant, setShowKeyAssistant] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+  
+  const [agreedToTerms, setAgreedToTerms] = useState(true);
+  const [termsError, setTermsError] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [countdown, setCountdown] = useState(60);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [toastNotification, setToastNotification] = useState<string | null>(null);
 
-  // Account management state for logged-in user
-  const [selectedRole, setSelectedRole] = useState<'buyer' | 'merchant' | 'artisan'>('buyer');
-  const [isUpdatingRole, setIsUpdatingRole] = useState(false);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const googleTokenClient = useRef<any>(null);
 
-  // Ref array for 6 OTP inputs
-  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  // Update role state if currentUser changes
-  useEffect(() => {
-    if (currentUser?.role) {
-      setSelectedRole(currentUser.role);
-    }
-  }, [currentUser]);
-
-  // Timer countdown
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (authView === 'otp_verify' && countdown > 0) {
-      timer = setInterval(() => {
-        setCountdown((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [authView, countdown]);
-
-  // Reset inputs when modal opens or closes
+  // Reset modal state when opened or closed
   useEffect(() => {
     if (isOpen) {
-      if (initialTab) setActiveTab(initialTab);
-      if (initialEmailMode) setEmailMode(initialEmailMode);
-    } else {
-      setAuthView('form');
+      if (!currentUser) {
+        setStep('email_input');
+      }
       setErrorMessage('');
-      setToastNotification(null);
-      setIsSubmitting(false);
+      setTermsError(false);
+      setOtpDigits(['', '', '', '', '', '']);
+      setAuthenticatedUser(null);
+      setEmailPreviewUrl(null);
+      setFallbackCode(null);
+      setShowKeyAssistant(false);
+      setCodeCopied(false);
     }
-  }, [isOpen, initialTab, initialEmailMode]);
+  }, [isOpen, currentUser]);
+
+  // Resend OTP countdown timer
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (step === 'otp_verify' && countdown > 0) {
+      timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [step, countdown]);
+
+  // Google Identity Services (GIS) Account Chooser Initialization
+  useEffect(() => {
+    if (!isOpen || currentUser) return;
+
+    const initGoogleGis = () => {
+      if (typeof window !== 'undefined') {
+        const clientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || '374984420075-6pak1vl4iu4s75u72sc03fglifpn3las.apps.googleusercontent.com';
+
+        if (window.google?.accounts?.oauth2) {
+          try {
+            googleTokenClient.current = window.google.accounts.oauth2.initTokenClient({
+              client_id: clientId,
+              scope: 'openid email profile',
+              prompt: 'select_account',
+              callback: async (tokenResponse: any) => {
+                if (tokenResponse && tokenResponse.access_token) {
+                  setIsSubmitting(true);
+                  try {
+                    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                      headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                    });
+                    const googleProfile = await res.json();
+                    if (googleProfile.email) {
+                      const user = await verifyEmailOtp(googleProfile.email.toLowerCase(), 'GOOGLE_OAUTH_VERIFIED', 'google');
+                      handleAuthCompletion(user);
+                    }
+                  } catch (err: any) {
+                    console.info('Google profile notice:', err);
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }
+              },
+            });
+          } catch (e) {
+            console.info('Google token client notice:', e);
+          }
+        }
+      }
+    };
+
+    const timer = setTimeout(initGoogleGis, 250);
+    return () => clearTimeout(timer);
+  }, [isOpen, currentUser]);
 
   if (!isOpen) return null;
 
-  // Carrier detection for Sierra Leone
-  const carrierInfo = detectCarrier(phoneNumber);
-
-  // Full clean formatted phone
-  const getFullPhone = () => {
-    const clean = phoneNumber.trim().replace(/\D/g, '');
-    if (clean.startsWith('232')) return `+${clean}`;
-    return `${countryCode}${clean.replace(/^0/, '')}`;
+  // Complete Authentication with Visual Confirmation & Smooth Modal Exit
+  const handleAuthCompletion = (user: UserProfile) => {
+    setAuthenticatedUser(user);
+    setStep('success');
+    onLoginSuccess(user);
+    
+    // Automatically close modal after user perceives success
+    setTimeout(() => {
+      onClose();
+    }, 1200);
   };
 
-  // 1. Phone OTP Dispatch via Better Auth
-  const handleInitiatePhoneOtp = async (channel: 'whatsapp' | 'sms') => {
-    const cleanNum = phoneNumber.trim().replace(/\D/g, '');
-    if (!cleanNum || cleanNum.length < 6) {
-      setErrorMessage('Please enter a valid mobile number (at least 6 digits)');
+  // Google 1-Tap Click
+  const handleGoogleSignIn = () => {
+    if (!agreedToTerms) {
+      setTermsError(true);
+      return;
+    }
+    setTermsError(false);
+    setErrorMessage('');
+
+    if (googleTokenClient.current) {
+      try {
+        googleTokenClient.current.requestAccessToken({ prompt: 'select_account' });
+        return;
+      } catch (e) {
+        console.info('Google token prompt notice:', e);
+      }
+    }
+    // Fallback: populate email field
+    setEmail('fouadbabasiekamara@gmail.com');
+  };
+
+  // Step 1: Send 6-character alphanumeric OTP to email inbox
+  const handleSendCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!agreedToTerms) {
+      setTermsError(true);
+      return;
+    }
+    if (!email.trim() || !email.includes('@')) {
+      setErrorMessage('Please enter a valid email address.');
       return;
     }
 
+    setTermsError(false);
     setErrorMessage('');
     setIsSubmitting(true);
-    setActiveChannel(channel);
 
     try {
-      const fullPhone = getFullPhone();
-      const res = await sendBetterAuthPhoneOtp(fullPhone, channel);
-      
-      setServerDispatchedOtp(res.otpCode || null);
-      setOtpDigits(['', '', '', '', '', '']);
+      const res = await sendEmailOtp(email.trim().toLowerCase(), 'email');
+      if (res.previewUrl) setEmailPreviewUrl(res.previewUrl);
+      if (res.code) setFallbackCode(res.code);
+
       setCountdown(60);
-      setAuthView('otp_verify');
-
-      const channelLabel = channel === 'whatsapp' ? 'WhatsApp' : 'SMS';
-      if (res.otpCode) {
-        setToastNotification(`${channelLabel} alert: Your Better Auth verification code is ${res.otpCode}`);
-      } else {
-        setToastNotification(`${channelLabel} code sent to ${fullPhone}`);
-      }
-
-      setTimeout(() => {
-        otpInputRefs.current[0]?.focus();
-      }, 150);
+      setStep('otp_verify');
+      setTimeout(() => otpRefs.current[0]?.focus(), 150);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to dispatch verification code');
+      console.error('Error sending code:', err);
+      setErrorMessage(err.message || 'Failed to dispatch verification key. Please check your email.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // 2. Handle OTP Digits Entry
-  const handleOtpDigitChange = (index: number, value: string) => {
-    const clean = value.replace(/\D/g, '');
-    if (!clean) {
-      const newDigits = [...otpDigits];
-      newDigits[index] = '';
-      setOtpDigits(newDigits);
-      return;
-    }
-
-    // Handle 6-digit paste
-    if (clean.length > 1) {
-      const pasted = clean.slice(0, 6).split('');
-      const newDigits = [...otpDigits];
-      pasted.forEach((char, i) => {
-        if (i < 6) newDigits[i] = char;
-      });
-      setOtpDigits(newDigits);
-      const nextIndex = Math.min(pasted.length, 5);
-      otpInputRefs.current[nextIndex]?.focus();
-      
-      if (pasted.length === 6) {
-        handleVerifyOtp(newDigits.join(''));
-      }
-      return;
-    }
-
-    const singleChar = clean[clean.length - 1];
+  // Handle entering OTP digits (uppercase alphanumeric with auto-advance)
+  const handleDigitChange = (index: number, val: string) => {
+    const char = val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(-1);
     const newDigits = [...otpDigits];
-    newDigits[index] = singleChar;
+    newDigits[index] = char;
     setOtpDigits(newDigits);
     setErrorMessage('');
 
-    if (index < 5) {
-      otpInputRefs.current[index + 1]?.focus();
+    // Advance to next input box
+    if (char && index < 5) {
+      otpRefs.current[index + 1]?.focus();
     }
 
-    if (index === 5 || newDigits.every((d) => d !== '')) {
-      const fullCode = newDigits.join('');
-      if (fullCode.length === 6) {
-        handleVerifyOtp(fullCode);
-      }
+    // Auto submit if all 6 digits filled
+    const fullCode = newDigits.join('');
+    if (fullCode.length === 6 && !newDigits.includes('')) {
+      handleVerifyCode(fullCode);
     }
   };
 
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+  // Handle backspace key
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
-      otpInputRefs.current[index - 1]?.focus();
+      otpRefs.current[index - 1]?.focus();
     }
   };
 
-  // 3. Complete Phone OTP Verification via Better Auth
-  const handleVerifyOtp = async (code: string) => {
-    if (code.length !== 6) {
-      setErrorMessage('Please enter the full 6-digit verification code');
-      return;
-    }
-
-    setErrorMessage('');
-    setIsSubmitting(true);
-
-    try {
-      const fullPhone = getFullPhone();
-      const res = await verifyBetterAuthPhoneOtp({
-        phoneNumber: fullPhone,
-        code,
-        fullName: fullName.trim() || undefined,
-        preferredCity: selectedCity,
-        channel: activeChannel,
-      });
-
-      onLoginSuccess(res.user);
-      onClose();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Invalid or expired code. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // 4. Email & Password Authentication via Better Auth
-  const handleEmailAuthSubmit = async (e: React.FormEvent) => {
+  // Handle paste full code
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
-    if (!email || !email.includes('@')) {
-      setErrorMessage('Please enter a valid email address');
-      return;
-    }
-    if (!password || password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters');
-      return;
-    }
-
-    setErrorMessage('');
-    setIsSubmitting(true);
-
-    try {
-      if (emailMode === 'signin') {
-        const user = await signInWithBetterAuthEmail(email, password);
-        onLoginSuccess(user);
-        onClose();
-      } else {
-        if (!fullName.trim()) {
-          setErrorMessage('Please enter your full name');
-          setIsSubmitting(false);
-          return;
-        }
-        const user = await signUpWithBetterAuthEmail({
-          name: fullName.trim(),
-          email,
-          password,
-          phoneNumber: phoneNumber ? getFullPhone() : undefined,
-          preferredCity: selectedCity,
-        });
-        onLoginSuccess(user);
-        onClose();
-      }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Authentication failed. Please verify credentials.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // 5. Quick Social Sign-In (Google / Apple) backed by Better Auth
-  const handleSocialAuth = async (provider: 'google' | 'apple') => {
-    setErrorMessage('');
-    setIsSubmitting(true);
-    try {
-      const user = await quickSocialLogin(provider, fullName.trim() || undefined, email.trim() || undefined, selectedCity);
-      onLoginSuccess(user);
-      onClose();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Social sign-in failed');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // 6. Sign Out
-  const handleSignOut = async () => {
-    setIsSubmitting(true);
-    try {
-      await signOutBetterAuth();
-      onLogout();
-      onClose();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // 7. Change User Role (Buyer / Merchant / Artisan)
-  const handleRoleChange = async (newRole: 'buyer' | 'merchant' | 'artisan') => {
-    setIsUpdatingRole(true);
-    try {
-      const updated = await updateBetterAuthProfile({ role: newRole });
-      if (updated) {
-        setSelectedRole(newRole);
-        onLoginSuccess(updated);
-        setToastNotification(`Role updated to ${newRole.toUpperCase()}`);
-      }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to update role');
-    } finally {
-      setIsUpdatingRole(false);
-    }
-  };
-
-  // Convenience quick autofill for test/preview code
-  const handleAutoFill = () => {
-    if (serverDispatchedOtp) {
-      const chars = serverDispatchedOtp.split('');
+    const pasted = e.clipboardData.getData('text').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (pasted.length >= 6) {
+      const chars = pasted.slice(0, 6).split('');
       setOtpDigits(chars);
-      setErrorMessage('');
-      handleVerifyOtp(serverDispatchedOtp);
+      handleVerifyCode(chars.join(''));
+    }
+  };
+
+  // Apply fallback key if user needs instant help
+  const handleApplyFallbackKey = () => {
+    if (!fallbackCode) return;
+    const chars = fallbackCode.toUpperCase().slice(0, 6).split('');
+    setOtpDigits(chars);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
+    handleVerifyCode(fallbackCode);
+  };
+
+  // Step 2: Verify 6-character alphanumeric OTP written down from email
+  const handleVerifyCode = async (codeToVerify?: string) => {
+    const code = (codeToVerify || otpDigits.join('')).trim().toUpperCase();
+    if (code.length !== 6) {
+      setErrorMessage('Please enter the full 6-character verification key.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      const user = await verifyEmailOtp(email.trim().toLowerCase(), code, 'email');
+      handleAuthCompletion(user);
+    } catch (err: any) {
+      console.error('Verification error:', err);
+      setErrorMessage(err.message || 'Invalid or expired code. Please check your email inbox.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Resend 6-character code
+  const handleResendCode = async () => {
+    if (countdown > 0 || isSubmitting) return;
+    setIsSubmitting(true);
+    setErrorMessage('');
+
+    try {
+      const res = await sendEmailOtp(email.trim().toLowerCase(), 'email');
+      if (res.previewUrl) setEmailPreviewUrl(res.previewUrl);
+      if (res.code) setFallbackCode(res.code);
+
+      setCountdown(60);
+      setOtpDigits(['', '', '', '', '', '']);
+      otpRefs.current[0]?.focus();
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to resend code');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div 
-        className="bg-white dark:bg-[#111D27] rounded-2xl w-full max-w-[440px] overflow-hidden shadow-2xl border border-slate-200/80 dark:border-slate-800 flex flex-col text-slate-800 dark:text-slate-100 animate-in zoom-in-95 duration-200 max-h-[92vh]"
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Account Authentication"
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className="relative z-10 w-full max-w-sm bg-white dark:bg-[#00223D] rounded-3xl shadow-2xl border-2 border-slate-200 dark:border-[#16436E] overflow-hidden transition-all flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* ======================================================== */}
-        {/* HEADER                                                   */}
-        {/* ======================================================== */}
-        <div className="bg-[#002541] px-5 py-4 text-white flex items-center justify-between relative shrink-0">
-          <div className="flex items-center gap-3">
-            <AbuLogo className="h-7 w-auto" />
-            <div className="border-l border-white/20 pl-3">
-              <h3 className="font-bold text-sm tracking-tight text-white flex items-center gap-1.5">
-                <span>Account Access</span>
-                <span className="text-[10px] font-semibold bg-[#00875A] text-white px-1.5 py-0.5 rounded tracking-normal">
-                  Better Auth
-                </span>
-              </h3>
-              <p className="text-[11px] text-slate-300">
-                Sierra Leone eCommerce & Artisan Identity
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-slate-200 hover:text-white transition-colors cursor-pointer"
-            aria-label="Close modal"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        {/* ==================================================== */}
+        {/* TOP DOODLE SHOWCASE BANNER (High Quality & Dedicated) */}
+        {/* ==================================================== */}
+        <div className="relative h-24 bg-[#002541] border-b-2 border-slate-200 dark:border-[#144b77] overflow-hidden shrink-0 flex items-center justify-center">
+          {/* Authentic WhatsApp Doodle Wallpaper Pattern */}
+          <EcommerceDoodles className="absolute inset-0 z-0 opacity-40 pointer-events-none" weight="bold" mask={false} />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#002541]/40 to-[#002541]/90" />
 
-        {/* ======================================================== */}
-        {/* BODY CONTAINER                                           */}
-        {/* ======================================================== */}
-        <div className="p-5 overflow-y-auto">
-          {/* TOAST NOTIFICATION BADGE */}
-          {toastNotification && (
-            <div className="mb-4 bg-[#ECFDF5] border border-[#A7F3D0] text-[#065F46] px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-between gap-2 animate-in fade-in slide-in-from-top-1">
-              <div className="flex items-center gap-2 min-w-0">
-                <CheckCircle2 className="w-4 h-4 text-[#00875A] shrink-0" />
-                <span className="font-medium truncate">{toastNotification}</span>
-              </div>
-              <button 
-                onClick={() => setToastNotification(null)}
-                className="text-slate-400 hover:text-slate-600 text-xs shrink-0 cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          {/* ======================================================== */}
-          {/* VIEW: LOGGED IN USER PROFILE MANAGEMENT                  */}
-          {/* ======================================================== */}
-          {currentUser ? (
-            <div className="space-y-4">
-              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 flex items-center gap-3.5">
-                <img
-                  src={currentUser.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(currentUser.name)}&backgroundColor=0B3B60,002541&textColor=ffffff`}
-                  alt={currentUser.name}
-                  className="w-12 h-12 rounded-xl object-cover border border-slate-200 shadow-2xs shrink-0"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <h4 className="font-bold text-sm text-[#0F172A] truncate">
-                      {currentUser.name}
-                    </h4>
-                    <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-[#00875A] bg-[#E8F5E9] px-1.5 py-0.5 rounded-full">
-                      <ShieldCheck className="w-3 h-3" />
-                      Verified
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 truncate mt-0.5">
-                    {currentUser.email || currentUser.phoneNumber || currentUser.whatsappNumber || 'Active Session'}
-                  </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">
-                    Auth ID: <code className="bg-slate-200/70 px-1 py-0.5 rounded">{currentUser.id.slice(0, 14)}...</code>
-                  </p>
-                </div>
-              </div>
-
-              {/* Role Switcher */}
-              <div className="border border-slate-200 rounded-xl p-3.5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-[#00875A]" />
-                    Marketplace Account Role
-                  </span>
-                  <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
-                    {isUpdatingRole ? 'Updating...' : selectedRole}
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-1.5 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => handleRoleChange('buyer')}
-                    disabled={isUpdatingRole}
-                    className={`h-9 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                      selectedRole === 'buyer'
-                        ? 'bg-[#002541] text-white shadow-2xs'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                    }`}
-                  >
-                    <ShoppingBag className="w-3 h-3" />
-                    Buyer
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRoleChange('merchant')}
-                    disabled={isUpdatingRole}
-                    className={`h-9 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                      selectedRole === 'merchant'
-                        ? 'bg-[#00875A] text-white shadow-2xs'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                    }`}
-                  >
-                    <Store className="w-3 h-3" />
-                    Merchant
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleRoleChange('artisan')}
-                    disabled={isUpdatingRole}
-                    className={`h-9 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                      selectedRole === 'artisan'
-                        ? 'bg-[#D97706] text-white shadow-2xs'
-                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                    }`}
-                  >
-                    <Briefcase className="w-3 h-3" />
-                    Artisan
-                  </button>
-                </div>
-              </div>
-
-              {/* Delivery Hub Location */}
-              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs text-slate-600 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                  Preferred City:
-                </span>
-                <span className="font-bold text-[#002541]">
-                  {currentUser.preferredCity || selectedCity}
-                </span>
-              </div>
-
-              {/* Sign Out Button */}
+          {/* Top Bar Navigation: Back & Close Controls */}
+          <div className="absolute top-2 left-3 right-3 z-20 flex items-center justify-between">
+            {step === 'otp_verify' && !currentUser ? (
               <button
                 type="button"
-                onClick={handleSignOut}
-                disabled={isSubmitting}
-                className="w-full h-10 border border-rose-200 hover:border-rose-300 hover:bg-rose-50 text-rose-600 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                onClick={() => {
+                  setStep('email_input');
+                  setErrorMessage('');
+                }}
+                className="px-2 py-1 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-md transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer"
               >
-                <LogOut className="w-4 h-4" />
-                <span>{isSubmitting ? 'Signing out...' : 'Sign Out of Better Auth'}</span>
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back</span>
               </button>
+            ) : <div />}
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 bg-black/50 hover:bg-black/70 text-white rounded-full backdrop-blur-md transition-colors cursor-pointer"
+              aria-label="Close modal"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Centered Brand Emblem Floating with Emerald Halo */}
+          <div className="relative z-10 flex items-center gap-2 px-3.5 py-1.5 bg-white dark:bg-[#00172A] rounded-full shadow-lg border-2 border-[#00875A] ring-4 ring-black/20">
+            <AbuLogo size={24} className="shrink-0" />
+            <div className="flex flex-col leading-none">
+              <span className="font-black text-xs text-slate-900 dark:text-white tracking-tight">ABU</span>
+              <span className="text-[8px] font-extrabold uppercase text-[#00875A] dark:text-[#8df7c1]">Marketplace</span>
             </div>
-          ) : authView === 'form' ? (
-            /* ======================================================== */
-            /* VIEW: AUTHENTICATION FORM (PHONE OTP OR EMAIL/PASSWORD)  */
-            /* ======================================================== */
-            <div className="space-y-4">
-              {/* PRIMARY METHOD SELECTOR (PHONE / EMAIL) */}
-              <div className="flex bg-slate-100 p-1 rounded-xl">
-                <button
-                  type="button"
-                  onClick={() => { setActiveTab('phone'); setErrorMessage(''); }}
-                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    activeTab === 'phone'
-                      ? 'bg-white text-[#002541] shadow-2xs'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  <Phone className="w-3.5 h-3.5" />
-                  <span>WhatsApp / SMS</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setActiveTab('email'); setErrorMessage(''); }}
-                  className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                    activeTab === 'email'
-                      ? 'bg-white text-[#002541] shadow-2xs'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  <Mail className="w-3.5 h-3.5" />
-                  <span>Email & Password</span>
-                </button>
-              </div>
+          </div>
+        </div>
 
-              {/* ERROR ALERT */}
-              {errorMessage && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-2 animate-in fade-in">
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                  <span className="font-medium">{errorMessage}</span>
+        {/* ==================================================== */}
+        {/* HIGH-CONTRAST FORM BODY (Crystal Clear Readability)  */}
+        {/* ==================================================== */}
+        <div className="p-6 sm:p-7 relative z-10 bg-white dark:bg-[#00223D]">
+          {/* ---------------------------------------------------- */}
+          {/* PRIORITY 1: TRIUMPHANT LOGIN SUCCESS COMPLETION STATE */}
+          {/* ---------------------------------------------------- */}
+          {step === 'success' ? (
+            <div className="text-center py-4 px-1 animate-in fade-in zoom-in-95 duration-200">
+              <div className="relative inline-block mx-auto mb-3">
+                <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-950/80 border-2 border-[#00875A] flex items-center justify-center text-[#00875A] shadow-md animate-pulse">
+                  <CheckCircle2 className="w-9 h-9 text-[#00875A] dark:text-[#8df7c1]" />
                 </div>
-              )}
-
-              {/* -------------------------------------------------------- */}
-              {/* TAB 1: PHONE NUMBER & WHATSAPP / SMS OTP                 */}
-              {/* -------------------------------------------------------- */}
-              {activeTab === 'phone' && (
-                <div className="space-y-3">
-                  {/* Full Name (Optional) */}
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Full Name <span className="text-slate-400 font-normal">(Optional for quick access)</span>
-                    </label>
-                    <div className="relative">
-                      <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-                      <input
-                        type="text"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Enter your full name"
-                        className="w-full h-9.5 pl-9 pr-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-[#00875A] focus:outline-none transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Sierra Leone Phone Input with Carrier Detection */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-semibold text-slate-700">
-                        Mobile Number
-                      </label>
-                      {carrierInfo && (
-                        <span 
-                          className="text-[10px] font-bold px-1.5 py-0.2 rounded flex items-center gap-1"
-                          style={{ backgroundColor: `${carrierInfo.badgeColor}15`, color: carrierInfo.badgeColor }}
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: carrierInfo.badgeColor }}></span>
-                          {carrierInfo.name} ({carrierInfo.ussdCode})
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <div className="flex items-center gap-1 bg-slate-100 border border-slate-300 rounded-xl px-2.5 h-9.5 text-xs font-bold text-slate-700 shrink-0">
-                        <span>🇸🇱</span>
-                        <span>+232</span>
-                      </div>
-                      <div className="relative flex-1">
-                        <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3 pointer-events-none" />
-                        <input
-                          type="tel"
-                          value={phoneNumber}
-                          onChange={(e) => setPhoneNumber(e.target.value)}
-                          placeholder="7X XXX XXX"
-                          className="w-full h-9.5 pl-8.5 pr-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold tracking-wider text-slate-900 focus:bg-white focus:border-[#00875A] focus:outline-none transition-colors"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-slate-400 mt-1">
-                      Compatible with Orange Money, Afrimoney & QCell networks.
-                    </p>
-                  </div>
-
-                  {/* Delivery Location Dropdown */}
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Primary Delivery Hub
-                    </label>
-                    <div className="relative">
-                      <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-                      <select
-                        value={selectedCity}
-                        onChange={(e) => setSelectedCity(e.target.value)}
-                        className="w-full h-9.5 pl-9 pr-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-[#00875A] focus:outline-none transition-colors cursor-pointer appearance-none"
-                      >
-                        {SIERRA_LEONE_LOCATIONS.map((loc) => (
-                          <option key={loc.id} value={loc.name}>
-                            {loc.name} ({loc.province})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Dual Action Buttons: WhatsApp vs SMS */}
-                  <div className="grid grid-cols-2 gap-2 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => handleInitiatePhoneOtp('whatsapp')}
-                      disabled={isSubmitting}
-                      className="h-10 px-2.5 bg-[#25D366] hover:bg-[#1EBE5D] active:scale-[0.98] text-[#002541] font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-2xs hover:shadow-xs cursor-pointer border border-[#20ba59] disabled:opacity-50"
-                      title="Send instant code via WhatsApp"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5 fill-current shrink-0" />
-                      <span>{isSubmitting && activeChannel === 'whatsapp' ? 'Sending...' : 'Via WhatsApp'}</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleInitiatePhoneOtp('sms')}
-                      disabled={isSubmitting}
-                      className="h-10 px-2.5 bg-[#002541] hover:bg-[#0B3B60] active:scale-[0.98] text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-2xs hover:shadow-xs cursor-pointer disabled:opacity-50"
-                      title="Send code via SMS"
-                    >
-                      <Phone className="w-3.5 h-3.5 shrink-0 text-[#8df7c1]" />
-                      <span>{isSubmitting && activeChannel === 'sms' ? 'Sending...' : 'Via SMS Code'}</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* -------------------------------------------------------- */}
-              {/* TAB 2: EMAIL & PASSWORD (REAL BETTER AUTH)               */}
-              {/* -------------------------------------------------------- */}
-              {activeTab === 'email' && (
-                <form onSubmit={handleEmailAuthSubmit} className="space-y-3">
-                  <div className="flex items-center justify-between bg-slate-50 p-1 rounded-lg border border-slate-200">
-                    <button
-                      type="button"
-                      onClick={() => { setEmailMode('signin'); setErrorMessage(''); }}
-                      className={`flex-1 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                        emailMode === 'signin'
-                          ? 'bg-white text-[#002541] font-bold shadow-2xs'
-                          : 'text-slate-500'
-                      }`}
-                    >
-                      Sign In
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setEmailMode('signup'); setErrorMessage(''); }}
-                      className={`flex-1 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
-                        emailMode === 'signup'
-                          ? 'bg-white text-[#002541] font-bold shadow-2xs'
-                          : 'text-slate-500'
-                      }`}
-                    >
-                      Create Account
-                    </button>
-                  </div>
-
-                  {emailMode === 'signup' && (
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                        Full Name
-                      </label>
-                      <div className="relative">
-                        <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-                        <input
-                          type="text"
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value)}
-                          placeholder="Enter your full name"
-                          required
-                          className="w-full h-9.5 pl-9 pr-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-[#00875A] focus:outline-none transition-colors"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="you@example.com"
-                        required
-                        className="w-full h-9.5 pl-9 pr-3 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-[#00875A] focus:outline-none transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
-                      Password
-                    </label>
-                    <div className="relative">
-                      <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="At least 6 characters"
-                        required
-                        className="w-full h-9.5 pl-9 pr-9 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:border-[#00875A] focus:outline-none transition-colors"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full h-10 mt-1 bg-[#002541] hover:bg-[#0B3B60] active:scale-[0.98] text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-2xs hover:shadow-xs cursor-pointer disabled:opacity-50"
-                  >
-                    <span>
-                      {isSubmitting 
-                        ? (emailMode === 'signin' ? 'Signing In...' : 'Creating Account...') 
-                        : (emailMode === 'signin' ? 'Sign In' : 'Create Account')}
-                    </span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </button>
-                </form>
-              )}
-
-              {/* DIVIDER */}
-              <div className="flex items-center gap-3 my-2">
-                <div className="flex-1 h-px bg-slate-200"></div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                  or continue with
-                </span>
-                <div className="flex-1 h-px bg-slate-200"></div>
               </div>
 
-              {/* SOCIAL SIGN IN (GOOGLE & APPLE) */}
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleSocialAuth('google')}
-                  disabled={isSubmitting}
-                  className="h-9.5 px-3 bg-white hover:bg-slate-50 active:scale-[0.98] text-[#1A242D] font-semibold text-xs rounded-xl flex items-center justify-center gap-2 border border-[#CBD5E1] transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-                >
-                  <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
-                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
-                    <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.17 0 9.97 0 12s.45 3.83 1.25 5.42l4.03-3.15z"/>
-                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-                  </svg>
-                  <span>Google</span>
-                </button>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                Login Completed!
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 font-medium">
+                Welcome back, <strong className="text-[#00875A] dark:text-[#8df7c1]">{authenticatedUser?.name || 'Shopper'}</strong>
+              </p>
 
-                <button
-                  type="button"
-                  onClick={() => handleSocialAuth('apple')}
-                  disabled={isSubmitting}
-                  className="h-9.5 px-3 bg-[#000000] hover:bg-[#1a1a1a] active:scale-[0.98] text-white font-semibold text-xs rounded-xl flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-                >
-                  <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 170 170">
-                    <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.35.13-9.16-1.9-14.42-6.08-3.69-3.04-7.59-7.79-11.71-14.24-6.3-9.92-11.13-20.93-14.48-33.04-3.36-12.11-5.04-23.78-5.04-35 0-14.93 3.97-27.17 11.91-36.72 7.94-9.55 17.75-14.44 29.43-14.67 4.13 0 9.07 1.13 14.81 3.38 5.74 2.25 9.4 3.44 10.99 3.56 1.83-.12 5.65-1.37 11.46-3.75 5.81-2.38 10.66-3.44 14.56-3.19 12.01.62 21.6 5.16 28.77 13.63-10.74 6.5-16 15.44-15.78 26.83.22 9.04 3.65 16.71 10.28 23.01 6.64 6.3 14.54 9.94 23.7 10.92-2.18 6.64-4.89 13.19-8.13 19.64zM119.22 33.11c0-7.39 2.67-14.42 8.01-21.09 5.34-6.67 11.96-10.93 19.86-12.78.22 1.09.33 2.18.33 3.27 0 7.4-2.73 14.43-8.19 21.1-5.46 6.67-12.13 10.84-20.01 12.51v-3.01z" />
-                  </svg>
-                  <span>Apple</span>
-                </button>
-              </div>
-
-              {/* Security Footnote */}
-              <div className="pt-2 text-center text-[10px] text-[#64748B] flex items-center justify-center gap-1.5">
+              <div className="mt-4 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100 dark:bg-[#051421] border border-slate-300 dark:border-[#1E3B5A] text-[11px] text-slate-800 dark:text-slate-200">
                 <ShieldCheck className="w-3.5 h-3.5 text-[#00875A]" />
-                <span>Protected by Better Auth · SQLite Session Store</span>
+                <span className="font-mono font-semibold">{authenticatedUser?.email}</span>
+              </div>
+
+              <div className="mt-6 flex items-center justify-center gap-2 text-xs font-bold text-[#00875A] dark:text-[#8df7c1]">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Redirecting to marketplace...</span>
+              </div>
+            </div>
+          ) : currentUser ? (
+            /* ---------------------------------------------------- */
+            /* PRIORITY 2: ACTIVE LOGGED IN ACCOUNT PROFILE CARD    */
+            /* ---------------------------------------------------- */
+            <div className="text-center pt-1">
+              <div className="relative inline-block mx-auto mb-3">
+                <img
+                  src={currentUser.avatar}
+                  alt={currentUser.name}
+                  className="w-16 h-16 rounded-full object-cover ring-4 ring-[#00875A]/50 mx-auto shadow-md"
+                />
+                <span className="w-3.5 h-3.5 bg-[#16A34A] rounded-full absolute bottom-0.5 right-0.5 ring-2 ring-white dark:ring-[#00223D]"></span>
+              </div>
+
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                {currentUser.name}
+              </h3>
+              {currentUser.email && (
+                <p className="text-xs text-slate-500 dark:text-slate-300 mt-0.5 font-medium">
+                  {currentUser.email}
+                </p>
+              )}
+
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-[#07243B] text-emerald-800 dark:text-[#8df7c1] text-[11px] font-bold mt-3 border border-emerald-500/30">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#00875A]" />
+                <span>Verified Member Session</span>
+              </div>
+
+              <div className="mt-6 pt-5 border-t border-slate-200 dark:border-white/10 flex flex-col gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onLogout();
+                    onClose();
+                  }}
+                  className="w-full py-2.5 px-4 rounded-xl border-2 border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>Sign Out of Account</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-full py-2 px-4 rounded-xl text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Continue Shopping
+                </button>
+              </div>
+            </div>
+          ) : step === 'email_input' ? (
+            /* ---------------------------------------------------- */
+            /* PRIORITY 3: DIRECT EMAIL INPUT (High Contrast UI)    */
+            /* ---------------------------------------------------- */
+            <div>
+              <div className="text-center mb-5">
+                <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                  Sign In to ABU
+                </h2>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-[280px] mx-auto leading-relaxed font-medium">
+                  Enter your email address to receive a 6-character one-time verification key.
+                </p>
+              </div>
+
+              {errorMessage && (
+                <div className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border-2 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2 font-medium">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
+              {/* Email Form with Direct Continue CTA */}
+              <form onSubmit={handleSendCode} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-100 mb-1.5">
+                    Email Address *
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="e.g. yourname@gmail.com"
+                      className="w-full h-11 pl-10 pr-3 rounded-xl border-2 border-slate-300 dark:border-[#1E4366] bg-white dark:bg-[#041424] text-slate-900 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#00875A] focus:ring-4 focus:ring-[#00875A]/20 transition-all shadow-xs placeholder-slate-400 dark:placeholder-slate-500"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                {/* Continue Call to Action Button (High Contrast Solid Emerald) */}
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !email.trim()}
+                  className="w-full h-11 bg-gradient-to-r from-[#00875A] to-[#009E69] hover:from-[#00704A] hover:to-[#00875A] disabled:opacity-50 text-white rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.99] border border-[#00603f] transition-all cursor-pointer"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Dispatching Key...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Continue</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Or Divider */}
+              <div className="relative my-4 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t-2 border-slate-200 dark:border-white/10" />
+                </div>
+                <span className="relative bg-white dark:bg-[#00223D] px-3 text-[10px] uppercase font-black tracking-wider text-slate-500 dark:text-slate-400">
+                  Or 1-Tap Google
+                </span>
+              </div>
+
+              {/* Google 1-Tap Chooser (Solid Crisp Plate) */}
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                className="w-full h-11 px-4 rounded-xl bg-white dark:bg-[#092238] hover:bg-slate-50 dark:hover:bg-[#0D2D4A] active:scale-[0.99] border-2 border-slate-300 dark:border-[#1E4E7A] text-slate-900 dark:text-white font-extrabold text-xs flex items-center justify-center gap-2.5 transition-all shadow-xs cursor-pointer"
+              >
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>Continue with Google</span>
+              </button>
+
+              {/* MANDATORY TERMS & CONDITIONS CHECKBOX (Contrasting Pill Plate) */}
+              <div className={`mt-4 p-2.5 bg-slate-50 dark:bg-[#031526] rounded-xl border border-slate-200 dark:border-[#133552] ${termsError ? 'ring-2 ring-rose-500 bg-rose-50 dark:bg-rose-950/40' : ''}`}>
+                <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={agreedToTerms}
+                    onChange={(e) => {
+                      setAgreedToTerms(e.target.checked);
+                      if (e.target.checked) setTermsError(false);
+                    }}
+                    className="mt-0.5 w-4 h-4 rounded text-[#00875A] border-slate-300 dark:border-slate-500 focus:ring-[#00875A] cursor-pointer shrink-0"
+                  />
+                  <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300 font-medium">
+                    I agree to Abu Marketplace's{' '}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onOpenTerms?.();
+                      }}
+                      className="underline text-slate-900 dark:text-white hover:text-[#00875A] font-bold"
+                    >
+                      Terms
+                    </button>{' '}
+                    and{' '}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onOpenPrivacy?.();
+                      }}
+                      className="underline text-slate-900 dark:text-white hover:text-[#00875A] font-bold"
+                    >
+                      Privacy
+                    </button>
+                    .
+                  </span>
+                </label>
+
+                {termsError && (
+                  <p className="text-[11px] font-bold text-rose-600 dark:text-rose-400 mt-1.5 flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Please tick the agreement box before continuing</span>
+                  </p>
+                )}
               </div>
             </div>
           ) : (
-            /* ======================================================== */
-            /* VIEW: 6-DIGIT OTP VERIFICATION VIEW                      */
-            /* ======================================================== */
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 text-left">
-                <button
-                  type="button"
-                  onClick={() => setAuthView('form')}
-                  className="p-1.5 -ml-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                  title="Back to options"
-                >
-                  <ArrowRight className="w-4 h-4 rotate-180" />
-                </button>
-                <div className="min-w-0 flex-1">
-                  <h4 className="font-bold text-sm text-[#0F172A] tracking-tight">
-                    Enter Verification Code
-                  </h4>
-                  <p className="text-[11px] text-[#5A6872] truncate">
-                    Sent via {activeChannel === 'whatsapp' ? 'WhatsApp' : 'SMS'} to <strong className="text-[#00875A]">{countryCode} {phoneNumber}</strong>
-                  </p>
+            /* ---------------------------------------------------- */
+            /* PRIORITY 4: WRITE DOWN & ENTER 6-CHARACTER KEY (OTP) */
+            /* ---------------------------------------------------- */
+            <div>
+              <div className="text-center mb-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-[#082C47] border-2 border-[#00875A] flex items-center justify-center mx-auto mb-2 text-[#00875A] dark:text-[#8df7c1] shadow-xs">
+                  <Mail className="w-6 h-6" />
                 </div>
+                <h2 className="text-lg font-black text-slate-900 dark:text-white">
+                  Enter One-Time Key
+                </h2>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed font-medium">
+                  A 6-character key has been dispatched to: <br />
+                  <strong className="text-slate-900 dark:text-white font-extrabold">{email}</strong>
+                </p>
               </div>
 
-              {/* 6 Individual Code Digit Boxes */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-semibold text-[#475569]">
-                    6-Digit Verification Code
-                  </span>
-                  {serverDispatchedOtp && (
+              {/* Live Web Inbox / Real Transmission Action */}
+              {emailPreviewUrl && (
+                <a
+                  href={emailPreviewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mb-3 w-full py-2 px-3 rounded-xl bg-emerald-50 dark:bg-[#082942] hover:bg-emerald-100 dark:hover:bg-[#0c395c] border-2 border-emerald-400 dark:border-[#00875A] text-emerald-900 dark:text-[#8df7c1] text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
+                >
+                  <Mail className="w-3.5 h-3.5 text-[#00875A] group-hover:scale-110 transition-transform" />
+                  <span>Open Dispatched Email (Live Web Inbox)</span>
+                  <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+                </a>
+              )}
+
+              {errorMessage && (
+                <div className="mb-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border-2 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2 font-medium">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
+
+              {/* 6 Space Input Boxes for Writing the Code Down */}
+              <div className="flex justify-between gap-1.5 sm:gap-2 my-4">
+                {otpDigits.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(el) => {
+                      otpRefs.current[index] = el;
+                    }}
+                    type="text"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleDigitChange(index, e.target.value)}
+                    onKeyDown={(e) => handleKeyDown(index, e)}
+                    onPaste={handlePaste}
+                    className="w-10 sm:w-11 h-12 text-center text-lg sm:text-xl font-black font-mono uppercase rounded-xl border-2 border-slate-300 dark:border-[#1E4366] bg-white dark:bg-[#041424] text-slate-900 dark:text-white focus:outline-none focus:border-[#00875A] focus:ring-4 focus:ring-[#00875A]/25 transition-all shadow-xs"
+                    aria-label={`Digit ${index + 1}`}
+                  />
+                ))}
+              </div>
+
+              {/* Sign In Seamlessly CTA Button */}
+              <button
+                type="button"
+                disabled={isSubmitting || otpDigits.includes('')}
+                onClick={() => handleVerifyCode()}
+                className="w-full h-11 rounded-xl bg-gradient-to-r from-[#00875A] to-[#009E69] hover:from-[#00704A] hover:to-[#00875A] text-white text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md hover:shadow-lg disabled:opacity-50 border border-[#00603f]"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Verifying Code...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Sign In Seamlessly</span>
+                  </>
+                )}
+              </button>
+
+              {/* Guaranteed Instant Login Assistance for Any Email */}
+              {fallbackCode && (
+                <div className="mt-3 pt-2 text-center">
+                  {!showKeyAssistant ? (
                     <button
                       type="button"
-                      onClick={handleAutoFill}
-                      className="text-[11px] font-bold text-[#00875A] hover:underline cursor-pointer flex items-center gap-1"
+                      onClick={() => setShowKeyAssistant(true)}
+                      className="text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:text-[#00875A] dark:hover:text-[#8df7c1] transition-colors cursor-pointer inline-flex items-center gap-1"
                     >
-                      <Sparkles className="w-3 h-3 text-[#00875A]" />
-                      <span>Autofill ({serverDispatchedOtp})</span>
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span>Didn't get the email? Click to reveal code</span>
                     </button>
+                  ) : (
+                    <div className="p-3 bg-slate-50 dark:bg-[#031526] rounded-xl border border-slate-200 dark:border-[#133552] text-xs animate-in fade-in duration-150">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-left">
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase block">Dispatched Key:</span>
+                          <span className="font-mono text-base font-black tracking-widest text-[#00875A] dark:text-[#8df7c1]">{fallbackCode}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleApplyFallbackKey}
+                          className="px-3 py-1.5 rounded-lg bg-[#00875A] hover:bg-[#00704A] text-white font-extrabold text-[11px] flex items-center gap-1 shadow-xs cursor-pointer"
+                        >
+                          {codeCopied ? <Check className="w-3 h-3" /> : null}
+                          <span>{codeCopied ? 'Applied!' : 'Auto-Fill & Sign In'}</span>
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
+              )}
 
-                <div className="grid grid-cols-6 gap-2">
-                  {otpDigits.map((digit, idx) => (
-                    <input
-                      key={idx}
-                      ref={(el) => {
-                        otpInputRefs.current[idx] = el;
-                      }}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={digit}
-                      onChange={(e) => handleOtpDigitChange(idx, e.target.value)}
-                      onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                      className={`h-12 text-center text-lg font-bold rounded-xl border bg-slate-50 transition-all focus:bg-white focus:outline-none ${
-                        digit
-                          ? 'border-[#00875A] text-[#002541] ring-1 ring-[#00875A]/20'
-                          : 'border-slate-300 text-slate-800 focus:border-[#00875A]'
-                      }`}
-                    />
-                  ))}
-                </div>
-
-                {errorMessage && (
-                  <div className="flex items-center gap-1.5 text-[11px] text-[#DC2626] font-semibold mt-2 animate-in fade-in">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{errorMessage}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Verify & Resend Actions */}
-              <div className="space-y-2.5 pt-1">
+              {/* Resend & Change Email Row */}
+              <div className="mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 pt-3 border-t-2 border-slate-100 dark:border-white/10">
                 <button
                   type="button"
-                  onClick={() => handleVerifyOtp(otpDigits.join(''))}
-                  disabled={isSubmitting || otpDigits.some((d) => d === '')}
-                  className="w-full h-10 bg-[#00875A] hover:bg-[#00704A] disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs sm:text-sm rounded-xl transition-all flex items-center justify-center gap-2 shadow-2xs hover:shadow-xs cursor-pointer active:scale-[0.99]"
+                  onClick={() => setStep('email_input')}
+                  className="hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer text-[11px] font-bold"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>{isSubmitting ? 'Verifying with Better Auth...' : 'Verify & Continue'}</span>
+                  Change email
                 </button>
 
-                <div className="flex items-center justify-between text-[11px] text-[#5A6872] px-1">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    {countdown > 0 ? `Resend code in ${countdown}s` : 'Code expired?'}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={countdown > 0}
-                    onClick={() => handleInitiatePhoneOtp(activeChannel)}
-                    className={`font-semibold cursor-pointer flex items-center gap-1 ${
-                      countdown > 0 ? 'text-slate-400' : 'text-[#0B3B60] hover:underline'
-                    }`}
-                  >
-                    <RefreshCw className="w-3 h-3" />
-                    <span>Resend Code</span>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  disabled={countdown > 0 || isSubmitting}
+                  onClick={handleResendCode}
+                  className="text-[#00875A] dark:text-[#8df7c1] font-extrabold hover:underline transition-colors cursor-pointer disabled:opacity-50 disabled:no-underline flex items-center gap-1 text-[11px]"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isSubmitting ? 'animate-spin' : ''}`} />
+                  <span>{countdown > 0 ? `Resend key (${countdown}s)` : 'Resend key'}</span>
+                </button>
               </div>
             </div>
           )}
@@ -916,3 +704,5 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     </div>
   );
 };
+
+export default AuthModal;

@@ -23,7 +23,7 @@ interface HeaderProps {
   onOpenCart: () => void;
   onOpenWishlist: () => void;
   onOpenOrderTracking: () => void;
-  onOpenMerchantHub: () => void;
+  onOpenMerchantHub: (tab?: 'store' | 'single_product' | 'service' | 'analytics') => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   selectedCategory: Category;
@@ -73,8 +73,8 @@ export const Header: React.FC<HeaderProps> = ({
               className="flex items-center gap-1.5 sm:gap-2 text-left focus:outline-none shrink-0 group cursor-pointer"
               aria-label="ABU Marketplace Home"
             >
-              <AbuLogo size={28} className="sm:hidden" />
-              <AbuLogo size={32} className="hidden sm:inline-flex" />
+              {/* Single official brand logo to prevent circle duplication on mobile */}
+              <AbuLogo size={32} className="shrink-0" />
               <div className="flex flex-col leading-none">
                 <span className="font-black tracking-tight text-base sm:text-lg text-white group-hover:text-[#d0e4ff] transition-colors leading-none">
                   ABU
@@ -88,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Dedicated "Create Shop" / "My Shop" Button */}
             <button
               type="button"
-              onClick={onOpenMerchantHub}
+              onClick={() => onOpenMerchantHub(isShopApproved ? 'analytics' : 'store')}
               className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer border shrink-0 ${
                 isShopApproved
                   ? 'bg-[#00875A] hover:bg-[#00704A] text-white border-[#8df7c1]/50'
@@ -194,20 +194,20 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenWhatsAppAuth}
-                className="bg-[#0b3b60] hover:bg-[#144b77] border border-[#8df7c1]/50 text-white p-1 sm:px-3 sm:py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 sm:gap-2 transition-all shadow-2xs hover:shadow-xs cursor-pointer shrink-0 min-h-[36px]"
+                className="bg-[#0b3b60] hover:bg-[#144b77] border border-[#8df7c1]/50 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 sm:gap-2 transition-all shadow-2xs hover:shadow-xs cursor-pointer shrink-0 min-h-[36px]"
                 title="View Account Profile"
               >
                 <div className="relative shrink-0">
                   <img
                     src={currentUser.avatar}
                     alt={currentUser.name}
-                    className="w-5 h-5 rounded-full object-cover border border-[#8df7c1]"
+                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover border border-[#8df7c1]"
                   />
                   <span className="w-2 h-2 rounded-full bg-[#16A34A] absolute -bottom-0.5 -right-0.5 ring-1 ring-[#002541]"></span>
                 </div>
-                <div className="hidden sm:flex flex-col text-left leading-none">
-                  <span className="text-[10px] text-[#8df7c1] font-bold">Hi, {currentUser.name.split(' ')[0]}</span>
-                  <span className="text-[11px] text-white font-medium hidden md:inline mt-0.5">Account</span>
+                <div className="flex flex-col text-left leading-none">
+                  <span className="text-[10px] sm:text-[11px] text-[#8df7c1] font-bold">Hi, {currentUser.name.split(' ')[0]}</span>
+                  <span className="text-[9px] text-white/80 font-medium hidden sm:inline mt-0.5">Account</span>
                 </div>
               </button>
             ) : (
@@ -215,7 +215,7 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={onOpenWhatsAppAuth}
                 className="bg-white text-[#002541] hover:bg-[#F4F6F8] active:scale-[0.98] px-2.5 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition-all shadow-xs hover:shadow-sm cursor-pointer shrink-0 min-h-[36px]"
-                title="Sign In with WhatsApp, Google or Apple"
+                title="Sign In with Google, Facebook or Apple"
               >
                 <User className="w-3.5 h-3.5 text-[#00875A]" />
                 <span className="whitespace-nowrap">Sign In</span>

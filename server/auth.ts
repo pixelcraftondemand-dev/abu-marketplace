@@ -4,6 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { betterAuth } from 'better-auth';
 import { bearer, phoneNumber } from 'better-auth/plugins';
 import { Request } from 'express';
+import { generateAlphanumericOtp } from './otp.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,6 +25,7 @@ db.exec(`
     phoneNumberVerified INTEGER DEFAULT 0,
     role TEXT DEFAULT 'buyer',
     preferredCity TEXT,
+    provider TEXT DEFAULT 'google',
     cart TEXT DEFAULT '[]',
     createdAt INTEGER NOT NULL,
     updatedAt INTEGER NOT NULL
@@ -71,6 +73,7 @@ try { db.exec('ALTER TABLE user ADD COLUMN phoneNumber TEXT UNIQUE'); } catch {}
 try { db.exec('ALTER TABLE user ADD COLUMN phoneNumberVerified INTEGER DEFAULT 0'); } catch {}
 try { db.exec("ALTER TABLE user ADD COLUMN role TEXT DEFAULT 'buyer'"); } catch {}
 try { db.exec('ALTER TABLE user ADD COLUMN preferredCity TEXT'); } catch {}
+try { db.exec("ALTER TABLE user ADD COLUMN provider TEXT DEFAULT 'google'"); } catch {}
 try { db.exec("ALTER TABLE user ADD COLUMN cart TEXT DEFAULT '[]'"); } catch {}
 
 // In-memory record of latest dispatched OTPs for carrier gateway confirmation & notification
@@ -118,14 +121,15 @@ export const auth = betterAuth({
   plugins: [
     bearer(),
     dash({ apiKey: BETTER_AUTH_API_KEY }),
-    phoneNumber({
+    (phoneNumber as any)({
       otpLength: 6,
       expiresIn: 300, // 5 minutes single-use expiration
+      generateOTP: () => generateAlphanumericOtp(6),
       signUpOnVerification: {
-        getTempEmail: (phone) => `${phone.replace(/[^0-9]/g, '')}@phone.abumarketplace.sl`,
-        getTempName: (phone) => `Verified Shopper (+${phone.slice(-4)})`,
+        getTempEmail: (phone: string) => `${phone.replace(/[^0-9]/g, '')}@phone.abumarketplace.shop`,
+        getTempName: (phone: string) => `Verified Shopper (+${phone.slice(-4)})`,
       },
-      sendOTP: async ({ phoneNumber: phone, code }) => {
+      sendOTP: async ({ phoneNumber: phone, code }: { phoneNumber: string; code: string }) => {
         console.log(`[Better Auth OTP Service] Dispatched 6-digit verification code ${code} to ${phone}`);
         dispatchedOtps.set(phone, {
           code,

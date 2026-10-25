@@ -12,3 +12,14 @@ tmp-classifieds/
 .quickcart-ref/
 .dev.env.json
 .dev.pid
+.claude
+.claude/
+.agents
+.agents/
+agent
+agent/
+skills-lock.json
+*.db
+*.sqlite
+prisma/*.db
+.aistudio/
