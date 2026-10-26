@@ -585,16 +585,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               {/* Live Web Inbox / Real Transmission Action */}
               {emailPreviewUrl && (
-                <a
-                  href={emailPreviewUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mb-3 w-full py-2 px-3 rounded-xl bg-emerald-50 dark:bg-[#082942] hover:bg-emerald-100 dark:hover:bg-[#0c395c] border-2 border-emerald-400 dark:border-[#00875A] text-emerald-900 dark:text-[#8df7c1] text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs group"
-                >
-                  <Mail className="w-3.5 h-3.5 text-[#00875A] group-hover:scale-110 transition-transform" />
-                  <span>Open Dispatched Email (Live Web Inbox)</span>
-                  <ExternalLink className="w-3.5 h-3.5 opacity-70" />
-                </a>
+                <div className="mb-3">
+                  <a
+                    href={emailPreviewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 px-3 rounded-xl bg-emerald-50 dark:bg-[#082942] hover:bg-emerald-100 dark:hover:bg-[#0c395c] border-2 border-emerald-500/80 dark:border-[#00875A] text-emerald-950 dark:text-[#8df7c1] text-xs font-black flex items-center justify-center gap-2 transition-all shadow-xs group"
+                  >
+                    <Mail className="w-4 h-4 text-[#00875A] group-hover:scale-110 transition-transform shrink-0" />
+                    <span>View Dispatched Email in Web Inbox</span>
+                    <ExternalLink className="w-3.5 h-3.5 opacity-80 shrink-0" />
+                  </a>
+                  <p className="text-[10px] text-center text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                    Click above to inspect the delivered email message in a new tab.
+                  </p>
+                </div>
               )}
 
               {errorMessage && (
@@ -646,34 +651,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               {/* Guaranteed Instant Login Assistance for Any Email */}
               {fallbackCode && (
-                <div className="mt-3 pt-2 text-center">
-                  {!showKeyAssistant ? (
+                <div className="mt-3 p-3 bg-emerald-50/90 dark:bg-[#06243a] rounded-2xl border-2 border-emerald-400/80 dark:border-emerald-600/70 text-xs shadow-xs animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-left">
+                      <span className="text-[10px] text-emerald-800 dark:text-emerald-300 font-black uppercase tracking-wider block">
+                        Dispatched Key:
+                      </span>
+                      <span className="font-mono text-lg font-black tracking-widest text-[#00875A] dark:text-[#8df7c1]">
+                        {fallbackCode}
+                      </span>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setShowKeyAssistant(true)}
-                      className="text-[11px] font-bold text-slate-500 dark:text-slate-400 hover:text-[#00875A] dark:hover:text-[#8df7c1] transition-colors cursor-pointer inline-flex items-center gap-1"
+                      onClick={handleApplyFallbackKey}
+                      className="px-3.5 py-2 rounded-xl bg-[#00875A] hover:bg-[#00704A] text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition-transform active:scale-95 cursor-pointer"
                     >
-                      <KeyRound className="w-3.5 h-3.5" />
-                      <span>Didn't get the email? Click to reveal code</span>
+                      {codeCopied ? <Check className="w-3.5 h-3.5" /> : <KeyRound className="w-3.5 h-3.5" />}
+                      <span>{codeCopied ? 'Code Applied!' : '1-Click Auto-Fill & Sign In'}</span>
                     </button>
-                  ) : (
-                    <div className="p-3 bg-slate-50 dark:bg-[#031526] rounded-xl border border-slate-200 dark:border-[#133552] text-xs animate-in fade-in duration-150">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="text-left">
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase block">Dispatched Key:</span>
-                          <span className="font-mono text-base font-black tracking-widest text-[#00875A] dark:text-[#8df7c1]">{fallbackCode}</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleApplyFallbackKey}
-                          className="px-3 py-1.5 rounded-lg bg-[#00875A] hover:bg-[#00704A] text-white font-extrabold text-[11px] flex items-center gap-1 shadow-xs cursor-pointer"
-                        >
-                          {codeCopied ? <Check className="w-3 h-3" /> : null}
-                          <span>{codeCopied ? 'Applied!' : 'Auto-Fill & Sign In'}</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  </div>
+                  <p className="text-[11px] text-emerald-800 dark:text-emerald-300/90 mt-1.5 leading-snug font-medium">
+                    Commercial inboxes (like Gmail) frequently filter or delay outbound test relays. Use <strong>1-Click Auto-Fill</strong> above to sign in instantly.
+                  </p>
                 </div>
               )}
 
