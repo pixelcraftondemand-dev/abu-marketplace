@@ -1485,7 +1485,14 @@ What would you like assistance with today?`;
 // ----------------------------------------------------
 async function startServer() {
   if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
+    // Vite emits content-hashed filenames under /assets, so those files can be cached
+    // permanently — a new build produces new names. index.html and other unhashed
+    // files keep revalidation-only caching so deploys are picked up immediately.
+    app.use('/assets', express.static(path.resolve(__dirname, 'dist', 'assets'), {
+      immutable: true,
+      maxAge: '1y',
+    }));
+    app.use(express.static(path.resolve(__dirname, 'dist'), { maxAge: 0 }));
     app.get('*', (req: Request, res: Response) => {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
