@@ -11,7 +11,9 @@ import {
   AlertTriangle,
   RotateCcw,
   Zap,
-  PhoneCall
+  PhoneCall,
+  Share2,
+  Check
 } from 'lucide-react';
 import { Product, LocationNode, MobileMoneyProvider } from '../types';
 
@@ -38,6 +40,56 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 }) => {
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'specs' | 'reviews'>('specs');
+  const [shareSuccess, setShareSuccess] = useState(false);
+
+  // Web Share API with WhatsApp and Clipboard Fallback
+  const handleShareProduct = async () => {
+    const priceFormatted = new Intl.NumberFormat('en-US').format(product.priceSLE);
+    const shareUrl = typeof window !== 'undefined'
+      ? `${window.location.origin}${window.location.pathname}?product=${encodeURIComponent(product.id)}`
+      : `https://abumarketplace.shop/?product=${encodeURIComponent(product.id)}`;
+
+    const shareTitle = `${product.title} - ABU Marketplace`;
+    const shareMessage = `Check out "${product.title}" on ABU Marketplace for SLE ${priceFormatted}!\nImmediate delivery available across Sierra Leone:\n${shareUrl}`;
+
+    // 1. Try Web Share API (native on mobile devices - Android/iOS WhatsApp chooser)
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: `Check out "${product.title}" on ABU Marketplace for SLE ${priceFormatted}!`,
+          url: shareUrl,
+        });
+        setShareSuccess(true);
+        setTimeout(() => setShareSuccess(false), 2500);
+        return;
+      } catch (err: any) {
+        // If user actively dismissed/cancelled the native share sheet, do not force-open fallback
+        if (err.name === 'AbortError') {
+          return;
+        }
+        console.warn('[Share API] Native Web Share encountered error, falling back to WhatsApp link:', err);
+      }
+    }
+
+    // 2. Direct WhatsApp Web / Mobile Deep-Link Fallback
+    const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareMessage)}`;
+    if (typeof window !== 'undefined') {
+      window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+    }
+
+    // 3. Copy direct link to clipboard for convenience
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+      } catch (clipErr) {
+        // Non-critical clipboard exception
+      }
+    }
+
+    setShareSuccess(true);
+    setTimeout(() => setShareSuccess(false), 2500);
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-[#002541]/70 dark:bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
@@ -45,22 +97,45 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         className="relative bg-white dark:bg-[#111D27] text-[#1A242D] dark:text-[#F1F5F9] rounded-t-2xl sm:rounded-lg shadow-2xl max-w-4xl w-full max-h-[92vh] overflow-y-auto border border-[#DCE1E5] dark:border-[#1E2E3D]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Sticky Header Close */}
+        {/* Sticky Header with Share & Close Controls */}
         <div className="sticky top-0 z-10 bg-white/95 dark:bg-[#111D27]/95 backdrop-blur-xs px-4 py-3 border-b border-[#DCE1E5] dark:border-[#1E2E3D] flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-[#5A6872] dark:text-slate-400">
             <span className="hidden xs:inline">{product.category}</span>
             <span aria-hidden="true" className="hidden xs:inline">/</span>
-            <span className="font-semibold text-[#0B3B60] dark:text-[#38BDF8] truncate max-w-[200px] sm:max-w-md">
+            <span className="font-semibold text-[#0B3B60] dark:text-[#38BDF8] truncate max-w-[160px] sm:max-w-md">
               {product.title}
             </span>
           </div>
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-[#5A6872] dark:text-slate-400 hover:text-[#0f1d26] dark:hover:text-white transition-colors cursor-pointer flex items-center justify-center"
-            aria-label="Close dialog"
-          >
-            <X className="w-5 h-5" />
-          </button>
+
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Header Share Button */}
+            <button
+              onClick={handleShareProduct}
+              className="h-8 px-2.5 sm:px-3 rounded-full bg-emerald-50 hover:bg-emerald-100 dark:bg-[#06291C] dark:hover:bg-[#0B3D2B] text-[#00875A] dark:text-[#8df7c1] border border-emerald-300 dark:border-emerald-600/60 transition-all text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+              title="Share via WhatsApp or Web Share"
+              aria-label="Share product"
+            >
+              {shareSuccess ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="text-[11px]">Link Shared!</span>
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-3.5 h-3.5 shrink-0" />
+                  <span>Share</span>
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={onClose}
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-[#5A6872] dark:text-slate-400 hover:text-[#0f1d26] dark:hover:text-white transition-colors cursor-pointer flex items-center justify-center"
+              aria-label="Close dialog"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Modal Main Body */}
@@ -77,15 +152,27 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 }}
                 className="w-full h-full object-cover object-center"
               />
-              <button
-                onClick={() => onToggleWishlist(product)}
-                className={`absolute top-3 right-3 p-2 rounded-full bg-white/90 dark:bg-slate-900/90 shadow transition-colors cursor-pointer ${
-                  isWishlisted ? 'text-[#0B3B60] dark:text-[#38BDF8]' : 'text-gray-500 hover:text-[#0B3B60] dark:hover:text-[#38BDF8]'
-                }`}
-                aria-label="Save to Wishlist"
-              >
-                <Heart className={`w-5 h-5 ${isWishlisted ? 'fill-current' : ''}`} />
-              </button>
+              <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleShareProduct}
+                  className="p-2 rounded-full bg-white/90 dark:bg-slate-900/90 shadow hover:bg-white dark:hover:bg-slate-800 transition-transform active:scale-95 text-slate-700 dark:text-slate-200 hover:text-[#00875A] dark:hover:text-[#8df7c1] cursor-pointer"
+                  title="Share product link"
+                  aria-label="Share product"
+                >
+                  {shareSuccess ? <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : <Share2 className="w-4 h-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onToggleWishlist(product)}
+                  className={`p-2 rounded-full bg-white/90 dark:bg-slate-900/90 shadow hover:bg-white dark:hover:bg-slate-800 transition-colors cursor-pointer ${
+                    isWishlisted ? 'text-[#0B3B60] dark:text-[#38BDF8]' : 'text-gray-500 hover:text-[#0B3B60] dark:hover:text-[#38BDF8]'
+                  }`}
+                  aria-label="Save to Wishlist"
+                >
+                  <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-current' : ''}`} />
+                </button>
+              </div>
             </div>
 
             {/* Merchant Trust Bar */}
@@ -227,6 +314,22 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   <span>Order Now (Pay on Delivery)</span>
                 </button>
               </div>
+
+              {/* Share via WhatsApp CTA */}
+              <button
+                type="button"
+                onClick={handleShareProduct}
+                className="w-full h-9.5 bg-[#25D366]/10 hover:bg-[#25D366]/20 dark:bg-[#25D366]/15 dark:hover:bg-[#25D366]/25 text-[#128C7E] dark:text-[#25D366] border border-[#25D366]/40 dark:border-[#25D366]/50 rounded font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs active:scale-[0.99]"
+                title="Share this product on WhatsApp"
+              >
+                <svg className="w-4 h-4 fill-current shrink-0" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" />
+                </svg>
+                <span>{shareSuccess ? 'Link Shared via WhatsApp!' : 'Share via WhatsApp'}</span>
+                {shareSuccess && (
+                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 ml-1" />
+                )}
+              </button>
             </div>
           </div>
         </div>
