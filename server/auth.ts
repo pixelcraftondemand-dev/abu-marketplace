@@ -1,80 +1,54 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { DatabaseSync } from 'node:sqlite';
+import pg from 'pg';
 import { betterAuth } from 'better-auth';
 import { bearer, phoneNumber } from 'better-auth/plugins';
 import { Request } from 'express';
 import { generateAlphanumericOtp } from './otp.ts';
+import { dash, createSMSSender } from '@better-auth/infra';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Postgres (Supabase) connection
+export const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+  max: 5,
+});
 
-// Database path in prisma/dev.db
-const dbPath = path.resolve(__dirname, '..', 'prisma', 'dev.db');
-export const db = new DatabaseSync(dbPath);
+// Columns that Postgres needs in double quotes because they are camelCase
+const QUOTE = [
+  'phoneNumberVerified', 'phoneNumber', 'emailVerified', 'preferredCity',
+  'createdAt', 'updatedAt', 'expiresAt', 'ipAddress', 'userAgent', 'userId',
+  'accountId', 'providerId', 'accessTokenExpiresAt', 'refreshTokenExpiresAt',
+  'accessToken', 'refreshToken', 'idToken',
+];
+const quoteRe = new RegExp(`(?<!")\\b(${QUOTE.join('|')})\\b(?!")`, 'g');
 
-// Ensure Better Auth tables exist with required columns
-db.exec(`
-  CREATE TABLE IF NOT EXISTS user (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    emailVerified INTEGER NOT NULL DEFAULT 0,
-    image TEXT,
-    phoneNumber TEXT UNIQUE,
-    phoneNumberVerified INTEGER DEFAULT 0,
-    role TEXT DEFAULT 'buyer',
-    preferredCity TEXT,
-    provider TEXT DEFAULT 'google',
-    cart TEXT DEFAULT '[]',
-    createdAt INTEGER NOT NULL,
-    updatedAt INTEGER NOT NULL
+// Converts an old SQLite-style query into a Postgres one
+function toPg(sql: string, params: any[]) {
+  let i = 0;
+  const text = sql
+    .replace(quoteRe, '"$1"')
+    .replace(/\b(FROM|UPDATE|INTO|TABLE)\s+user\b/gi, '$1 "user"')
+    .replace(/\?/g, () => `$${++i}`);
+  // Date.now() numbers become real timestamps
+  const values = params.map((p) =>
+    typeof p === 'number' && p > 1e12 ? new Date(p) : p
   );
+  return { text, values };
+}
 
-  CREATE TABLE IF NOT EXISTS session (
-    id TEXT PRIMARY KEY,
-    expiresAt INTEGER NOT NULL,
-    token TEXT NOT NULL UNIQUE,
-    createdAt INTEGER NOT NULL,
-    updatedAt INTEGER NOT NULL,
-    ipAddress TEXT,
-    userAgent TEXT,
-    userId TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS account (
-    id TEXT PRIMARY KEY,
-    accountId TEXT NOT NULL,
-    providerId TEXT NOT NULL,
-    userId TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-    accessToken TEXT,
-    refreshToken TEXT,
-    idToken TEXT,
-    accessTokenExpiresAt INTEGER,
-    refreshTokenExpiresAt INTEGER,
-    scope TEXT,
-    password TEXT,
-    createdAt INTEGER NOT NULL,
-    updatedAt INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS verification (
-    id TEXT PRIMARY KEY,
-    identifier TEXT NOT NULL,
-    value TEXT NOT NULL,
-    expiresAt INTEGER NOT NULL,
-    createdAt INTEGER NOT NULL,
-    updatedAt INTEGER NOT NULL
-  );
-`);
-
-// Add any missing columns to existing user table safely
-try { db.exec('ALTER TABLE user ADD COLUMN phoneNumber TEXT UNIQUE'); } catch {}
-try { db.exec('ALTER TABLE user ADD COLUMN phoneNumberVerified INTEGER DEFAULT 0'); } catch {}
-try { db.exec("ALTER TABLE user ADD COLUMN role TEXT DEFAULT 'buyer'"); } catch {}
-try { db.exec('ALTER TABLE user ADD COLUMN preferredCity TEXT'); } catch {}
-try { db.exec("ALTER TABLE user ADD COLUMN provider TEXT DEFAULT 'google'"); } catch {}
-try { db.exec("ALTER TABLE user ADD COLUMN cart TEXT DEFAULT '[]'"); } catch {}
+export const db = {
+  async get(sql: string, params: any[] = []) {
+    const { text, values } = toPg(sql, params);
+    return (await pool.query(text, values)).rows[0];
+  },
+  async all(sql: string, params: any[] = []) {
+    const { text, values } = toPg(sql, params);
+    return (await pool.query(text, values)).rows;
+  },
+  async run(sql: string, params: any[] = []) {
+    const { text, values } = toPg(sql, params);
+    return pool.query(text, values);
+  },
+};
 
 // In-memory record of latest dispatched OTPs for carrier gateway confirmation & notification
 export const dispatchedOtps = new Map<string, { code: string; sentAt: number; channel: string }>();
@@ -92,8 +66,6 @@ export function getDispatchedOtp(phoneNumber: string): string | undefined {
   return undefined;
 }
 
-import { dash, createSMSSender } from '@better-auth/infra';
-
 export const BETTER_AUTH_API_KEY = process.env.BETTER_AUTH_API_KEY || 'ba_cn6v0fyinlj38h4q6t49ksdjmq8g9tqf';
 export const BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET || 'abu-marketplace-secure-auth-secret-sl-2026-prod-token';
 export const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL || 'https://abumarketplace.shop';
@@ -101,7 +73,7 @@ export const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL || 'https://abumarket
 const smsSender = createSMSSender({ apiKey: BETTER_AUTH_API_KEY });
 
 export const auth = betterAuth({
-  database: db,
+  database: pool,
   secret: BETTER_AUTH_SECRET,
   baseURL: BETTER_AUTH_URL,
   trustedOrigins: [
@@ -155,6 +127,7 @@ export const auth = betterAuth({
     additionalFields: {
       role: { type: 'string', required: false, defaultValue: 'buyer' },
       preferredCity: { type: 'string', required: false },
+      provider: { type: 'string', required: false, defaultValue: 'google' },
       cart: { type: 'string', required: false, defaultValue: '[]' },
     },
   },

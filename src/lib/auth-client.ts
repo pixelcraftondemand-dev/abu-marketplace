@@ -1,11 +1,20 @@
-import { createAuthClient } from 'better-auth/react';
-import { phoneNumberClient } from 'better-auth/client/plugins';
+import { supabase } from './supabase';
 import { UserProfile } from '../types';
 
-// Initialize Better Auth React Client
-export const authClient = createAuthClient({
-  baseURL: typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000',
-  plugins: [phoneNumberClient()],
+// Kept so any old import of `authClient` still resolves
+export const authClient = supabase;
+
+const TOKEN_KEY = 'better_auth_token'; // name kept so other code reading it keeps working
+const USER_KEY = 'abu_marketplace_user';
+
+// Keep the stored access token in sync as Supabase refreshes it
+supabase.auth.onAuthStateChange((_event, session) => {
+  try {
+    if (session?.access_token) localStorage.setItem(TOKEN_KEY, session.access_token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* storage unavailable */
+  }
 });
 
 export interface BetterAuthUser {
@@ -21,7 +30,7 @@ export interface BetterAuthUser {
 }
 
 /**
- * Format Better Auth User to app UserProfile
+ * Format a flat user object to the app UserProfile
  */
 export function formatBetterAuthUser(user: any, provider: 'whatsapp' | 'sms' | 'google' | 'facebook' | 'apple' | 'email' | 'phone' = 'phone'): UserProfile {
   const cleanPhone = user.phoneNumber || '';
@@ -37,107 +46,77 @@ export function formatBetterAuthUser(user: any, provider: 'whatsapp' | 'sms' | '
     avatar: user.image || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user.name || cleanPhone || 'User')}&backgroundColor=0B3B60,002541&textColor=ffffff`,
     role: user.role || 'buyer',
     preferredCity: user.preferredCity || 'Freetown (Central / CBD)',
-    joinedAt: user.createdAt 
+    joinedAt: user.createdAt
       ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
       : new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+  } as UserProfile;
+}
+
+// Merge a Supabase auth user with their profiles row into one flat object
+function flattenUser(u: any, profile: any) {
+  return {
+    id: u.id,
+    email: u.email ?? null,
+    name:
+      profile?.name ||
+      u.user_metadata?.name ||
+      u.user_metadata?.full_name ||
+      (u.email ? u.email.split('@')[0] : 'Verified Customer'),
+    image: u.user_metadata?.avatar_url || u.user_metadata?.picture || null,
+    phoneNumber: profile?.phone || u.phone || null,
+    role: profile?.role || 'buyer',
+    preferredCity: profile?.preferred_city || null,
+    provider: profile?.provider || u.app_metadata?.provider || 'email',
+    createdAt: u.created_at,
   };
 }
 
-/**
- * 1. Send One-Time Password via WhatsApp or SMS using Better Auth
- */
-export async function sendBetterAuthPhoneOtp(phoneNumber: string, channel: 'whatsapp' | 'sms' = 'whatsapp'): Promise<{ success: boolean; message: string; otpCode?: string }> {
+async function buildProfile(
+  sbUser: any,
+  provider: 'whatsapp' | 'sms' | 'google' | 'facebook' | 'apple' | 'email' | 'phone' = 'email'
+): Promise<UserProfile> {
+  const { data: row } = await supabase.from('profiles').select('*').eq('id', sbUser.id).maybeSingle();
+  const profile = formatBetterAuthUser(flattenUser(sbUser, row), provider);
   try {
-    const res = await fetch('/api/custom-auth/phone/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phoneNumber, channel }),
-    });
-
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Failed to dispatch verification code');
-    }
-
-    return {
-      success: true,
-      message: data.message,
-      otpCode: data.code,
-    };
-  } catch (err: any) {
-    console.error('Error sending phone OTP via Better Auth:', err);
-    throw new Error(err.message || 'Error communicating with Better Auth service');
+    localStorage.setItem(USER_KEY, JSON.stringify(profile));
+  } catch {
+    /* storage unavailable */
   }
+  return profile;
 }
 
 /**
- * 2. Verify 6-digit OTP and establish authentic session in SQLite
+ * 1. Phone OTP (not enabled yet, needs an SMS provider configured in Supabase)
  */
-export async function verifyBetterAuthPhoneOtp(params: {
+export async function sendBetterAuthPhoneOtp(_phoneNumber: string, _channel: 'whatsapp' | 'sms' = 'whatsapp'): Promise<{ success: boolean; message: string; otpCode?: string }> {
+  throw new Error('Phone sign-in is not available yet. Please use your email instead.');
+}
+
+/**
+ * 2. Verify phone OTP (not enabled yet)
+ */
+export async function verifyBetterAuthPhoneOtp(_params: {
   phoneNumber: string;
   code: string;
   fullName?: string;
   preferredCity?: string;
   channel?: 'whatsapp' | 'sms';
 }): Promise<{ user: UserProfile; token: string }> {
-  try {
-    const res = await fetch('/api/custom-auth/phone/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Verification failed. Please double-check your code.');
-    }
-
-    if (data.token) {
-      localStorage.setItem('better_auth_token', data.token);
-    }
-
-    const provider = params.channel === 'whatsapp' ? 'whatsapp' : 'phone';
-    const profile = formatBetterAuthUser(data.user, provider);
-    localStorage.setItem('abu_marketplace_user', JSON.stringify(profile));
-
-    return { user: profile, token: data.token };
-  } catch (err: any) {
-    console.error('Error verifying phone OTP via Better Auth:', err);
-    throw new Error(err.message || 'Code verification failed');
-  }
+  throw new Error('Phone sign-in is not available yet. Please use your email instead.');
 }
 
 /**
- * 3. Sign In with Email & Password via Better Auth
+ * 3. Sign in with email and password
  */
 export async function signInWithBetterAuthEmail(email: string, password: string): Promise<UserProfile> {
-  try {
-    const res = await authClient.signIn.email({
-      email: email.trim(),
-      password,
-    });
-
-    if (res.error) {
-      throw new Error(res.error.message || 'Invalid email or password');
-    }
-
-    const user = res.data?.user;
-    if (!user) throw new Error('Failed to retrieve user profile');
-
-    const profile = formatBetterAuthUser(user, 'email');
-    localStorage.setItem('abu_marketplace_user', JSON.stringify(profile));
-    if (res.data?.token) {
-      localStorage.setItem('better_auth_token', res.data.token);
-    }
-    return profile;
-  } catch (err: any) {
-    console.error('Better Auth Email sign-in error:', err);
-    throw new Error(err.message || 'Email authentication failed');
-  }
+  const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  if (error) throw new Error(error.message || 'Invalid email or password');
+  if (!data.user) throw new Error('Failed to retrieve user profile');
+  return buildProfile(data.user, 'email');
 }
 
 /**
- * 4. Sign Up with Email, Password & Sierra Leone profile fields
+ * 4. Sign up with email, password and Sierra Leone profile fields
  */
 export async function signUpWithBetterAuthEmail(params: {
   name: string;
@@ -146,249 +125,160 @@ export async function signUpWithBetterAuthEmail(params: {
   phoneNumber?: string;
   preferredCity?: string;
 }): Promise<UserProfile> {
-  try {
-    const res = await (authClient.signUp.email as any)({
-      name: params.name.trim(),
-      email: params.email.trim(),
-      password: params.password,
-      phoneNumber: params.phoneNumber?.trim() || undefined,
-      preferredCity: params.preferredCity || 'Freetown (Central / CBD)',
-      role: 'buyer',
-    });
-
-    if (res.error) {
-      throw new Error(res.error.message || 'Registration failed');
-    }
-
-    const user = res.data?.user;
-    if (!user) throw new Error('Account created but user data missing');
-
-    const profile = formatBetterAuthUser(user, 'email');
-    localStorage.setItem('abu_marketplace_user', JSON.stringify(profile));
-    if (res.data?.token) {
-      localStorage.setItem('better_auth_token', res.data.token);
-    }
-    return profile;
-  } catch (err: any) {
-    console.error('Better Auth Email sign-up error:', err);
-    throw new Error(err.message || 'Registration failed');
+  const { data, error } = await supabase.auth.signUp({
+    email: params.email.trim(),
+    password: params.password,
+    options: {
+      data: {
+        name: params.name.trim(),
+        preferred_city: params.preferredCity || 'Freetown (Central / CBD)',
+      },
+    },
+  });
+  if (error) throw new Error(error.message || 'Registration failed');
+  if (!data.user) throw new Error('Account created but user data missing');
+  if (!data.session) {
+    // Email confirmation is on: the user must confirm before signing in
+    throw new Error('Account created. Check your email to confirm it, then sign in.');
   }
+  return buildProfile(data.user, 'email');
 }
 
 /**
- * Check if external OAuth is configured and get OAuth URL
+ * Social sign-in links are handled by Supabase now
  */
-export async function getOAuthUrl(provider: 'google' | 'facebook' | 'apple'): Promise<{ configured: boolean; url: string | null }> {
-  try {
-    const res = await fetch(`/api/custom-auth/oauth-url?provider=${provider}`);
-    if (!res.ok) return { configured: false, url: null };
-    return await res.json();
-  } catch {
-    return { configured: false, url: null };
-  }
+export async function getOAuthUrl(_provider: 'google' | 'facebook' | 'apple'): Promise<{ configured: boolean; url: string | null }> {
+  return { configured: false, url: null };
 }
 
 /**
- * 4b. Send 6-digit alphanumeric OTP to user's email inbox
+ * 4b. Send a one-time code to the user's email inbox
  */
 export async function sendEmailOtp(
-  email: string, 
-  provider: 'google' | 'facebook' | 'apple' | 'email' = 'google'
+  email: string,
+  _provider: 'google' | 'facebook' | 'apple' | 'email' = 'google'
 ): Promise<{ success: boolean; message: string; previewUrl?: string | null; code?: string }> {
-  try {
-    const res = await fetch('/api/custom-auth/email-otp/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, provider }),
-    });
-
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Failed to dispatch verification code');
-    }
-
-    return {
-      success: true,
-      message: data.message,
-      previewUrl: data.previewUrl,
-      code: data.code,
-    };
-  } catch (err: any) {
-    console.error('Error sending email OTP:', err);
-    throw new Error(err.message || 'Error communicating with verification service');
-  }
+  const clean = email.trim().toLowerCase();
+  const { error } = await supabase.auth.signInWithOtp({
+    email: clean,
+    options: { shouldCreateUser: true },
+  });
+  if (error) throw new Error(error.message || 'Failed to dispatch verification code');
+  return { success: true, message: `A verification code has been sent to ${clean}.` };
 }
 
 /**
- * 4c. Verify 6-digit alphanumeric OTP and establish session
+ * 4c. Verify the emailed code and establish a session
  */
 export async function verifyEmailOtp(
   email: string,
   code: string,
   provider: 'google' | 'facebook' | 'apple' | 'email' = 'google'
 ): Promise<UserProfile> {
-  try {
-    const res = await fetch('/api/custom-auth/email-otp/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, code, provider }),
-    });
-
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Verification failed. Please check your code.');
-    }
-
-    if (data.token) {
-      localStorage.setItem('better_auth_token', data.token);
-    }
-
-    const profile = formatBetterAuthUser(data.user, provider);
-    localStorage.setItem('abu_marketplace_user', JSON.stringify(profile));
-    return profile;
-  } catch (err: any) {
-    console.error('Error verifying email OTP:', err);
-    throw new Error(err.message || 'Verification failed');
-  }
+  const { data, error } = await supabase.auth.verifyOtp({
+    email: email.trim().toLowerCase(),
+    token: code.trim(),
+    type: 'email',
+  });
+  if (error) throw new Error(error.message || 'Verification failed. Please check your code.');
+  if (!data.user) throw new Error('Verification failed');
+  return buildProfile(data.user, provider);
 }
 
 /**
- * 4d. Instant 1-Tap Google Identity Services (GIS) Sign-In
+ * 4d. Google One-Tap / Identity Services sign-in. Supabase verifies the Google token.
  */
 export async function signInWithGoogleGis(credential: string): Promise<UserProfile> {
-  try {
-    const res = await fetch('/api/custom-auth/google-gis', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ credential }),
-    });
-
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Google account sign-in failed');
-    }
-
-    if (data.token) {
-      localStorage.setItem('better_auth_token', data.token);
-    }
-
-    const profile = formatBetterAuthUser(data.user, 'google');
-    localStorage.setItem('abu_marketplace_user', JSON.stringify(profile));
-    return profile;
-  } catch (err: any) {
-    console.error('Google GIS sign-in error:', err);
-    throw new Error(err.message || 'Google Sign-In failed');
-  }
+  const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: credential });
+  if (error) throw new Error(error.message || 'Google Sign-In failed');
+  if (!data.user) throw new Error('Google Sign-In failed');
+  return buildProfile(data.user, 'google');
 }
 
 /**
- * 5. Quick Social Sign-In (Google / Facebook / Apple) backed by Better Auth
+ * 5. Social sign-in. With email and password it signs in normally; Google uses a redirect.
  */
 export async function quickSocialLogin(
-  provider: 'google' | 'facebook' | 'apple', 
-  fullName?: string, 
+  provider: 'google' | 'facebook' | 'apple',
+  _fullName?: string,
   email?: string,
   password?: string,
-  preferredCity?: string
+  _preferredCity?: string
 ): Promise<UserProfile> {
-  try {
-    const res = await fetch('/api/custom-auth/social', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider, fullName, email, password, preferredCity }),
-    });
-
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Social sign-in failed');
-    }
-
-    if (data.token) {
-      localStorage.setItem('better_auth_token', data.token);
-    }
-
-    const profile = formatBetterAuthUser(data.user, provider);
-    localStorage.setItem('abu_marketplace_user', JSON.stringify(profile));
-    return profile;
-  } catch (err: any) {
-    console.error('Better Auth Social sign-in error:', err);
-    throw new Error(err.message || 'Social sign-in failed');
+  if (email && password) {
+    return signInWithBetterAuthEmail(email, password);
   }
+  if (provider === 'google') {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    });
+    if (error) throw new Error(error.message || 'Google Sign-In failed');
+    // The browser is redirected to Google; this promise intentionally never resolves
+    return new Promise<UserProfile>(() => {});
+  }
+  const name = provider.charAt(0).toUpperCase() + provider.slice(1);
+  throw new Error(`${name} sign-in is not available yet. Please use email or Google.`);
 }
 
 /**
- * 6. Fetch Active Session from Better Auth server
+ * 6. Restore the active session (also completes a Google redirect)
  */
 export async function getActiveBetterAuthSession(): Promise<UserProfile | null> {
   try {
-    const token = localStorage.getItem('better_auth_token');
-    const headers: Record<string, string> = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const res = await fetch('/api/custom-auth/me', { headers });
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    if (!data.success || !data.user) return null;
-
-    const profile = formatBetterAuthUser(data.user, data.user.provider || 'phone');
-    localStorage.setItem('abu_marketplace_user', JSON.stringify(profile));
-    return profile;
+    const { data } = await supabase.auth.getSession();
+    const sbUser = data.session?.user;
+    if (!sbUser) return null;
+    return await buildProfile(sbUser);
   } catch (err) {
-    console.warn('Could not restore Better Auth session:', err);
+    console.warn('Could not restore session:', err);
     return null;
   }
 }
 
 /**
- * 7. Sign Out from Better Auth
+ * 7. Sign out
  */
 export async function signOutBetterAuth(): Promise<void> {
   try {
-    const token = localStorage.getItem('better_auth_token');
-    await fetch('/api/auth/sign-out', {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
+    await supabase.auth.signOut();
   } catch (err) {
     console.warn('Sign-out request warning:', err);
   } finally {
-    localStorage.removeItem('better_auth_token');
-    localStorage.removeItem('abu_marketplace_user');
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+    } catch {
+      /* storage unavailable */
+    }
   }
 }
 
 /**
- * 8. Update User Profile in Better Auth database
+ * 8. Update the user's profile (the server checks the token and allowed roles)
  */
 export async function updateBetterAuthProfile(updates: {
   name?: string;
   role?: 'buyer' | 'merchant' | 'artisan';
   preferredCity?: string;
 }): Promise<UserProfile | null> {
+  const { data: sess } = await supabase.auth.getSession();
+  const token = sess.session?.access_token;
+  if (!token) throw new Error('You are not signed in');
+
+  const res = await fetch('/api/custom-auth/update-profile', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(updates),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.success) throw new Error(data.error || 'Failed to update profile');
+
+  const profile = formatBetterAuthUser(data.user);
   try {
-    const token = localStorage.getItem('better_auth_token');
-    const res = await fetch('/api/custom-auth/update-profile', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify(updates),
-    });
-
-    const data = await res.json();
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || 'Failed to update profile');
-    }
-
-    const profile = formatBetterAuthUser(data.user);
-    localStorage.setItem('abu_marketplace_user', JSON.stringify(profile));
-    return profile;
-  } catch (err: any) {
-    console.error('Update profile error:', err);
-    throw new Error(err.message || 'Profile update failed');
+    localStorage.setItem(USER_KEY, JSON.stringify(profile));
+  } catch {
+    /* storage unavailable */
   }
+  return profile;
 }

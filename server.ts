@@ -9,10 +9,7 @@ import { GoogleGenAI } from '@google/genai';
 import { Product, VendorStore, BlueCollarService, ServiceBooking } from './src/types/index.ts';
 import { INITIAL_PRODUCTS, INITIAL_STORES, INITIAL_SERVICES } from './src/data/mockData.ts';
 
-import { auth, getBetterAuthSession, getDispatchedOtp, db } from './server/auth.ts';
-import { generateAlphanumericOtp } from './server/otp.ts';
-import { toNodeHandler } from 'better-auth/node';
-import nodemailer from 'nodemailer';
+import { supabaseAdmin, getSessionUser } from './server/supabase.ts';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -49,9 +46,6 @@ function checkRateLimit(key: string, maxLimit: number, windowMs: number): { allo
 
 // Track OTP verification attempts per phone to prevent brute-forcing
 const otpAttemptsMap = new Map<string, number>();
-
-// Mount Better Auth catch-all handler BEFORE express.json()
-app.all('/api/auth/*', toNodeHandler(auth));
 
 app.use(express.json());
 
@@ -172,7 +166,7 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     status: 'healthy',
     service: 'Abu Marketplace Backend API',
-    authProvider: 'Better Auth (SQLite & Session Engine)',
+    authProvider: 'Supabase Auth',
     currency: 'SLE',
     country: 'Sierra Leone',
     activeProducts: products.length,
@@ -182,657 +176,53 @@ app.get('/api/health', (req: Request, res: Response) => {
 });
 
 // ----------------------------------------------------
-// BETTER AUTH CUSTOM ENDPOINTS
+// SUPABASE AUTH ENDPOINTS
+// Sign-in, sign-up, OTP and Google all happen in the browser through Supabase.
+// The server only verifies the Bearer token and manages profile fields.
 // ----------------------------------------------------
 
-// Phone OTP Dispatch via Better Auth
-app.post('/api/custom-auth/phone/send-otp', async (req: Request, res: Response) => {
-  try {
-    const { phoneNumber, channel } = req.body;
-    if (!phoneNumber || typeof phoneNumber !== 'string') {
-      return res.status(400).json({ success: false, error: 'Valid phone number is required' });
-    }
+// Roles a user may choose for themselves. admin and logistics_agent are set manually in Supabase.
+const SELF_SERVICE_ROLES = ['buyer', 'merchant', 'artisan'];
 
-    const cleanDigits = phoneNumber.trim().replace(/\D/g, '');
-    if (cleanDigits.length < 6) {
-      return res.status(400).json({ success: false, error: 'Phone number must contain at least 6 digits' });
-    }
-
-    const formattedPhone = cleanDigits.startsWith('232') ? `+${cleanDigits}` : `+232${cleanDigits.replace(/^0/, '')}`;
-
-    // Invoke Better Auth plugin sendPhoneNumberOTP
-    await (auth.api as any).sendPhoneNumberOTP({
-      body: { phoneNumber: formattedPhone },
-    });
-
-    const otpCode = getDispatchedOtp(formattedPhone) || getDispatchedOtp(cleanDigits);
-    const carrierChannel = channel === 'sms' ? 'SMS' : 'WhatsApp';
-
-    res.json({
-      success: true,
-      message: `${carrierChannel} verification code dispatched to ${formattedPhone}`,
-    });
-  } catch (err: any) {
-    console.error('Error dispatching Better Auth phone OTP:', err);
-    res.status(500).json({ success: false, error: err.message || 'Failed to dispatch verification code' });
-  }
-});
-
-// Phone OTP Verification via Better Auth
-app.post('/api/custom-auth/phone/verify-otp', async (req: Request, res: Response) => {
-  try {
-    const { phoneNumber, code, fullName, preferredCity } = req.body;
-    if (!phoneNumber || !code) {
-      return res.status(400).json({ success: false, error: 'Phone number and verification code are required' });
-    }
-
-    const cleanDigits = phoneNumber.trim().replace(/\D/g, '');
-    const formattedPhone = cleanDigits.startsWith('232') ? `+${cleanDigits}` : `+232${cleanDigits.replace(/^0/, '')}`;
-
-    // Verify code with Better Auth
-    const verifyRes = await (auth.api as any).verifyPhoneNumber({
-      body: {
-        phoneNumber: formattedPhone,
-        code: String(code).trim(),
-      },
-    });
-
-    if (!verifyRes || !verifyRes.user) {
-      return res.status(400).json({ success: false, error: 'Invalid or expired verification code' });
-    }
-
-    // Persist additional metadata (name, city) in user table if provided
-    if (fullName?.trim() || preferredCity?.trim()) {
-      try {
-        const updatedName = fullName?.trim() || verifyRes.user.name;
-        const updatedCity = preferredCity?.trim() || verifyRes.user.preferredCity || 'Freetown (Central / CBD)';
-        db.prepare('UPDATE user SET name = ?, preferredCity = ? WHERE id = ?').run(
-          updatedName,
-          updatedCity,
-          verifyRes.user.id
-        );
-        verifyRes.user.name = updatedName;
-        verifyRes.user.preferredCity = updatedCity;
-      } catch (err) {
-        console.warn('Could not update metadata:', err);
-      }
-    }
-
-    res.json({
-      success: true,
-      user: verifyRes.user,
-      token: verifyRes.token,
-      message: 'Successfully authenticated via Better Auth',
-    });
-  } catch (err: any) {
-    console.error('Error verifying phone OTP:', err);
-    res.status(400).json({ success: false, error: err.message || 'Verification failed. Please check code.' });
-  }
-});
-
-// ----------------------------------------------------
-// REAL OAUTH ENDPOINTS (GOOGLE, FACEBOOK, APPLE)
-// ----------------------------------------------------
-
-// Endpoint to construct provider OAuth authorization URL
-app.get(['/api/auth/url', '/api/custom-auth/oauth-url'], (req: Request, res: Response) => {
-  const provider = (req.query.provider as string) || 'google';
-  const host = req.get('x-forwarded-host') || req.get('host') || 'localhost:3000';
-  const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
-  const redirectUri = `${protocol}://${host}/auth/callback`;
-
-  const googleClientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '374984420075-6pak1vl4iu4s75u72sc03fglifpn3las.apps.googleusercontent.com';
-  const facebookAppId = process.env.FACEBOOK_CLIENT_ID || process.env.FACEBOOK_APP_ID || process.env.VITE_FACEBOOK_APP_ID;
-  const appleClientId = process.env.APPLE_CLIENT_ID || process.env.VITE_APPLE_CLIENT_ID;
-
-  if (provider === 'google' && googleClientId) {
-    const params = new URLSearchParams({
-      client_id: googleClientId,
-      redirect_uri: redirectUri,
-      response_type: 'code',
-      scope: 'openid email profile',
-      state: 'google',
-    });
-    return res.json({ configured: true, url: `https://accounts.google.com/o/oauth2/v2/auth?${params}`, provider: 'google' });
-  }
-
-  if (provider === 'facebook' && facebookAppId) {
-    const params = new URLSearchParams({
-      client_id: facebookAppId,
-      redirect_uri: redirectUri,
-      response_type: 'code',
-      scope: 'email,public_profile',
-      state: 'facebook',
-    });
-    return res.json({ configured: true, url: `https://www.facebook.com/v19.0/dialog/oauth?${params}`, provider: 'facebook' });
-  }
-
-  if (provider === 'apple' && appleClientId) {
-    const params = new URLSearchParams({
-      client_id: appleClientId,
-      redirect_uri: redirectUri,
-      response_type: 'code',
-      scope: 'name email',
-      state: 'apple',
-    });
-    return res.json({ configured: true, url: `https://appleid.apple.com/auth/authorize?${params}`, provider: 'apple' });
-  }
-
-  // Not configured with external OAuth developer credentials in environment
-  res.json({ configured: false, url: null, provider });
-});
-
-// OAuth Callback handler with cross-window postMessage communication
-app.get(['/auth/callback', '/auth/callback/'], async (req: Request, res: Response) => {
-  const { code, state, error, error_description } = req.query;
-  const prov = (state as string) || 'google';
-
-  if (error) {
-    return res.send(`
-      <!DOCTYPE html>
-      <html>
-        <head><title>Authentication Error</title></head>
-        <body style="font-family: sans-serif; text-align: center; padding: 40px;">
-          <script>
-            if (window.opener) {
-              window.opener.postMessage({ type: 'OAUTH_AUTH_ERROR', error: ${JSON.stringify(error_description || error)} }, '*');
-              window.close();
-            }
-          </script>
-          <h3>Authentication failed: ${error}</h3>
-          <p>You can close this window and try again.</p>
-        </body>
-      </html>
-    `);
-  }
-
-  res.send(`
-    <!DOCTYPE html>
-    <html>
-      <head><title>Authenticating...</title></head>
-      <body style="font-family: sans-serif; text-align: center; padding: 40px;">
-        <script>
-          if (window.opener) {
-            window.opener.postMessage({ 
-              type: 'OAUTH_AUTH_SUCCESS', 
-              code: ${JSON.stringify(code || '')}, 
-              provider: ${JSON.stringify(prov)} 
-            }, '*');
-            window.close();
-          } else {
-            window.location.href = '/';
-          }
-        </script>
-        <h3>Authentication complete</h3>
-        <p>Finalizing session, closing window...</p>
-      </body>
-    </html>
-  `);
-});
-
-// ----------------------------------------------------
-// PASSWORDLESS 6-DIGIT EMAIL OTP AUTHENTICATION
-// ----------------------------------------------------
-
-function formatNameFromEmail(email: string): string {
-  const local = email.split('@')[0];
-  const parts = local.split(/[._-]+/).filter(Boolean);
-  if (parts.length > 0) {
-    return parts
-      .map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase())
-      .join(' ');
-  }
-  return 'Verified Member';
-}
-
-// Configure nodemailer transport with strict timeouts for cloud environments
-let mailTransporter: any = null;
-
-async function getMailTransporter() {
-  if (mailTransporter) return mailTransporter;
-
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    mailTransporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      connectionTimeout: 3000,
-      greetingTimeout: 3000,
-      socketTimeout: 4000,
-    });
-    return mailTransporter;
-  }
-
-  // Attempt live Ethereal test account with 2.5s timeout, falling back gracefully to streamTransport
-  try {
-    const testAccountPromise = nodemailer.createTestAccount();
-    const timeoutPromise = new Promise<null>((_, reject) => 
-      setTimeout(() => reject(new Error('SMTP test account creation timed out')), 2500)
-    );
-    const testAccount = await Promise.race([testAccountPromise, timeoutPromise]) as any;
-
-    if (testAccount && testAccount.smtp) {
-      mailTransporter = nodemailer.createTransport({
-        host: testAccount.smtp.host,
-        port: testAccount.smtp.port,
-        secure: testAccount.smtp.secure,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass,
-        },
-        connectionTimeout: 3000,
-        greetingTimeout: 3000,
-        socketTimeout: 4000,
-      });
-      console.log(`[Email Service] Initialized live SMTP relay account: ${testAccount.user}`);
-      return mailTransporter;
-    }
-  } catch (err) {
-    console.warn('[Email Service] Remote SMTP not reachable, using direct mail stream transport');
-  }
-
-  // Reliable instant stream transport fallback that never hangs
-  mailTransporter = nodemailer.createTransport({
-    streamTransport: true,
-    newline: 'windows',
-    buffer: true,
-  });
-  return mailTransporter;
-}
-
-async function sendVerificationEmail(toEmail: string, otpCode: string, providerName: string = 'ABU Marketplace'): Promise<{ success: boolean; previewUrl: string | null }> {
-  const fromAddress = process.env.SMTP_FROM || '"ABU Marketplace Security" <no-reply@abumarketplace.shop>';
-  const subject = `Your ABU Marketplace Verification Code: ${otpCode}`;
-  const htmlContent = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 28px 20px; background-color: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0;">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <div style="display: inline-block; background-color: #002541; padding: 10px 20px; border-radius: 10px;">
-          <span style="font-size: 18px; font-weight: 900; color: #ffffff; letter-spacing: 0.5px;">ABU <span style="color: #8df7c1;">MARKETPLACE</span></span>
-        </div>
-      </div>
-      <h2 style="color: #0f172a; font-size: 20px; font-weight: 800; text-align: center; margin: 0 0 10px;">Sign-In Verification Code</h2>
-      <p style="color: #475569; font-size: 13px; line-height: 1.5; text-align: center; margin: 0 0 20px;">
-        Please write down and enter this 6-character alphanumeric key in the sign-in form to access your account:
-      </p>
-      <div style="text-align: center; margin: 24px 0;">
-        <div style="display: inline-block; background: #002541; border: 2px solid #00875A; padding: 14px 28px; border-radius: 12px; letter-spacing: 6px; font-size: 28px; font-weight: 900; color: #8df7c1; font-family: monospace;">
-          ${otpCode}
-        </div>
-      </div>
-      <p style="color: #64748b; font-size: 12px; text-align: center; margin: 0 0 6px;">
-        Valid for <strong>10 minutes</strong>. Do not share this code with anyone.
-      </p>
-      <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 0; padding-top: 14px; border-top: 1px solid #f1f5f9;">
-        If you did not request this code, no action is needed. Your account remains secure.
-      </p>
-    </div>
-  `;
-
-  try {
-    const transporter = await getMailTransporter();
-    const sendMailPromise = transporter.sendMail({
-      from: fromAddress,
-      to: toEmail,
-      subject,
-      text: `Your ABU Marketplace verification code is: ${otpCode}. Valid for 10 minutes.`,
-      html: htmlContent,
-    });
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('SendMail timed out')), 2500)
-    );
-    const info: any = await Promise.race([sendMailPromise, timeoutPromise]);
-    const previewUrl = nodemailer.getTestMessageUrl(info) || null;
-    console.log(`[Email Dispatch] Transmitted verification code to ${toEmail}. MessageId: ${info?.messageId || 'local-sent'}. Live Preview: ${previewUrl}`);
-    return { success: true, previewUrl: typeof previewUrl === 'string' ? previewUrl : null };
-  } catch (err) {
-    console.warn(`[Email Dispatch Notice] Mail attempt for ${toEmail}:`, err);
-    return { success: false, previewUrl: null };
-  }
-}
-
-// 1. Dispatch 6-digit alphanumeric OTP to email
-app.post('/api/custom-auth/email-otp/send', async (req: Request, res: Response) => {
-  try {
-    const { email, provider } = req.body;
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
-      return res.status(400).json({ success: false, error: 'Please enter a valid email address.' });
-    }
-
-    const cleanEmail = email.trim().toLowerCase();
-    const prov = provider || 'google';
-    const otpCode = generateAlphanumericOtp(6);
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    // Store in verification table
-    db.prepare('DELETE FROM verification WHERE identifier = ?').run(cleanEmail);
-    db.prepare(`
-      INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(`v_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`, cleanEmail, otpCode, expiresAt, Date.now(), Date.now());
-
-    // Dispatch real email via nodemailer
-    const dispatchResult = await sendVerificationEmail(cleanEmail, otpCode, prov === 'google' ? 'Google' : 'ABU Marketplace');
-
-    res.json({
-      success: true,
-      message: `A 6-character verification code has been dispatched to ${cleanEmail}.`,
-      email: cleanEmail,
-      previewUrl: dispatchResult.previewUrl,
-      code: otpCode, // Guaranteed fallback so login works 100% of the time for any email
-    });
-  } catch (err: any) {
-    console.error('Error sending email OTP:', err);
-    res.status(500).json({ success: false, error: err.message || 'Failed to dispatch code' });
-  }
-});
-
-// 2. Verify 6-digit alphanumeric OTP and establish session
-app.post('/api/custom-auth/email-otp/verify', async (req: Request, res: Response) => {
-  try {
-    const { email, code, provider } = req.body;
-    if (!email || !code) {
-      return res.status(400).json({ success: false, error: 'Email and verification code are required.' });
-    }
-
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanCode = code.trim().toUpperCase();
-    const prov = provider || 'google';
-
-    const record = db.prepare('SELECT * FROM verification WHERE identifier = ? AND expiresAt > ?').get(cleanEmail, Date.now()) as any;
-
-    if (!record || record.value.toUpperCase() !== cleanCode) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid or expired verification code. Please check your inbox or request a new code.',
-      });
-    }
-
-    // Code matched - delete used code
-    db.prepare('DELETE FROM verification WHERE identifier = ?').run(cleanEmail);
-
-    // Find or create real user
-    let user = db.prepare('SELECT * FROM user WHERE email = ?').get(cleanEmail) as any;
-
-    if (!user) {
-      const generatedName = formatNameFromEmail(cleanEmail);
-      const generatedPassword = `NoPass_${Date.now()}_${Math.random().toString(36).substring(2)}!`;
-      const signUpRes = await (auth.api as any).signUpEmail({
-        body: {
-          name: generatedName,
-          email: cleanEmail,
-          password: generatedPassword,
-          role: 'buyer',
-          preferredCity: 'Freetown (Central / CBD)',
-        },
-      });
-      user = signUpRes.user;
-    }
-
-    // Set avatar and provider
-    const avatar = user.image || (
-      prov === 'google'
-        ? `https://api.dicebear.com/7.x/identicon/svg?seed=G_${encodeURIComponent(cleanEmail)}&backgroundColor=4285F4,34A853`
-        : prov === 'facebook'
-        ? `https://api.dicebear.com/7.x/identicon/svg?seed=FB_${encodeURIComponent(cleanEmail)}&backgroundColor=1877F2,0D65D9`
-        : `https://api.dicebear.com/7.x/identicon/svg?seed=AP_${encodeURIComponent(cleanEmail)}&backgroundColor=000000,111827`
-    );
-
-    try {
-      db.prepare('UPDATE user SET provider = ?, image = ?, emailVerified = 1 WHERE id = ?').run(prov, avatar, user.id);
-    } catch {}
-
-    user.provider = prov;
-    user.image = avatar;
-    user.emailVerified = 1;
-
-    // Create session token
-    const token = `otp_${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`;
-    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
-    db.prepare(`
-      INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(`sess_${Date.now()}`, expiresAt, token, Date.now(), Date.now(), user.id);
-
-    res.json({
-      success: true,
-      user: {
-        ...user,
-        provider: prov,
-        image: avatar,
-      },
-      token,
-    });
-  } catch (err: any) {
-    console.error('Error verifying email OTP:', err);
-    res.status(500).json({ success: false, error: err.message || 'Verification failed' });
-  }
-});
-
-// 3. Instant Google One-Tap / Account Chooser Sign-In (GIS)
-app.post('/api/custom-auth/google-gis', async (req: Request, res: Response) => {
-  try {
-    const { credential } = req.body;
-    if (!credential || typeof credential !== 'string') {
-      return res.status(400).json({ success: false, error: 'Google credential token is required' });
-    }
-
-    const parts = credential.split('.');
-    if (parts.length < 2) {
-      return res.status(400).json({ success: false, error: 'Invalid Google credential token' });
-    }
-
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-    const { email, name, picture } = payload;
-
-    if (!email) {
-      return res.status(400).json({ success: false, error: 'Email not found in Google credential' });
-    }
-
-    const cleanEmail = email.trim().toLowerCase();
-    const userName = name || formatNameFromEmail(cleanEmail);
-
-    let user = db.prepare('SELECT * FROM user WHERE email = ?').get(cleanEmail) as any;
-    if (!user) {
-      const generatedPassword = `GIS_${Date.now()}_${Math.random().toString(36).substring(2)}!`;
-      const signUpRes = await (auth.api as any).signUpEmail({
-        body: {
-          name: userName,
-          email: cleanEmail,
-          password: generatedPassword,
-          role: 'buyer',
-          preferredCity: 'Freetown (Central / CBD)',
-        },
-      });
-      user = signUpRes.user;
-    }
-
-    const avatar = picture || user.image || `https://api.dicebear.com/7.x/identicon/svg?seed=G_${encodeURIComponent(cleanEmail)}&backgroundColor=4285F4,34A853`;
-
-    try {
-      db.prepare('UPDATE user SET provider = ?, image = ?, emailVerified = 1 WHERE id = ?').run('google', avatar, user.id);
-    } catch {}
-
-    user.provider = 'google';
-    user.image = avatar;
-    user.emailVerified = 1;
-
-    const token = `gis_${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`;
-    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
-    db.prepare(`
-      INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(`sess_${Date.now()}`, expiresAt, token, Date.now(), Date.now(), user.id);
-
-    res.json({
-      success: true,
-      user: {
-        ...user,
-        provider: 'google',
-        image: avatar,
-      },
-      token,
-    });
-  } catch (err: any) {
-    console.error('Error in Google GIS sign-in:', err);
-    res.status(500).json({ success: false, error: err.message || 'Google account sign-in failed' });
-  }
-});
-
-// Real User Social Sign-In / Account Link Endpoint
-app.post('/api/custom-auth/social', async (req: Request, res: Response) => {
-  try {
-    const { provider, fullName, email, password, preferredCity } = req.body;
-    const prov = provider === 'apple' ? 'apple' : provider === 'facebook' ? 'facebook' : 'google';
-
-    if (!email || typeof email !== 'string' || !email.includes('@')) {
-      return res.status(400).json({
-        success: false,
-        requireCredentials: true,
-        error: `Please enter a valid ${prov.charAt(0).toUpperCase() + prov.slice(1)} account email address.`,
-      });
-    }
-
-    const userEmail = email.trim().toLowerCase();
-    const userName = (fullName && fullName.trim()) || userEmail.split('@')[0];
-    const userCity = preferredCity?.trim() || 'Freetown (Central / CBD)';
-
-    let user = db.prepare('SELECT * FROM user WHERE email = ?').get(userEmail) as any;
-
-    if (user) {
-      // Existing real user account - verify password if password was provided
-      if (password) {
-        try {
-          const signInRes = await (auth.api as any).signInEmail({
-            body: { email: userEmail, password },
-          });
-          if (signInRes?.user) {
-            user = signInRes.user;
-          }
-        } catch (pwErr: any) {
-          return res.status(401).json({
-            success: false,
-            error: 'Incorrect password for this account. Please enter the correct password to continue.',
-          });
-        }
-      }
-    } else {
-      // Create new real account with secure credentials in SQLite
-      const passToUse = password || `Social_${Math.random().toString(36).substring(2)}!A9`;
-      const signUpRes = await (auth.api as any).signUpEmail({
-        body: {
-          name: userName,
-          email: userEmail,
-          password: passToUse,
-          preferredCity: userCity,
-          role: 'buyer',
-        },
-      });
-      user = signUpRes.user;
-    }
-
-    // Set real avatar and provider in SQLite database
-    const avatar = user.image || (
-      prov === 'google'
-        ? `https://api.dicebear.com/7.x/identicon/svg?seed=G_${encodeURIComponent(userEmail)}&backgroundColor=4285F4,34A853`
-        : prov === 'facebook'
-        ? `https://api.dicebear.com/7.x/identicon/svg?seed=FB_${encodeURIComponent(userEmail)}&backgroundColor=1877F2,0D65D9`
-        : `https://api.dicebear.com/7.x/identicon/svg?seed=AP_${encodeURIComponent(userEmail)}&backgroundColor=000000,111827`
-    );
-
-    try {
-      db.prepare('UPDATE user SET provider = ?, image = ? WHERE id = ?').run(prov, avatar, user.id);
-    } catch {}
-
-    user.provider = prov;
-    user.image = avatar;
-
-    const token = `soc_${Math.random().toString(36).substring(2)}${Date.now().toString(36)}`;
-    const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
-    db.prepare(`
-      INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, userId)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(`sess_${Date.now()}`, expiresAt, token, Date.now(), Date.now(), user.id);
-
-    res.json({
-      success: true,
-      user: {
-        ...user,
-        provider: prov,
-        image: avatar,
-      },
-      token,
-    });
-  } catch (err: any) {
-    console.error('Error in social auth:', err);
-    res.status(500).json({ success: false, error: err.message || 'Failed social login' });
-  }
-});
-
-// Current Authenticated Session
+// Current authenticated session
 app.get('/api/custom-auth/me', async (req: Request, res: Response) => {
   try {
-    const session = await getBetterAuthSession(req);
-    if (session && session.user) {
-      return res.json({
-        success: true,
-        user: session.user,
-        session: session.session,
-      });
-    }
-
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      const sess = db.prepare('SELECT * FROM session WHERE token = ? AND expiresAt > ?').get(token, Date.now()) as any;
-      if (sess) {
-        const u = db.prepare('SELECT * FROM user WHERE id = ?').get(sess.userId) as any;
-        if (u) {
-          return res.json({
-            success: true,
-            user: u,
-            session: sess,
-          });
-        }
-      }
-    }
-
-    res.json({ success: false, user: null });
+    const user = await getSessionUser(req);
+    if (!user) return res.json({ success: false, user: null });
+    res.json({ success: true, user });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Update Profile
+// Update profile
 app.post('/api/custom-auth/update-profile', async (req: Request, res: Response) => {
   try {
-    let userId: string | null = null;
-    const session = await getBetterAuthSession(req);
-    if (session?.user) {
-      userId = session.user.id;
-    } else {
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        const sess = db.prepare('SELECT userId FROM session WHERE token = ?').get(token) as any;
-        if (sess) userId = sess.userId;
-      }
-    }
-
-    if (!userId) {
+    const current = await getSessionUser(req);
+    if (!current) {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
 
-    const { name, role, preferredCity } = req.body;
-    if (name) db.prepare('UPDATE user SET name = ? WHERE id = ?').run(name.trim(), userId);
-    if (role) db.prepare('UPDATE user SET role = ? WHERE id = ?').run(role, userId);
-    if (preferredCity) db.prepare('UPDATE user SET preferredCity = ? WHERE id = ?').run(preferredCity, userId);
+    const { name, role, preferredCity } = req.body || {};
+    const updates: Record<string, any> = {};
 
-    const updated = db.prepare('SELECT * FROM user WHERE id = ?').get(userId);
-    res.json({ success: true, user: updated });
+    if (typeof name === 'string' && name.trim()) updates.name = name.trim().slice(0, 100);
+    if (typeof preferredCity === 'string' && preferredCity.trim()) {
+      updates.preferred_city = preferredCity.trim().slice(0, 100);
+    }
+    // Privileged accounts keep their role; everyone else may pick a self-service role only
+    const isPrivileged = current.role === 'admin' || current.role === 'logistics_agent';
+    if (!isPrivileged && typeof role === 'string' && SELF_SERVICE_ROLES.includes(role)) {
+      updates.role = role;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      const { error } = await supabaseAdmin.from('profiles').update(updates).eq('id', current.id);
+      if (error) throw error;
+    }
+
+    const user = await getSessionUser(req);
+    res.json({ success: true, user });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -1004,11 +394,11 @@ app.get('/api/locations', (req: Request, res: Response) => {
 // 4. Orders API (Secured with Row-Level Security via Better Auth)
 app.get('/api/orders', async (req: Request, res: Response) => {
   // Extract Better Auth session context if available
-  const authSession = await getBetterAuthSession(req);
-  const authUser = authSession?.user as any;
+  const authUser: any = await getSessionUser(req);
 
   // Extract caller security context from session or fallback headers/query
-  const callerRole = authUser?.role || (req.headers['x-user-role'] as string) || 'buyer';
+  // Role comes only from the verified session, never from a request header
+  const callerRole = authUser?.role || 'buyer';
   const callerPhone = authUser?.phoneNumber || (req.headers['x-user-phone'] as string) || (req.query.phone as string);
   const callerUserId = authUser?.id || (req.headers['x-user-id'] as string) || (req.query.userId as string);
 
@@ -1093,8 +483,8 @@ app.post('/api/orders', async (req: Request, res: Response) => {
 
   const trackingNumber = `ABU-SL-${Math.floor(10000 + Math.random() * 90000)}`;
 
-  const session = await getBetterAuthSession(req);
-  const buyerId = session?.user?.id || (req.headers['x-user-id'] as string) || req.body.buyerId || undefined;
+  const sessionUser: any = await getSessionUser(req);
+  const buyerId = sessionUser?.id || undefined;
 
   const newOrder = {
     id: `ord-${Date.now()}`,
