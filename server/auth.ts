@@ -1,3 +1,7 @@
+// Load .env before reading any variable (ES imports run before server.ts calls dotenv.config())
+import 'dotenv/config';
+import fs from 'node:fs';
+import tls from 'node:tls';
 import pg from 'pg';
 import { betterAuth } from 'better-auth';
 import { bearer, phoneNumber } from 'better-auth/plugins';
@@ -5,12 +9,77 @@ import { Request } from 'express';
 import { generateAlphanumericOtp } from './otp.ts';
 import { dash, createSMSSender } from '@better-auth/infra';
 
+// Supabase signs its database certificates with a private root CA that is not in
+// Node's trust store, so it is bundled to keep full certificate verification on.
+const SUPABASE_ROOT_CA = new URL('../certs/supabase-root-2021-ca.pem', import.meta.url);
+
+function trustedCAs(): string[] {
+  const override = process.env.DATABASE_SSL_CA;
+  const custom = override
+    ? override.includes('BEGIN CERTIFICATE')
+      ? override
+      : fs.readFileSync(override, 'utf8')
+    : fs.readFileSync(SUPABASE_ROOT_CA, 'utf8');
+  // Keep the public roots so non-Supabase databases still verify normally.
+  return [custom, ...tls.rootCertificates];
+}
+
+// pg reads sslmode out of the URL itself and that would override the ssl config
+// below, so it is removed and handled here instead.
+function withoutSslMode(connectionString: string): string {
+  const [base, ...query] = connectionString.split('?');
+  if (query.length === 0) return connectionString;
+  const rest = query
+    .join('?')
+    .split('&')
+    .filter((param) => !/^sslmode=/i.test(param));
+  return rest.length > 0 ? `${base}?${rest.join('&')}` : base;
+}
+
+/**
+ * Builds the Postgres pool config. TLS certificates are always verified (chain
+ * and hostname) unless explicitly opted out of — see DATABASE_SSL_NO_VERIFY.
+ */
+function postgresConfig(): pg.PoolConfig {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    console.error('[db] DATABASE_URL is not set; the Postgres pool cannot connect.');
+    return { max: 5 };
+  }
+
+  let sslMode = process.env.DATABASE_SSL_MODE?.toLowerCase();
+  try {
+    const parsed = new URL(connectionString);
+    sslMode = parsed.searchParams.get('sslmode')?.toLowerCase() || sslMode;
+  } catch {
+    console.error('[db] DATABASE_URL is not a valid URL; TLS verification uses defaults.');
+  }
+
+  const cleaned = withoutSslMode(connectionString);
+
+  if (sslMode === 'disable') {
+    console.warn('[db] WARNING: TLS is disabled for the Postgres connection (sslmode=disable).');
+    return { connectionString: cleaned, max: 5 };
+  }
+
+  if (sslMode === 'no-verify' || process.env.DATABASE_SSL_NO_VERIFY === 'true') {
+    console.warn(
+      '[db] WARNING: Postgres TLS certificate verification is DISABLED. ' +
+        'Traffic is encrypted but the server identity is not checked, so this is open to ' +
+        'man-in-the-middle attacks. Remove DATABASE_SSL_NO_VERIFY to restore verification.',
+    );
+    return { connectionString: cleaned, ssl: { rejectUnauthorized: false }, max: 5 };
+  }
+
+  return {
+    connectionString: cleaned,
+    ssl: { rejectUnauthorized: true, ca: trustedCAs() },
+    max: 5,
+  };
+}
+
 // Postgres (Supabase) connection
-export const pool = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
-  max: 5,
-});
+export const pool = new pg.Pool(postgresConfig());
 
 // Columns that Postgres needs in double quotes because they are camelCase
 const QUOTE = [
