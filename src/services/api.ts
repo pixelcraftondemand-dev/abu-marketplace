@@ -8,6 +8,42 @@ import {
   BlueCollarService, 
   ServiceBooking 
 } from '../types';
+import { supabase } from '../lib/supabase';
+
+// Admin/merchant endpoints are Bearer-authenticated, so pull the live token
+async function authToken(): Promise<string> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error('Please sign in to continue');
+  return token;
+}
+
+export type ReviewStatus = 'pending' | 'approved' | 'rejected';
+
+export interface StoreSubmission {
+  id: string;
+  owner_id: string | null;
+  owner_email: string;
+  owner_name: string | null;
+  name: string;
+  slug: string;
+  tagline: string | null;
+  description: string | null;
+  location_hub: string | null;
+  province: string | null;
+  street_address: string | null;
+  phone: string;
+  payout_provider: string | null;
+  payout_phone: string | null;
+  logo: string | null;
+  status: ReviewStatus;
+  review_note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_store_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export const api = {
   // 1. Fetch products
@@ -161,6 +197,74 @@ export const api = {
       console.warn('API error creating store:', err);
       return null;
     }
+  },
+
+  /**
+   * Merchant: submit a store for review. Returns the pending application — the
+   * store only becomes public once an admin approves it.
+   */
+  async submitStoreApplication(storeData: Partial<VendorStore>): Promise<{
+    submission: StoreSubmission;
+    emailStatus: 'sent' | 'logged' | 'failed';
+  }> {
+    const token = await authToken();
+    const res = await fetch('/api/stores/submissions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(storeData),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Could not submit your store');
+    return { submission: data.data as StoreSubmission, emailStatus: data.emailStatus };
+  },
+
+  /** Merchant: my own applications, for showing pending/rejected status. */
+  async getMyStoreApplications(): Promise<StoreSubmission[]> {
+    const token = await authToken();
+    const res = await fetch('/api/stores/submissions/mine', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Could not load your applications');
+    return data.data as StoreSubmission[];
+  },
+
+  /** Admin: the review queue. */
+  async getStoreSubmissions(status?: ReviewStatus): Promise<StoreSubmission[]> {
+    const token = await authToken();
+    const query = status ? `?status=${status}` : '';
+    const res = await fetch(`/api/admin/store-submissions${query}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Could not load the review queue');
+    return data.data as StoreSubmission[];
+  },
+
+  /** Admin: approve a pending application, publishing the store and emailing the merchant. */
+  async approveStoreSubmission(id: string, note?: string): Promise<{ submission: StoreSubmission; emailStatus: string }> {
+    const token = await authToken();
+    const res = await fetch(`/api/admin/store-submissions/${id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ note }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Could not approve the application');
+    return { submission: data.data as StoreSubmission, emailStatus: data.emailStatus };
+  },
+
+  /** Admin: reject a pending application with a reason that is emailed to the merchant. */
+  async rejectStoreSubmission(id: string, reason: string): Promise<{ submission: StoreSubmission; emailStatus: string }> {
+    const token = await authToken();
+    const res = await fetch(`/api/admin/store-submissions/${id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ reason }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) throw new Error(data.error || 'Could not reject the application');
+    return { submission: data.data as StoreSubmission, emailStatus: data.emailStatus };
   },
 
   // 8. Blue-Collar Services API

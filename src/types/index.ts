@@ -25,7 +25,8 @@ export type Category =
   | 'Power Tools & Safety Gear'
   | 'Vehicles & E-Bikes'
   | 'Books, Art & Stationery'
-  | 'Blue Collar Services';
+  | 'Blue Collar Services'
+  | 'Others';
 
 export type ItemCondition = 'brand_new' | 'like_new' | 'used';
 

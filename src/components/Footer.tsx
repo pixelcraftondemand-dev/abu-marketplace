@@ -8,6 +8,7 @@ interface FooterProps {
   onOpenOrderTracking: () => void;
   onOpenLegal?: (docId?: string) => void;
   onOpenCMS?: () => void;
+  onOpenStoreApprovals?: () => void;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -16,6 +17,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenOrderTracking,
   onOpenLegal,
   onOpenCMS,
+  onOpenStoreApprovals,
 }) => {
   return (
     <footer className="bg-[#002541] text-white pt-8 pb-8 border-t border-[#144b77] mt-12 w-full max-w-full overflow-hidden">
@@ -227,6 +229,18 @@ export const Footer: React.FC<FooterProps> = ({
                 title="Admin Content Management System"
               >
                 <span>Admin CMS</span>
+              </button>
+            </>
+          )}
+          {onOpenStoreApprovals && (
+            <>
+              <span>•</span>
+              <button
+                onClick={onOpenStoreApprovals}
+                className="hover:text-amber-300 text-slate-400 hover:underline cursor-pointer flex items-center gap-1"
+                title="Review and approve merchant store applications"
+              >
+                <span>Store approvals</span>
               </button>
             </>
           )}

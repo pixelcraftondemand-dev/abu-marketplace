@@ -13,12 +13,22 @@ import {
   ExternalLink,
   KeyRound,
   Check,
-  User
+  User,
+  Eye,
+  EyeOff,
+  Lock,
+  UserPlus
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { AbuLogo } from './AbuLogo';
 import { EcommerceDoodles } from './EcommerceDoodles';
-import { sendEmailOtp, verifyEmailOtp, quickSocialLogin } from '../lib/auth-client';
+import {
+  sendEmailOtp,
+  verifyEmailOtp,
+  quickSocialLogin,
+  signInWithBetterAuthEmail,
+  signUpWithBetterAuthEmail,
+} from '../lib/auth-client';
 
 declare global {
   interface Window {
@@ -38,7 +48,8 @@ export interface AuthModalProps {
   initialEmailMode?: string;
 }
 
-type AuthStep = 'email_input' | 'google_account_select' | 'otp_verify' | 'success';
+type AuthStep = 'email_input' | 'google_account_select' | 'otp_verify' | 'password_auth' | 'success';
+type PasswordMode = 'signin' | 'signup';
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
@@ -66,6 +77,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [countdown, setCountdown] = useState(60);
 
+  // Email + password sign in / sign up
+  const [passwordMode, setPasswordMode] = useState<PasswordMode>('signin');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [signupCity, setSignupCity] = useState('Freetown (Central / CBD)');
+  const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
+
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const googleTokenClient = useRef<any>(null);
 
@@ -85,6 +106,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setCodeCopied(false);
       setShowCustomGoogleInput(false);
       setCustomGoogleEmail('');
+      setPasswordMode('signin');
+      setPassword('');
+      setConfirmPassword('');
+      setFullName('');
+      setShowPassword(false);
+      setFieldErrors({});
+      setConfirmationEmail(null);
     }
   }, [isOpen, currentUser]);
 
@@ -154,6 +182,89 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setTimeout(() => {
       onClose();
     }, 1200);
+  };
+
+  // Validate the email/password forms and surface precise, per-field errors
+  const validatePasswordForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    const emailValue = email.trim();
+
+    if (!emailValue) errors.email = 'Enter your email address';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailValue)) {
+      errors.email = 'That does not look like a valid email address';
+    }
+
+    if (!password) errors.password = 'Enter your password';
+    else if (password.length < 8) errors.password = 'Use at least 8 characters';
+
+    if (passwordMode === 'signup') {
+      if (!fullName.trim()) errors.fullName = 'Enter your full name';
+      if (!confirmPassword) errors.confirmPassword = 'Confirm your password';
+      else if (confirmPassword !== password) errors.confirmPassword = 'Passwords do not match';
+    }
+
+    setFieldErrors(errors);
+
+    if (passwordMode === 'signup' && !agreedToTerms) {
+      setTermsError(true);
+      return false;
+    }
+    return Object.keys(errors).length === 0;
+  };
+
+  // Email + password submit: sign in, or sign up and handle the confirm-email state
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    if (!validatePasswordForm()) return;
+
+    setIsSubmitting(true);
+    try {
+      if (passwordMode === 'signin') {
+        const user = await signInWithBetterAuthEmail(email, password);
+        handleAuthCompletion(user);
+      } else {
+        const result = await signUpWithBetterAuthEmail({
+          name: fullName,
+          email,
+          password,
+          preferredCity: signupCity,
+        });
+
+        if (result.status === 'confirmation_required') {
+          // Account exists but Supabase wants the inbox confirmed first.
+          setConfirmationEmail(result.email);
+          setPassword('');
+          setConfirmPassword('');
+        } else {
+          handleAuthCompletion(result.user);
+        }
+      }
+    } catch (err: any) {
+      const message = err?.message || 'Something went wrong. Please try again.';
+      // Map the most common Supabase errors onto actionable copy
+      if (/invalid login credentials/i.test(message)) {
+        setErrorMessage('Email or password is incorrect. Check both and try again.');
+      } else if (/already registered|already exists/i.test(message)) {
+        setErrorMessage('An account with that email already exists. Try signing in instead.');
+      } else if (/email not confirmed/i.test(message)) {
+        setConfirmationEmail(email.trim().toLowerCase());
+      } else {
+        setErrorMessage(message);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const switchPasswordMode = (mode: PasswordMode) => {
+    setPasswordMode(mode);
+    setErrorMessage('');
+    setFieldErrors({});
+    setTermsError(false);
+    setPassword('');
+    setConfirmPassword('');
+    setConfirmationEmail(null);
   };
 
   // Execute Google Authentication with instant session establishment
@@ -566,6 +677,263 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </div>
             </div>
+          ) : step === 'password_auth' ? (
+            /* ---------------------------------------------------- */
+            /* EMAIL + PASSWORD SIGN IN / SIGN UP                    */
+            /* ---------------------------------------------------- */
+            <div>
+              <div className="text-center mb-4">
+                <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                  {confirmationEmail ? 'Confirm your email' : passwordMode === 'signin' ? 'Sign In to ABU' : 'Create your ABU account'}
+                </h2>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-[300px] mx-auto leading-relaxed font-medium">
+                  {confirmationEmail
+                    ? 'One more step before you can sign in.'
+                    : passwordMode === 'signin'
+                      ? 'Use the email and password you registered with.'
+                      : 'Join ABU Marketplace to shop, sell and track your orders.'}
+                </p>
+              </div>
+
+              {confirmationEmail ? (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800">
+                    <div className="flex items-start gap-2.5">
+                      <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+                      <div className="text-xs text-emerald-900 dark:text-emerald-100 font-medium leading-relaxed">
+                        <p className="font-extrabold mb-1">Account created</p>
+                        <p>
+                          We sent a confirmation link to{' '}
+                          <span className="font-bold break-all">{confirmationEmail}</span>. Open it,
+                          then come back and sign in with your password.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmationEmail(null);
+                      switchPasswordMode('signin');
+                    }}
+                    className="w-full h-11 bg-gradient-to-r from-[#00875A] to-[#009E69] hover:from-[#00704A] hover:to-[#00875A] text-white rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+                  >
+                    <span>Back to sign in</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Mode tabs */}
+                  <div className="mb-4 grid grid-cols-2 gap-1 p-1 bg-slate-100 dark:bg-[#031526] rounded-xl border border-slate-200 dark:border-[#133552]">
+                    {(['signin', 'signup'] as PasswordMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => switchPasswordMode(mode)}
+                        className={`h-9 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                          passwordMode === mode
+                            ? 'bg-white dark:bg-[#0B3B60] text-[#0B3B60] dark:text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        {mode === 'signin' ? 'Sign In' : 'Sign Up'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {errorMessage && (
+                    <div className="mb-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border-2 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2 font-medium">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                      <span>{errorMessage}</span>
+                    </div>
+                  )}
+
+                  <form onSubmit={handlePasswordSubmit} className="space-y-3.5" noValidate>
+                    {passwordMode === 'signup' && (
+                      <div>
+                        <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-100 mb-1.5">
+                          Full Name *
+                        </label>
+                        <div className="relative">
+                          <User className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            placeholder="e.g. Aminata Kamara"
+                            autoComplete="name"
+                            className="w-full h-11 pl-10 pr-3 rounded-xl border-2 border-slate-300 dark:border-[#1E4366] bg-white dark:bg-[#041424] text-slate-900 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#00875A] focus:ring-4 focus:ring-[#00875A]/20 transition-all placeholder-slate-400 dark:placeholder-slate-500"
+                          />
+                        </div>
+                        {fieldErrors.fullName && (
+                          <p className="mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">{fieldErrors.fullName}</p>
+                        )}
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-100 mb-1.5">
+                        Email Address *
+                      </label>
+                      <div className="relative">
+                        <Mail className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="e.g. yourname@gmail.com"
+                          autoComplete="email"
+                          className="w-full h-11 pl-10 pr-3 rounded-xl border-2 border-slate-300 dark:border-[#1E4366] bg-white dark:bg-[#041424] text-slate-900 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#00875A] focus:ring-4 focus:ring-[#00875A]/20 transition-all placeholder-slate-400 dark:placeholder-slate-500"
+                        />
+                      </div>
+                      {fieldErrors.email && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">{fieldErrors.email}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-100 mb-1.5">
+                        Password *
+                      </label>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder={passwordMode === 'signup' ? 'At least 8 characters' : 'Your password'}
+                          autoComplete={passwordMode === 'signup' ? 'new-password' : 'current-password'}
+                          className="w-full h-11 pl-10 pr-11 rounded-xl border-2 border-slate-300 dark:border-[#1E4366] bg-white dark:bg-[#041424] text-slate-900 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#00875A] focus:ring-4 focus:ring-[#00875A]/20 transition-all placeholder-slate-400 dark:placeholder-slate-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((v) => !v)}
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white cursor-pointer"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {fieldErrors.password && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">{fieldErrors.password}</p>
+                      )}
+                    </div>
+
+                    {passwordMode === 'signup' && (
+                      <>
+                        <div>
+                          <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-100 mb-1.5">
+                            Confirm Password *
+                          </label>
+                          <div className="relative">
+                            <Lock className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <input
+                              type={showPassword ? 'text' : 'password'}
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              placeholder="Repeat your password"
+                              autoComplete="new-password"
+                              className="w-full h-11 pl-10 pr-3 rounded-xl border-2 border-slate-300 dark:border-[#1E4366] bg-white dark:bg-[#041424] text-slate-900 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#00875A] focus:ring-4 focus:ring-[#00875A]/20 transition-all placeholder-slate-400 dark:placeholder-slate-500"
+                            />
+                          </div>
+                          {fieldErrors.confirmPassword && (
+                            <p className="mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">{fieldErrors.confirmPassword}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-100 mb-1.5">
+                            Delivery City
+                          </label>
+                          <input
+                            type="text"
+                            value={signupCity}
+                            onChange={(e) => setSignupCity(e.target.value)}
+                            placeholder="e.g. Freetown (Central / CBD)"
+                            className="w-full h-11 px-3 rounded-xl border-2 border-slate-300 dark:border-[#1E4366] bg-white dark:bg-[#041424] text-slate-900 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#00875A] focus:ring-4 focus:ring-[#00875A]/20 transition-all placeholder-slate-400 dark:placeholder-slate-500"
+                          />
+                        </div>
+
+                        <div className={`p-2.5 bg-slate-50 dark:bg-[#031526] rounded-xl border border-slate-200 dark:border-[#133552] ${termsError ? 'ring-2 ring-rose-500 bg-rose-50 dark:bg-rose-950/40' : ''}`}>
+                          <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={agreedToTerms}
+                              onChange={(e) => {
+                                setAgreedToTerms(e.target.checked);
+                                if (e.target.checked) setTermsError(false);
+                              }}
+                              className="mt-0.5 w-4 h-4 rounded text-[#00875A] border-slate-300 dark:border-slate-500 focus:ring-[#00875A] cursor-pointer shrink-0"
+                            />
+                            <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300 font-medium">
+                              I agree to Abu Marketplace's{' '}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  onOpenTerms?.();
+                                }}
+                                className="underline text-slate-900 dark:text-white hover:text-[#00875A] font-bold"
+                              >
+                                Terms
+                              </button>{' '}
+                              and{' '}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  onOpenPrivacy?.();
+                                }}
+                                className="underline text-slate-900 dark:text-white hover:text-[#00875A] font-bold"
+                              >
+                                Privacy Policy
+                              </button>
+                            </span>
+                          </label>
+                          {termsError && (
+                            <p className="mt-1 ml-7 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                              Please accept the Terms and Privacy Policy to continue
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full h-11 bg-gradient-to-r from-[#00875A] to-[#009E69] hover:from-[#00704A] hover:to-[#00875A] disabled:opacity-60 text-white rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.99] border border-[#00603f] transition-all cursor-pointer"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-white" />
+                          <span>{passwordMode === 'signin' ? 'Signing in...' : 'Creating account...'}</span>
+                        </>
+                      ) : (
+                        <>
+                          {passwordMode === 'signin' ? <KeyRound className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                          <span>{passwordMode === 'signin' ? 'Sign In' : 'Create Account'}</span>
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorMessage('');
+                  setFieldErrors({});
+                  setStep('email_input');
+                }}
+                className="mt-3 w-full h-9 text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:text-[#00875A] dark:hover:text-[#8df7c1] flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Use a one-time email code instead
+              </button>
+            </div>
           ) : step === 'email_input' ? (
             /* ---------------------------------------------------- */
             /* PRIORITY 3: DIRECT EMAIL INPUT (High Contrast UI)    */
@@ -626,6 +994,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   )}
                 </button>
               </form>
+
+              {/* Email + password alternative */}
+              <div className="mt-2 flex items-center justify-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                <span>Have a password?</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMessage('');
+                    setFieldErrors({});
+                    switchPasswordMode('signin');
+                    setStep('password_auth');
+                  }}
+                  className="font-extrabold text-[#00875A] dark:text-[#8df7c1] hover:underline cursor-pointer"
+                >
+                  Sign in or create an account
+                </button>
+              </div>
 
               {/* Or Divider */}
               <div className="relative my-4 flex items-center justify-center">

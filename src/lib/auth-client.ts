@@ -118,15 +118,25 @@ export async function signInWithBetterAuthEmail(email: string, password: string)
 /**
  * 4. Sign up with email, password and Sierra Leone profile fields
  */
+/**
+ * Sign-up either establishes a session immediately, or asks the user to confirm
+ * their email first. That second case is a normal outcome, not an error, so it
+ * is returned as a state the UI can render.
+ */
+export type SignUpResult =
+  | { status: 'signed_in'; user: UserProfile }
+  | { status: 'confirmation_required'; email: string };
+
 export async function signUpWithBetterAuthEmail(params: {
   name: string;
   email: string;
   password: string;
   phoneNumber?: string;
   preferredCity?: string;
-}): Promise<UserProfile> {
+}): Promise<SignUpResult> {
+  const email = params.email.trim().toLowerCase();
   const { data, error } = await supabase.auth.signUp({
-    email: params.email.trim(),
+    email,
     password: params.password,
     options: {
       data: {
@@ -138,10 +148,11 @@ export async function signUpWithBetterAuthEmail(params: {
   if (error) throw new Error(error.message || 'Registration failed');
   if (!data.user) throw new Error('Account created but user data missing');
   if (!data.session) {
-    // Email confirmation is on: the user must confirm before signing in
-    throw new Error('Account created. Check your email to confirm it, then sign in.');
+    // Email confirmation is enabled in Supabase: the account exists but the
+    // user must click the link (or enter the code) before they can sign in.
+    return { status: 'confirmation_required', email };
   }
-  return buildProfile(data.user, 'email');
+  return { status: 'signed_in', user: await buildProfile(data.user, 'email') };
 }
 
 /**

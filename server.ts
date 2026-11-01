@@ -10,6 +10,32 @@ import { Product, VendorStore, BlueCollarService, ServiceBooking } from './src/t
 import { INITIAL_PRODUCTS, INITIAL_STORES, INITIAL_SERVICES } from './src/data/mockData.ts';
 
 import { supabaseAdmin, getSessionUser } from './server/supabase.ts';
+import {
+  approveSubmission,
+  approvedStores,
+  createSubmission,
+  isAdmin,
+  listSubmissions,
+  rejectSubmission,
+  SubmissionError,
+  type SubmissionStatus,
+} from './server/storeSubmissions.ts';
+import { recentMail } from './server/mailer.ts';
+
+/** Resolves the signed-in caller, or null. Used to gate submissions and the admin queue. */
+async function currentActor(req: Request) {
+  const user: any = await getSessionUser(req);
+  if (!user) return null;
+  return { id: user.id, email: user.email, name: user.name, role: user.role };
+}
+
+function submissionErrorResponse(res: Response, err: unknown) {
+  if (err instanceof SubmissionError) {
+    return res.status(err.status).json({ success: false, error: err.message, code: err.code });
+  }
+  console.error('[stores] unexpected submission error:', err);
+  return res.status(500).json({ success: false, error: 'Something went wrong. Please try again.' });
+}
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -544,13 +570,26 @@ app.post('/api/payments/ussd-push', (req: Request, res: Response) => {
 });
 
 // 6. Vendor Stores API
-app.get('/api/stores', (req: Request, res: Response) => {
-  res.json({ success: true, count: stores.length, data: stores });
+// Live stores = seeded directory plus every admin-approved submission.
+async function allStores(): Promise<VendorStore[]> {
+  const approved = await approvedStores();
+  return [...approved, ...stores];
+}
+
+app.get('/api/stores', async (req: Request, res: Response) => {
+  try {
+    const list = await allStores();
+    res.json({ success: true, count: list.length, data: list });
+  } catch (err) {
+    console.error('[stores] list failed:', err);
+    res.json({ success: true, count: stores.length, data: stores });
+  }
 });
 
-app.get('/api/stores/:idOrSlug', (req: Request, res: Response) => {
+app.get('/api/stores/:idOrSlug', async (req: Request, res: Response) => {
   const target = req.params.idOrSlug.toLowerCase();
-  const store = stores.find((s) => s.id.toLowerCase() === target || s.slug.toLowerCase() === target);
+  const list = await allStores();
+  const store = list.find((s) => s.id.toLowerCase() === target || s.slug.toLowerCase() === target);
   if (!store) {
     return res.status(404).json({ success: false, error: 'Store not found' });
   }
@@ -591,6 +630,96 @@ app.post('/api/stores', (req: Request, res: Response) => {
 
   stores.unshift(newStore);
   res.status(201).json({ success: true, data: newStore });
+});
+
+// ----------------------------------------------------
+// STORE SUBMISSIONS (merchant applies, admin approves)
+// ----------------------------------------------------
+
+// Merchant: submit a store for review. Nothing goes live until an admin approves.
+app.post('/api/stores/submissions', async (req: Request, res: Response) => {
+  try {
+    const actor = await currentActor(req);
+    if (!actor) {
+      return res.status(401).json({ success: false, error: 'Please sign in to apply for a store' });
+    }
+    const { submission, mail } = await createSubmission(req.body || {}, actor);
+    res.status(201).json({
+      success: true,
+      message: 'Application received. Our team will review it and email you a decision.',
+      data: submission,
+      emailStatus: mail.status,
+    });
+  } catch (err) {
+    submissionErrorResponse(res, err);
+  }
+});
+
+// Merchant: the signed-in user's own applications, so the UI can show status.
+app.get('/api/stores/submissions/mine', async (req: Request, res: Response) => {
+  try {
+    const actor = await currentActor(req);
+    if (!actor) return res.status(401).json({ success: false, error: 'Please sign in' });
+    const all = await listSubmissions();
+    const mine = all.filter((row) => row.owner_id === actor.id || row.owner_email === actor.email);
+    res.json({ success: true, count: mine.length, data: mine });
+  } catch (err) {
+    submissionErrorResponse(res, err);
+  }
+});
+
+// Admin: the review queue.
+app.get('/api/admin/store-submissions', async (req: Request, res: Response) => {
+  try {
+    const actor = await currentActor(req);
+    if (!isAdmin(actor)) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+    const status = (req.query.status as string | undefined)?.toLowerCase();
+    const allowed: SubmissionStatus[] = ['pending', 'approved', 'rejected'];
+    const filter = status && allowed.includes(status as SubmissionStatus) ? (status as SubmissionStatus) : undefined;
+    const data = await listSubmissions(filter);
+    res.json({ success: true, count: data.length, data });
+  } catch (err) {
+    submissionErrorResponse(res, err);
+  }
+});
+
+// Admin: approve, which publishes the store and emails the merchant.
+app.post('/api/admin/store-submissions/:id/approve', async (req: Request, res: Response) => {
+  try {
+    const actor = await currentActor(req);
+    if (!isAdmin(actor)) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+    const { submission, mail } = await approveSubmission(req.params.id, actor!, req.body?.note);
+    res.json({ success: true, message: 'Store approved and published', data: submission, emailStatus: mail.status });
+  } catch (err) {
+    submissionErrorResponse(res, err);
+  }
+});
+
+// Admin: reject with a required reason, which is emailed to the merchant.
+app.post('/api/admin/store-submissions/:id/reject', async (req: Request, res: Response) => {
+  try {
+    const actor = await currentActor(req);
+    if (!isAdmin(actor)) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
+    }
+    const { submission, mail } = await rejectSubmission(req.params.id, actor!, req.body?.reason || req.body?.note);
+    res.json({ success: true, message: 'Application rejected and merchant notified', data: submission, emailStatus: mail.status });
+  } catch (err) {
+    submissionErrorResponse(res, err);
+  }
+});
+
+// Admin: recent outbound mail, so the notification flow is inspectable in dev.
+app.get('/api/admin/mail', async (req: Request, res: Response) => {
+  const actor = await currentActor(req);
+  if (!isAdmin(actor)) {
+    return res.status(403).json({ success: false, error: 'Admin access required' });
+  }
+  res.json({ success: true, data: recentMail() });
 });
 
 // 7. Blue-Collar Services API
