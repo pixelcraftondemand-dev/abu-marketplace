@@ -22,7 +22,12 @@ export interface SentMail {
 
 export type StoreMailKind = 'store_submitted' | 'store_approved' | 'store_rejected';
 
-const FROM = process.env.SMTP_FROM || 'ABU Marketplace <no-reply@abumarketplace.shop>';
+// The verified Resend sending domain, so the default sender is deliverable.
+const FROM =
+  process.env.SMTP_FROM ||
+  process.env.RESEND_FROM ||
+  'ABU Marketplace <no-reply@verification.abumarketplace.shop>';
+const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 const BRAND = 'ABU Marketplace';
 
 // Recent messages are kept in memory so the flow can be inspected while SMTP is
@@ -40,6 +45,45 @@ function remember(mail: SentMail): void {
 }
 
 let cachedTransport: Transporter | null | undefined;
+
+// Resend speaks plain HTTPS, which avoids SMTP ports that some hosts block.
+async function deliverViaResend(
+  apiKey: string,
+  to: string,
+  subject: string,
+  kind: StoreMailKind,
+  html: string,
+  text: string,
+): Promise<MailResult> {
+  try {
+    const res = await fetch(RESEND_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from: FROM, to: [to], subject, html, text }),
+    });
+
+    const payload: any = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      const message = payload?.message || payload?.error || `HTTP ${res.status}`;
+      console.error(`[mail] FAILED ${kind} -> ${to} via Resend: ${message}`);
+      remember({ to, subject, kind, status: 'failed', at: new Date().toISOString(), error: message });
+      return { status: 'failed', error: message };
+    }
+
+    console.log(`[mail] sent ${kind} -> ${to} via Resend (${payload?.id || 'no id'})`);
+    remember({ to, subject, kind, status: 'sent', at: new Date().toISOString() });
+    return { status: 'sent', id: payload?.id };
+  } catch (err: any) {
+    const message = err?.message || String(err);
+    console.error(`[mail] FAILED ${kind} -> ${to} via Resend: ${message}`);
+    remember({ to, subject, kind, status: 'failed', at: new Date().toISOString(), error: message });
+    return { status: 'failed', error: message };
+  }
+}
 
 /**
  * Builds the SMTP transport once. Returns null when SMTP is not configured, in
@@ -75,6 +119,12 @@ function transport(): Transporter | null {
 }
 
 async function deliver(to: string, subject: string, kind: StoreMailKind, html: string, text: string): Promise<MailResult> {
+  // Prefer Resend when a key is present; fall back to generic SMTP, then to logging.
+  const resendKey = process.env.RESEND_API_KEY?.trim();
+  if (resendKey) {
+    return deliverViaResend(resendKey, to, subject, kind, html, text);
+  }
+
   const mailer = transport();
 
   if (!mailer) {
