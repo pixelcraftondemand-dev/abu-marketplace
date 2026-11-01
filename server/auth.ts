@@ -66,7 +66,8 @@ function postgresConfig(): pg.PoolConfig {
     console.warn(
       '[db] WARNING: Postgres TLS certificate verification is DISABLED. ' +
         'Traffic is encrypted but the server identity is not checked, so this is open to ' +
-        'man-in-the-middle attacks. Remove DATABASE_SSL_NO_VERIFY to restore verification.',
+        'man-in-the-middle attacks. Remove DATABASE_SSL_NO_VERIFY, DATABASE_SSL_MODE or ' +
+        'sslmode=no-verify to restore verification.',
     );
     return { connectionString: cleaned, ssl: { rejectUnauthorized: false }, max: 5 };
   }
