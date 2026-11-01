@@ -249,6 +249,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         setErrorMessage('An account with that email already exists. Try signing in instead.');
       } else if (/email not confirmed/i.test(message)) {
         setConfirmationEmail(email.trim().toLowerCase());
+      } else if (/error sending confirmation email|smtp/i.test(message)) {
+        // Supabase has email confirmation switched on but no working mail transport,
+        // so no account is actually created. Say so instead of leaking the raw error.
+        setErrorMessage(
+          'Sign-up is unavailable right now: confirmation emails cannot be sent. ' +
+            'Our team has been notified - please try the one-time email code or contact support.',
+        );
       } else {
         setErrorMessage(message);
       }
