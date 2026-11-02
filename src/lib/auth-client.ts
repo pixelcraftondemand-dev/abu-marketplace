@@ -196,15 +196,8 @@ export async function verifyEmailOtp(
   return buildProfile(data.user, provider);
 }
 
-/**
- * 4d. Google One-Tap / Identity Services sign-in. Supabase verifies the Google token.
- */
-export async function signInWithGoogleGis(credential: string): Promise<UserProfile> {
-  const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'google', token: credential });
-  if (error) throw new Error(error.message || 'Google Sign-In failed');
-  if (!data.user) throw new Error('Google Sign-In failed');
-  return buildProfile(data.user, 'google');
-}
+// 4d. (Google One-Tap / Identity Services removed — Google sign-in goes through
+// Supabase OAuth redirect in quickSocialLogin below.)
 
 /**
  * 5. Social sign-in. With email and password it signs in normally; Google uses a redirect.
