@@ -136,8 +136,14 @@ export function getDispatchedOtp(phoneNumber: string): string | undefined {
   return undefined;
 }
 
-export const BETTER_AUTH_API_KEY = process.env.BETTER_AUTH_API_KEY || 'ba_cn6v0fyinlj38h4q6t49ksdjmq8g9tqf';
-export const BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET || 'abu-marketplace-secure-auth-secret-sl-2026-prod-token';
+// Secrets are never hardcoded: they must come from the environment. The values
+// that used to be committed here as fallbacks are compromised and were rotated.
+const envApiKey = process.env.BETTER_AUTH_API_KEY;
+if (!envApiKey) console.warn('[auth] BETTER_AUTH_API_KEY is not set; Better Auth Infra SMS is disabled.');
+export const BETTER_AUTH_API_KEY = envApiKey || '';
+const envSecret = process.env.BETTER_AUTH_SECRET;
+if (!envSecret) console.warn('[auth] BETTER_AUTH_SECRET is not set; generate one (openssl rand -hex 32) before deploying.');
+export const BETTER_AUTH_SECRET = envSecret || '';
 export const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL || 'https://abumarketplace.shop';
 
 const smsSender = createSMSSender({ apiKey: BETTER_AUTH_API_KEY });
@@ -158,7 +164,9 @@ export const auth = betterAuth({
     'https://ais-pre-mwjnsmpsez6dbl5ruxi3bu-664654490955.europe-west2.run.app',
   ].filter(Boolean),
   advanced: {
-    useSecureCookies: false, // Allows session tokens to persist across localhost, preview iframes, and HTTPS production
+    // Session cookies are Secure in any https deployment. Only plain-http
+    // development (localhost) runs with insecure cookies.
+    useSecureCookies: process.env.NODE_ENV === 'production',
   },
   plugins: [
     bearer(),

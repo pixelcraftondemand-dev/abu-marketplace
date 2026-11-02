@@ -21,6 +21,16 @@ import {
   type SubmissionStatus,
 } from './server/storeSubmissions.ts';
 import { recentMail } from './server/mailer.ts';
+import {
+  applySecurity,
+  rateLimit,
+  sanitizeText,
+  sanitizeLongText,
+  sanitizePhone,
+  sanitizeImageAsset,
+  sanitizeNumber,
+  pickAllowed,
+} from './server/security.ts';
 
 /** Resolves the signed-in caller, or null. Used to gate submissions and the admin queue. */
 async function currentActor(req: Request) {
@@ -44,36 +54,13 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-// Security Headers Middleware
-app.use((_req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  next();
-});
+// Security headers (CSP, HSTS, permissions), CSRF-style origin checks,
+// proxy trust and HTTPS enforcement live in server/security.ts
+applySecurity(app);
 
 // In-Memory Rate Limiter for Authentication & OTP Endpoints
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(key: string, maxLimit: number, windowMs: number): { allowed: boolean; retryAfterSec: number } {
-  const now = Date.now();
-  const entry = rateLimitMap.get(key);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
-    return { allowed: true, retryAfterSec: 0 };
-  }
-  if (entry.count >= maxLimit) {
-    return { allowed: false, retryAfterSec: Math.ceil((entry.resetAt - now) / 1000) };
-  }
-  entry.count += 1;
-  return { allowed: true, retryAfterSec: 0 };
-}
-
-// Track OTP verification attempts per phone to prevent brute-forcing
-const otpAttemptsMap = new Map<string, number>();
-
-app.use(express.json());
+// Bodies are small JSON documents; huge uploads are rejected early.
+app.use(express.json({ limit: '100kb' }));
 
 // Serve public static assets with high-performance browser caching
 const STATIC_CACHE_OPTIONS = { maxAge: '7d', etag: true };
@@ -190,13 +177,9 @@ let bookings: ServiceBooking[] = [];
 // 1. Health check
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({
+    // Deliberately minimal: infrastructure details stay internal
     status: 'healthy',
-    service: 'Abu Marketplace Backend API',
-    authProvider: 'Supabase Auth',
     currency: 'SLE',
-    country: 'Sierra Leone',
-    activeProducts: products.length,
-    totalOrders: orders.length,
     timestamp: new Date().toISOString(),
   });
 });
@@ -223,6 +206,7 @@ app.get('/api/custom-auth/me', async (req: Request, res: Response) => {
 
 // Update profile
 app.post('/api/custom-auth/update-profile', async (req: Request, res: Response) => {
+  if (!rateLimit(req, res, 'profile', 10, 60 * 1000)) return;
   try {
     const current = await getSessionUser(req);
     if (!current) {
@@ -289,31 +273,38 @@ app.get('/api/products/:id', (req: Request, res: Response) => {
 });
 
 // Add new product (Merchant Hub)
-app.post('/api/products', (req: Request, res: Response) => {
+app.post('/api/products', async (req: Request, res: Response) => {
+  if (!rateLimit(req, res, 'products-write', 30, 10 * 60 * 1000)) return;
+  const actor = await currentActor(req);
+  if (!actor) {
+    return res.status(401).json({ success: false, error: 'Please sign in to list a product' });
+  }
   const { title, category, priceSLE, stockCount, description, sellerName, sellerLocation } = req.body;
 
-  if (!title || !priceSLE) {
-    return res.status(400).json({ success: false, error: 'Title and priceSLE are required' });
+  const cleanTitle = sanitizeText(title, 200);
+  const price = sanitizeNumber(priceSLE, 0);
+  if (!cleanTitle || !price) {
+    return res.status(400).json({ success: false, error: 'Title and a valid price are required' });
   }
 
   const newProduct: Product = {
     id: `prod-merchant-${Date.now()}`,
-    title: String(title).trim(),
-    category: category || 'Solar & Power',
-    priceSLE: Number(priceSLE),
-    originalPriceSLE: Math.round(Number(priceSLE) * 1.25),
+    title: cleanTitle,
+    category: (sanitizeText(category, 80) || 'Solar & Power') as Product['category'],
+    priceSLE: price,
+    originalPriceSLE: Math.round(price * 1.25),
     discountPercent: 20,
     rating: 5.0,
     reviewCount: 1,
     soldCount: 0,
-    stockCount: Number(stockCount) || 5,
-    image: req.body.image || '/src/assets/images/solar_pv_panel_monocrystalline_1791485557806.jpg',
-    sellerName: sellerName || 'Verified Sierra Leone Merchant',
+    stockCount: sanitizeNumber(stockCount, 5, 100000),
+    image: sanitizeImageAsset(req.body.image, '/src/assets/images/solar_pv_panel_monocrystalline_1791485557806.jpg'),
+    sellerName: sanitizeText(sellerName, 120) || 'Verified Sierra Leone Merchant',
     sellerLocation: sellerLocation || 'Freetown Verified',
     isVerifiedSeller: true,
     sellerRating: 5.0,
     isFlashDeal: false,
-    description: description || 'Authentic merchandise listed via Abu Merchant Hub.',
+    description: sanitizeLongText(description, 2000) || 'Authentic merchandise listed via Abu Merchant Hub.',
     specifications: {
       'Source': 'Authorized Stock',
       'Warranty': '1 Year Merchant Replacement',
@@ -334,23 +325,45 @@ app.post('/api/products', (req: Request, res: Response) => {
 // ----------------------------------------------------
 
 // Update an existing product
-app.put('/api/products/:id', (req: Request, res: Response) => {
+app.put('/api/products/:id', async (req: Request, res: Response) => {
+  if (!rateLimit(req, res, 'products-write', 30, 10 * 60 * 1000)) return;
+  const actor = await currentActor(req);
+  if (!actor) {
+    return res.status(401).json({ success: false, error: 'Please sign in to update a product' });
+  }
+
   const index = products.findIndex((p) => p.id === req.params.id);
   if (index === -1) {
     return res.status(404).json({ success: false, error: 'Product not found' });
   }
 
+  // Allow-list the patchable fields so clients cannot tamper with internal or
+  // computed ones (mass-assignment / field-tampering defence).
+  const patch = pickAllowed(req.body, [
+    'title', 'category', 'priceSLE', 'originalPriceSLE', 'discountPercent',
+    'stockCount', 'image', 'description', 'isFlashDeal', 'specifications',
+    'features', 'sellerName', 'sellerLocation',
+  ]);
   const updated: Product = {
     ...products[index],
-    ...req.body,
-    id: req.params.id, // Preserve ID
+    ...patch,
+    id: req.params.id,
+    title: sanitizeText(patch.title, 200) || products[index].title,
+    priceSLE: sanitizeNumber(patch.priceSLE, 0) || products[index].priceSLE,
+    stockCount: sanitizeNumber(patch.stockCount ?? products[index].stockCount, products[index].stockCount, 100000),
+    image: sanitizeImageAsset(patch.image, products[index].image),
+    description: sanitizeLongText(patch.description, 2000) || products[index].description,
   };
   products[index] = updated;
   res.json({ success: true, data: updated });
 });
 
 // Delete a product
-app.delete('/api/products/:id', (req: Request, res: Response) => {
+app.delete('/api/products/:id', async (req: Request, res: Response) => {
+  const actor = await currentActor(req);
+  if (!isAdmin(actor)) {
+    return res.status(403).json({ success: false, error: 'Admin access required' });
+  }
   const index = products.findIndex((p) => p.id === req.params.id);
   if (index === -1) {
     return res.status(404).json({ success: false, error: 'Product not found' });
@@ -361,7 +374,11 @@ app.delete('/api/products/:id', (req: Request, res: Response) => {
 });
 
 // Duplicate a product
-app.post('/api/products/:id/duplicate', (req: Request, res: Response) => {
+app.post('/api/products/:id/duplicate', async (req: Request, res: Response) => {
+  const actor = await currentActor(req);
+  if (!actor) {
+    return res.status(401).json({ success: false, error: 'Please sign in first' });
+  }
   const source = products.find((p) => p.id === req.params.id);
   if (!source) {
     return res.status(404).json({ success: false, error: 'Source product not found' });
@@ -381,13 +398,22 @@ app.post('/api/products/:id/duplicate', (req: Request, res: Response) => {
 });
 
 // CMS Factory Reset: Reverts catalog to initial 105 verified products
-app.post('/api/cms/reset', (_req: Request, res: Response) => {
+app.post('/api/cms/reset', async (req: Request, res: Response) => {
+  if (!rateLimit(req, res, 'cms', 10, 10 * 60 * 1000)) return;
+  const actor = await currentActor(req);
+  if (!isAdmin(actor)) {
+    return res.status(403).json({ success: false, error: 'Admin access required' });
+  }
   products = [...INITIAL_PRODUCTS];
   res.json({ success: true, count: products.length, message: 'Catalog reset to standard verified inventory' });
 });
 
 // CMS Media Assets: List verified local product assets
-app.get('/api/cms/media', (_req: Request, res: Response) => {
+app.get('/api/cms/media', async (req: Request, res: Response) => {
+  const actor = await currentActor(req);
+  if (!isAdmin(actor)) {
+    return res.status(403).json({ success: false, error: 'Admin access required' });
+  }
   try {
     const productsDir = path.resolve(__dirname, 'public', 'products');
     if (!fs.existsSync(productsDir)) {
@@ -425,8 +451,10 @@ app.get('/api/orders', async (req: Request, res: Response) => {
   // Extract caller security context from session or fallback headers/query
   // Role comes only from the verified session, never from a request header
   const callerRole = authUser?.role || 'buyer';
-  const callerPhone = authUser?.phoneNumber || (req.headers['x-user-phone'] as string) || (req.query.phone as string);
-  const callerUserId = authUser?.id || (req.headers['x-user-id'] as string) || (req.query.userId as string);
+  // Identity comes exclusively from the verified session - request-supplied
+  // identity headers/query params would let anyone read other users' orders.
+  const callerPhone = authUser?.phoneNumber || null;
+  const callerUserId = authUser?.id || null;
 
   // Row-Level Security (RLS) enforcement
   if (callerRole === 'admin' || callerRole === 'logistics_agent') {
@@ -452,7 +480,6 @@ app.get('/api/orders', async (req: Request, res: Response) => {
     data: sanitizedOrders,
     rlsEnforced: true,
     scope: 'user_restricted',
-    authProvider: 'Better Auth'
   });
 });
 
@@ -484,48 +511,61 @@ app.get('/api/orders/:trackingNumber', (req: Request, res: Response) => {
 });
 
 app.post('/api/orders', async (req: Request, res: Response) => {
-  const {
-    items,
-    recipientName,
-    phone,
-    destinationId,
-    streetAddress,
-    landmark,
-    paymentMethod,
-  } = req.body;
+  if (!rateLimit(req, res, 'order-post', 20, 10 * 60 * 1000)) return;
+  const body = pickAllowed(req.body, [
+    'items', 'recipientName', 'phone', 'destinationId',
+    'streetAddress', 'landmark', 'paymentMethod',
+  ]);
+  const items: any[] = Array.isArray(body.items) ? body.items : [];
 
-  if (!items || !items.length) {
+  if (!items.length) {
     return res.status(400).json({ success: false, error: 'Order items cannot be empty' });
   }
+  if (items.length > 50) {
+    return res.status(400).json({ success: false, error: 'Too many items in one order' });
+  }
 
-  const destination = LOCATIONS.find((l) => l.id === destinationId) || LOCATIONS[0];
+  // Price and resolve every line item on the server: client-supplied prices
+  // must never be trusted when totals and stock are computed.
+  const pricedItems = [];
+  for (const item of items) {
+    const prod = products.find((p) => p.id === item?.product?.id);
+    if (!prod || !prod.priceSLE) {
+      return res.status(400).json({ success: false, error: 'One of the cart items is unavailable' });
+    }
+    const quantity = sanitizeNumber(item.quantity, 1, 99) || 1;
+    pricedItems.push({ product: prod, quantity });
+  }
 
-  const subtotal = items.reduce(
-    (sum: number, item: any) => sum + (item.product?.priceSLE || 0) * (item.quantity || 1),
+  const destination = LOCATIONS.find((l) => l.id === body.destinationId) || LOCATIONS[0];
+  const subtotal = pricedItems.reduce(
+    (sum: number, item: any) => sum + item.product.priceSLE * item.quantity,
     0
   );
   const deliveryFee = destination.deliveryFeeSLE;
   const totalAmount = subtotal + deliveryFee;
-
   const trackingNumber = `ABU-SL-${Math.floor(10000 + Math.random() * 90000)}`;
 
   const sessionUser: any = await getSessionUser(req);
   const buyerId = sessionUser?.id || undefined;
+  const paymentMethod = ['cash', 'orange', 'afrimoney'].includes(body.paymentMethod)
+    ? body.paymentMethod
+    : 'cash';
 
   const newOrder = {
     id: `ord-${Date.now()}`,
     buyerId,
     trackingNumber,
-    items,
+    items: pricedItems,
     subtotalSLE: subtotal,
     deliveryFeeSLE: deliveryFee,
     totalSLE: totalAmount,
-    recipientName: recipientName || 'Sierra Leone Customer',
-    phone: phone || '076 000 000',
+    recipientName: sanitizeText(body.recipientName, 120) || 'Sierra Leone Customer',
+    phone: sanitizePhone(body.phone) || '076 000 000',
     destination,
-    streetAddress: streetAddress || 'Central',
-    landmark: landmark || '',
-    paymentMethod: paymentMethod || 'cash',
+    streetAddress: sanitizeLongText(body.streetAddress, 200) || 'Central',
+    landmark: sanitizeText(body.landmark, 120),
+    paymentMethod,
     paymentStatus: paymentMethod === 'cash' ? 'pending_delivery_inspection' : 'authorized',
     orderStatus: 'placed',
     placedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -534,12 +574,12 @@ app.post('/api/orders', async (req: Request, res: Response) => {
 
   orders.unshift(newOrder);
 
-  // Update stock counts
-  items.forEach((item: any) => {
-    const prod = products.find((p) => p.id === item.product?.id);
+    // Update stock counts
+    pricedItems.forEach((item: any) => {
+    const prod = products.find((p) => p.id === item.product.id);
     if (prod) {
-      prod.stockCount = Math.max(0, prod.stockCount - (item.quantity || 1));
-      prod.soldCount += item.quantity || 1;
+      prod.stockCount = Math.max(0, prod.stockCount - item.quantity);
+      prod.soldCount += item.quantity;
     }
   });
 
@@ -547,14 +587,19 @@ app.post('/api/orders', async (req: Request, res: Response) => {
 });
 
 // 5. Mobile Money USSD Gateway Simulation
-app.post('/api/payments/ussd-push', (req: Request, res: Response) => {
-  const { phone, amountSLE, provider } = req.body;
+app.post('/api/payments/ussd-push', async (req: Request, res: Response) => {
+  if (!rateLimit(req, res, 'ussd', 5, 10 * 60 * 1000)) return;
+  const phone = sanitizePhone(req.body?.phone);
+  const amountSLE = sanitizeNumber(req.body?.amountSLE, 0);
+  const provider = ['afrimoney', 'orange'].includes(req.body?.provider)
+    ? req.body.provider
+    : 'orange';
 
   if (!phone || !amountSLE) {
-    return res.status(400).json({ success: false, error: 'Phone number and amount are required' });
+    return res.status(400).json({ success: false, error: 'A valid phone number and amount are required' });
   }
 
-  const ussdCode = provider === 'afrimoney' ? '*161#' : '*144#';
+    const ussdCode = provider === 'afrimoney' ? '*161#' : '*144#';
   const providerName = provider === 'afrimoney' ? 'Afrimoney (Africell)' : 'Orange Money';
 
   res.json({
@@ -599,8 +644,18 @@ app.get('/api/stores/:idOrSlug', async (req: Request, res: Response) => {
   res.json({ success: true, data: { store, products: storeProducts } });
 });
 
-app.post('/api/stores', (req: Request, res: Response) => {
-  const { name, tagline, description, locationHub, streetAddress, phone, payoutProvider, payoutPhone } = req.body;
+app.post('/api/stores', async (req: Request, res: Response) => {
+  if (!rateLimit(req, res, 'stores-write', 10, 10 * 60 * 1000)) return;
+  const actor = await currentActor(req);
+  if (!actor) {
+    return res.status(401).json({ success: false, error: 'Please sign in to open a store' });
+  }
+  const body = pickAllowed(req.body, [
+    'name', 'tagline', 'description', 'locationHub', 'province',
+    'streetAddress', 'phone', 'payoutProvider', 'payoutPhone', 'logo',
+  ]);
+  const { name, tagline, description, locationHub, streetAddress, phone, payoutProvider, payoutPhone } = body;
+  // (fields are spread from the sanitized pickAllowed set above)
 
   if (!name || !phone) {
     return res.status(400).json({ success: false, error: 'Store name and phone are required' });
@@ -643,6 +698,7 @@ app.post('/api/stores/submissions', async (req: Request, res: Response) => {
     if (!actor) {
       return res.status(401).json({ success: false, error: 'Please sign in to apply for a store' });
     }
+    if (!rateLimit(req, res, 'submissions', 8, 10 * 60 * 1000)) return;
     const { submission, mail } = await createSubmission(req.body || {}, actor);
     res.status(201).json({
       success: true,
@@ -743,19 +799,20 @@ app.get('/api/services', (req: Request, res: Response) => {
   res.json({ success: true, count: result.length, data: result });
 });
 
-app.post('/api/services', (req: Request, res: Response) => {
+app.post('/api/services', async (req: Request, res: Response) => {
+  if (!rateLimit(req, res, 'services-write', 15, 10 * 60 * 1000)) return;
+  const actor = await currentActor(req);
+  if (!actor) {
+    return res.status(401).json({ success: false, error: 'Please sign in to register a service' });
+  }
   const {
-    title,
-    tradeCategory,
-    providerName,
-    phone,
-    experienceYears,
-    locationHub,
-    calloutFeeSLE,
-    description,
-    skills,
-    certification,
-  } = req.body;
+    title, tradeCategory, providerName, phone, experienceYears, locationHub,
+    calloutFeeSLE, description, skills, certification,
+  } = pickAllowed(req.body, [
+    'title', 'tradeCategory', 'providerName', 'phone', 'experienceYears',
+    'locationHub', 'calloutFeeSLE', 'description', 'skills', 'certification',
+  ]);
+  // (fields are spread from the sanitized pickAllowed set above)
 
   if (!title || !providerName || !phone || !tradeCategory) {
     return res.status(400).json({ success: false, error: 'Title, provider name, phone and trade category are required' });
@@ -763,11 +820,11 @@ app.post('/api/services', (req: Request, res: Response) => {
 
   const newService: BlueCollarService = {
     id: `srv-${Date.now()}`,
-    title: title.trim(),
+    title: sanitizeText(title, 200),
     tradeCategory,
-    providerName: providerName.trim(),
+    providerName: sanitizeText(providerName, 120),
     phone: phone.trim(),
-    whatsapp: phone.trim(),
+    whatsapp: sanitizePhone(phone),
     payoutProvider: req.body.payoutProvider || 'orange',
     experienceYears: Number(experienceYears) || 3,
     locationHub: locationHub || 'Freetown CBD',
@@ -778,8 +835,8 @@ app.post('/api/services', (req: Request, res: Response) => {
     rating: 5.0,
     completedJobs: 0,
     isAvailableNow: true,
-    avatar: req.body.avatar || '/src/assets/images/solar_inverter_power_station_1791485447453.jpg',
-    description: description || 'Professional trade technician available across Sierra Leone.',
+    avatar: sanitizeImageAsset(req.body.avatar, '/src/assets/images/solar_inverter_power_station_1791485447453.jpg'),
+    description: sanitizeLongText(description, 2000) || 'Professional trade technician available across Sierra Leone.',
     skills: skills || ['On-site inspection & diagnostic', 'Standard trade equipment supplied'],
     certification: certification || 'Verified Guild Trade Artisan SL',
   };
@@ -788,8 +845,19 @@ app.post('/api/services', (req: Request, res: Response) => {
   res.status(201).json({ success: true, data: newService });
 });
 
-app.post('/api/services/book', (req: Request, res: Response) => {
-  const { serviceId, customerName, customerPhone, location, preferredTime, issueDescription, paymentMethod } = req.body;
+app.post('/api/services/book', async (req: Request, res: Response) => {
+  if (!rateLimit(req, res, 'book', 15, 10 * 60 * 1000)) return;
+  const body = pickAllowed(req.body, [
+    'serviceId', 'customerName', 'customerPhone', 'location',
+    'preferredTime', 'issueDescription', 'paymentMethod',
+  ]);
+  const { serviceId } = body;
+  const customerName = sanitizeText(body.customerName, 120) || 'Sierra Leone Client';
+  const customerPhone = sanitizePhone(body.customerPhone) || '076 000 000';
+  const location = sanitizeText(body.location, 120) || 'Freetown';
+  const preferredTime = sanitizeText(body.preferredTime, 80) || 'Within 2 hours';
+  const issueDescription = sanitizeLongText(body.issueDescription, 1000) || 'General diagnostic and repair requested';
+  const paymentMethod = ['cash', 'orange', 'afrimoney'].includes(body.paymentMethod) ? body.paymentMethod : 'orange';
 
   const targetService = services.find((s) => s.id === serviceId);
   if (!targetService) {
@@ -825,9 +893,12 @@ app.post('/api/services/book', (req: Request, res: Response) => {
 // Chatbot Q&A Assistant API
 // ----------------------------------------------------
 app.post('/api/chat', async (req: Request, res: Response) => {
-  const { message, history } = req.body;
+  if (!rateLimit(req, res, 'chat', 15, 10 * 60 * 1000)) return;
+  // Budget protection: Gemini calls cost real money, so cap per IP.
+  const message = sanitizeLongText(req.body?.message, 4000);
+  const history = req.body?.history;
 
-  if (!message || typeof message !== 'string') {
+  if (!message) {
     return res.status(400).json({ success: false, error: 'A valid message string is required.' });
   }
 
