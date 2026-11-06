@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -1112,10 +1112,21 @@ async function startServer() {
       console.log(`Abu Marketplace server running on http://0.0.0.0:${PORT}`);
     });
   }
-}
+}// ----------------------------------------------------
+// GLOBAL ERROR HANDLER (must be after all route definitions)
+// ----------------------------------------------------
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('[unhandled error]', err);
+  const status = err.status || 500;
+  const message = err.message || 'Internal server error';
+  // Do not leak stack traces in production
+  const stack = process.env.NODE_ENV !== 'production' ? err.stack : undefined;
+  return res.status(status).json({ success: false, error: message, ...(stack && { stack }) });
+});
 
 export default app;
 
 if (!process.env.VERCEL) {
   startServer();
 }
+

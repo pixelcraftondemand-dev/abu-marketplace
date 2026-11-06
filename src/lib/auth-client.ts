@@ -275,8 +275,13 @@ export async function updateBetterAuthProfile(updates: {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(updates),
   });
+  // Handle non-JSON error responses from the server (e.g. HTML error pages)
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || 'Failed to update profile');
+  }
   const data = await res.json();
-  if (!res.ok || !data.success) throw new Error(data.error || 'Failed to update profile');
+  if (!data.success) throw new Error(data.error || 'Failed to update profile');
 
   const profile = formatBetterAuthUser(data.user);
   try {

@@ -265,7 +265,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setTimeout(() => otpRefs.current[0]?.focus(), 150);
     } catch (err: any) {
       console.error('Error sending code:', err);
-      setErrorMessage(err.message || 'Failed to dispatch verification key. Please check your email.');
+      // Supabase may return plain text error messages in some edge cases
+      const msg = err?.message || 'Failed to dispatch verification key. Please check your email.';
+      setErrorMessage(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -335,6 +337,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       handleAuthCompletion(user);
     } catch (err: any) {
       console.error('Verification error:', err);
+      // Supabase may return plain text error messages in some edge cases
       setErrorMessage(err.message || 'Invalid or expired code. Please check your email inbox.');
     } finally {
       setIsSubmitting(false);
