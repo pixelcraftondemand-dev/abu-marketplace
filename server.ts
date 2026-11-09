@@ -1,12 +1,12 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import express, { Request, Response, NextFunction } from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { GoogleGenAI } from '@google/genai';
-import { Product, VendorStore, BlueCollarService, ServiceBooking } from './src/types/index.ts';
+import type { Product, VendorStore, BlueCollarService, ServiceBooking } from './src/types/index.ts';
 import { INITIAL_PRODUCTS, INITIAL_STORES, INITIAL_SERVICES } from './src/data/mockData.ts';
 
 import { supabaseAdmin, getSessionUser } from './server/supabase.ts';

@@ -5,7 +5,7 @@ import tls from 'node:tls';
 import pg from 'pg';
 import { betterAuth } from 'better-auth';
 import { bearer, phoneNumber } from 'better-auth/plugins';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { generateAlphanumericOtp } from './otp.ts';
 import { dash, createSMSSender } from '@better-auth/infra';
 
