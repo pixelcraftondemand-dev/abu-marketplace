@@ -26,7 +26,9 @@ import {
   Layers,
   ExternalLink,
   FileSpreadsheet,
-  Award
+  Award,
+  AlertCircle,
+  Clock
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -143,6 +145,13 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'store' | 'single_product' | 'service' | 'analytics'>(initialTab || 'store');
   const [successMessage, setSuccessMessage] = useState('');
+  const [storeError, setStoreError] = useState('');
+  const [pendingStore, setPendingStore] = useState<{
+    name: string;
+    status: string;
+    submittedAt: string;
+    emailStatus: string;
+  } | null>(null);
   const [exportToast, setExportToast] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -387,34 +396,35 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       logo: '/src/assets/images/flagship_smartphone_device_1791485459581.jpg',
     };
 
-    const createdStore = await api.createStore(storePayload);
-    const finalStore: VendorStore = createdStore || {
-      id: `store-${Date.now()}`,
-      name: storeName.trim(),
-      slug: storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      tagline: storeTagline.trim() || 'Verified Merchant Store',
-      description: storeDesc.trim() || 'Authorized storefront on ABU Marketplace.',
-      locationHub: storeHub,
-      province: 'Western Area',
-      streetAddress: storeStreet.trim() || 'Freetown',
-      phone: storePhone.trim(),
-      payoutProvider: detection.carrier || 'orange',
-      payoutPhone: storePhone.trim(),
-      isVerified: true,
-      rating: 5.0,
-      reviewsCount: 1,
-      totalSales: 0,
-      establishedYear: new Date().getFullYear(),
-      logo: '/src/assets/images/flagship_smartphone_device_1791485459581.jpg',
-      productCount: 0,
-    };
+    try {
+      const { submission, emailStatus } = await api.submitStoreApplication(storePayload);
 
-    if (onAddStore) onAddStore(finalStore);
-    setIsSubmitting(false);
-    setSuccessMessage(`Store "${finalStore.name}" created successfully!`);
-    setStoreName('');
-    setStoreTagline('');
-    setStoreDesc('');
+      // Nothing is published yet: the store waits in the admin review queue.
+      setPendingStore({
+        name: submission.name,
+        status: submission.status,
+        submittedAt: submission.created_at,
+        emailStatus,
+      });
+
+      setSuccessMessage(
+        emailStatus === 'failed'
+          ? `Application for "${submission.name}" received, but we could not send the confirmation email. Our team can still review it.`
+          : `Application for "${submission.name}" received. We emailed a confirmation and will notify you once an admin reviews it.`
+      );
+      setStoreName('');
+      setStoreTagline('');
+      setStoreDesc('');
+      setStoreStreet('');
+    } catch (err: any) {
+      setSuccessMessage('');
+      setStoreError(
+        err?.message ||
+          'Could not submit your store application. Please sign in and try again.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSingleProductSubmit = async (e: React.FormEvent) => {
@@ -668,6 +678,29 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
             </div>
           )}
 
+          {storeError && (
+            <div className="bg-rose-50 border border-rose-300 p-3 rounded flex items-center gap-2 text-xs text-rose-700 font-bold">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{storeError}</span>
+            </div>
+          )}
+
+          {/* Pending application banner: the store is not live until an admin approves */}
+          {pendingStore && pendingStore.status === 'pending' && (
+            <div className="bg-amber-50 border border-amber-300 p-3 rounded">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-800">
+                <Clock className="w-4 h-4 shrink-0" />
+                <span>Pending admin review</span>
+              </div>
+              <p className="text-[11px] text-amber-700 mt-1 leading-relaxed">
+                <strong>{pendingStore.name}</strong> is queued for review (submitted{' '}
+                {new Date(pendingStore.submittedAt).toLocaleString()}). We sent a confirmation email;
+                you'll get another email when an admin approves or rejects it. The store stays hidden from
+                buyers until then.
+              </p>
+            </div>
+          )}
+
           {/* TRACK 1: CREATE A STORE */}
           {activeTab === 'store' && (
             <form onSubmit={handleStoreSubmit} className="space-y-3.5 text-xs">
@@ -776,7 +809,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
               >
                 <Building2 className="w-4 h-4 text-[#8df7c1]" />
                 <span>
-                  {isSubmitting ? 'Registering Storefront...' : 'Launch Verified Storefront'}
+                  {isSubmitting ? 'Submitting application...' : 'Submit Store for Review'}
                 </span>
               </button>
             </form>

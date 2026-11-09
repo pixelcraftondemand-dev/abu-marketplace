@@ -25,7 +25,8 @@ export type Category =
   | 'Power Tools & Safety Gear'
   | 'Vehicles & E-Bikes'
   | 'Books, Art & Stationery'
-  | 'Blue Collar Services';
+  | 'Blue Collar Services'
+  | 'Others';
 
 export type ItemCondition = 'brand_new' | 'like_new' | 'used';
 
@@ -168,7 +169,7 @@ export interface UserProfile {
   whatsappNumber?: string;
   phoneNumber?: string;
   email?: string;
-  provider: 'clerk' | 'whatsapp' | 'google' | 'facebook' | 'apple' | 'phone' | 'email';
+  provider: 'whatsapp' | 'google' | 'facebook' | 'apple' | 'phone' | 'email';
   isVerified: boolean;
   avatar?: string;
   preferredCity?: string;

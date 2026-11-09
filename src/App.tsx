@@ -53,6 +53,7 @@ import {
 import { LegalModal } from './components/LegalModal';
 import { MobileBottomBar } from './components/MobileBottomBar';
 import { AdminCMSModal } from './components/AdminCMSModal';
+import { AdminStoreApprovals } from './components/AdminStoreApprovals';
 import { getActiveBetterAuthSession } from './lib/auth-client';
 import { getInitialTheme, applyTheme, ThemeMode } from './lib/theme';
 
@@ -185,6 +186,11 @@ export default function App() {
     setIsCMSOpen(true);
     if (typeof window !== 'undefined') window.history.pushState({}, '', '/cms');
   };
+
+  // Store approval queue (merchant applications awaiting an admin decision)
+  const [isApprovalsOpen, setIsApprovalsOpen] = useState(false);
+  const handleOpenApprovals = () => setIsApprovalsOpen(true);
+  const handleCloseApprovals = () => setIsApprovalsOpen(false);
 
   const handleCloseCMS = () => {
     setIsCMSOpen(false);
@@ -344,6 +350,7 @@ export default function App() {
     'Phones & Tablets',
     'Electronics & Audio',
     'Home & Living',
+    'Others',
   ];
 
   // Product counts per category
@@ -365,6 +372,7 @@ export default function App() {
       'Electronics & Audio': 0,
       'Home & Living': 0,
       'Blue Collar Services': services.length,
+      'Others': 0,
     };
     products.forEach((p) => {
       if (counts[p.category] !== undefined) {
@@ -1295,6 +1303,7 @@ export default function App() {
           setIsLegalModalOpen(true);
         }}
         onOpenCMS={handleOpenCMS}
+        onOpenStoreApprovals={handleOpenApprovals}
       />
 
       {/* Mobile Bottom Navigation Dock */}
@@ -1448,6 +1457,13 @@ export default function App() {
         onCreateProduct={handleCreateProductCMS}
         onDeleteProduct={handleDeleteProductCMS}
         onResetCatalog={handleResetCatalogCMS}
+        onShowToast={showToast}
+      />
+
+      {/* Store application review queue */}
+      <AdminStoreApprovals
+        isOpen={isApprovalsOpen}
+        onClose={handleCloseApprovals}
         onShowToast={showToast}
       />
 

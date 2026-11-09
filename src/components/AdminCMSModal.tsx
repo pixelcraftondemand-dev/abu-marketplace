@@ -59,6 +59,7 @@ const ALL_CATEGORIES: Category[] = [
   'Power Tools & Safety Gear',
   'Vehicles & E-Bikes',
   'Books, Art & Stationery',
+  'Others',
 ];
 
 export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({

@@ -13,18 +13,23 @@ import {
   ExternalLink,
   KeyRound,
   Check,
-  User
+  User,
+  Eye,
+  EyeOff,
+  Lock,
+  UserPlus
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { AbuLogo } from './AbuLogo';
 import { EcommerceDoodles } from './EcommerceDoodles';
-import { sendEmailOtp, verifyEmailOtp, quickSocialLogin } from '../lib/auth-client';
+import {
+  sendEmailOtp,
+  verifyEmailOtp,
+  quickSocialLogin,
+  signInWithBetterAuthEmail,
+  signUpWithBetterAuthEmail,
+} from '../lib/auth-client';
 
-declare global {
-  interface Window {
-    google?: any;
-  }
-}
 
 export interface AuthModalProps {
   isOpen: boolean;
@@ -38,7 +43,8 @@ export interface AuthModalProps {
   initialEmailMode?: string;
 }
 
-type AuthStep = 'email_input' | 'google_account_select' | 'otp_verify' | 'success';
+type AuthStep = 'email_input' | 'otp_verify' | 'password_auth' | 'success';
+type PasswordMode = 'signin' | 'signup';
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
@@ -57,8 +63,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [fallbackCode, setFallbackCode] = useState<string | null>(null);
   const [showKeyAssistant, setShowKeyAssistant] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
-  const [showCustomGoogleInput, setShowCustomGoogleInput] = useState(false);
-  const [customGoogleEmail, setCustomGoogleEmail] = useState('');
   
   const [agreedToTerms, setAgreedToTerms] = useState(true);
   const [termsError, setTermsError] = useState(false);
@@ -66,8 +70,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [countdown, setCountdown] = useState(60);
 
+  // Email + password sign in / sign up
+  const [passwordMode, setPasswordMode] = useState<PasswordMode>('signin');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [signupCity, setSignupCity] = useState('Freetown (Central / CBD)');
+  const [showPassword, setShowPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
+
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
-  const googleTokenClient = useRef<any>(null);
 
   // Reset modal state when opened or closed
   useEffect(() => {
@@ -83,8 +96,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setFallbackCode(null);
       setShowKeyAssistant(false);
       setCodeCopied(false);
-      setShowCustomGoogleInput(false);
-      setCustomGoogleEmail('');
+      setPasswordMode('signin');
+      setPassword('');
+      setConfirmPassword('');
+      setFullName('');
+      setShowPassword(false);
+      setFieldErrors({});
+      setConfirmationEmail(null);
     }
   }, [isOpen, currentUser]);
 
@@ -97,50 +115,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     return () => clearTimeout(timer);
   }, [step, countdown]);
 
-  // Google Identity Services (GIS) Account Chooser Initialization
-  useEffect(() => {
-    if (!isOpen || currentUser) return;
-
-    const initGoogleGis = () => {
-      if (typeof window !== 'undefined') {
-        const clientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || '374984420075-6pak1vl4iu4s75u72sc03fglifpn3las.apps.googleusercontent.com';
-
-        if (window.google?.accounts?.oauth2) {
-          try {
-            googleTokenClient.current = window.google.accounts.oauth2.initTokenClient({
-              client_id: clientId,
-              scope: 'openid email profile',
-              prompt: 'select_account',
-              callback: async (tokenResponse: any) => {
-                if (tokenResponse && tokenResponse.access_token) {
-                  setIsSubmitting(true);
-                  try {
-                    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-                      headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-                    });
-                    const googleProfile = await res.json();
-                    if (googleProfile.email) {
-                      const user = await verifyEmailOtp(googleProfile.email.toLowerCase(), 'GOOGLE_OAUTH_VERIFIED', 'google');
-                      handleAuthCompletion(user);
-                    }
-                  } catch (err: any) {
-                    console.info('Google profile notice:', err);
-                  } finally {
-                    setIsSubmitting(false);
-                  }
-                }
-              },
-            });
-          } catch (e) {
-            console.info('Google token client notice:', e);
-          }
-        }
-      }
-    };
-
-    const timer = setTimeout(initGoogleGis, 250);
-    return () => clearTimeout(timer);
-  }, [isOpen, currentUser]);
 
   if (!isOpen) return null;
 
@@ -156,22 +130,98 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }, 1200);
   };
 
-  // Execute Google Authentication with instant session establishment
-  const handleExecuteGoogleLogin = async (fullName: string, googleEmail: string) => {
-    setIsSubmitting(true);
+  // Validate the email/password forms and surface precise, per-field errors
+  const validatePasswordForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    const emailValue = email.trim();
+
+    if (!emailValue) errors.email = 'Enter your email address';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailValue)) {
+      errors.email = 'That does not look like a valid email address';
+    }
+
+    if (!password) errors.password = 'Enter your password';
+    else if (password.length < 8) errors.password = 'Use at least 8 characters';
+
+    if (passwordMode === 'signup') {
+      if (!fullName.trim()) errors.fullName = 'Enter your full name';
+      if (!confirmPassword) errors.confirmPassword = 'Confirm your password';
+      else if (confirmPassword !== password) errors.confirmPassword = 'Passwords do not match';
+    }
+
+    setFieldErrors(errors);
+
+    if (passwordMode === 'signup' && !agreedToTerms) {
+      setTermsError(true);
+      return false;
+    }
+    return Object.keys(errors).length === 0;
+  };
+
+  // Email + password submit: sign in, or sign up and handle the confirm-email state
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setErrorMessage('');
+    if (!validatePasswordForm()) return;
+
+    setIsSubmitting(true);
     try {
-      const user = await quickSocialLogin('google', fullName, googleEmail);
-      handleAuthCompletion(user);
+      if (passwordMode === 'signin') {
+        const user = await signInWithBetterAuthEmail(email, password);
+        handleAuthCompletion(user);
+      } else {
+        const result = await signUpWithBetterAuthEmail({
+          name: fullName,
+          email,
+          password,
+          preferredCity: signupCity,
+        });
+
+        if (result.status === 'confirmation_required') {
+          // Account exists but Supabase wants the inbox confirmed first.
+          setConfirmationEmail(result.email);
+          setPassword('');
+          setConfirmPassword('');
+        } else {
+          handleAuthCompletion(result.user);
+        }
+      }
     } catch (err: any) {
-      console.error('Google login error:', err);
-      setErrorMessage(err.message || 'Google account sign-in failed. Please try again.');
+      const message = err?.message || 'Something went wrong. Please try again.';
+      // Map the most common Supabase errors onto actionable copy
+      if (/invalid login credentials/i.test(message)) {
+        setErrorMessage('Email or password is incorrect. Check both and try again.');
+      } else if (/already registered|already exists/i.test(message)) {
+        setErrorMessage('An account with that email already exists. Try signing in instead.');
+      } else if (/email not confirmed/i.test(message)) {
+        setConfirmationEmail(email.trim().toLowerCase());
+      } else if (/error sending confirmation email|smtp/i.test(message)) {
+        // Supabase has email confirmation switched on but no working mail transport,
+        // so no account is actually created. Say so instead of leaking the raw error.
+        setErrorMessage(
+          'Sign-up is unavailable right now: confirmation emails cannot be sent. ' +
+            'Our team has been notified - please try the one-time email code or contact support.',
+        );
+      } else {
+        setErrorMessage(message);
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Google 1-Tap / Account Chooser Click
+  const switchPasswordMode = (mode: PasswordMode) => {
+    setPasswordMode(mode);
+    setErrorMessage('');
+    setFieldErrors({});
+    setTermsError(false);
+    setPassword('');
+    setConfirmPassword('');
+    setConfirmationEmail(null);
+  };
+
+
+  // Google sign-in: the browser is redirected to Google's OAuth flow via Supabase
   const handleGoogleSignIn = () => {
     if (!agreedToTerms) {
       setTermsError(true);
@@ -179,17 +229,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
     setTermsError(false);
     setErrorMessage('');
-
-    // Immediately open the authentic Google Account Chooser UI
-    setStep('google_account_select');
-
-    // Also attempt native GIS token prompt if supported in browser
-    if (googleTokenClient.current) {
-      try {
-        googleTokenClient.current.requestAccessToken({ prompt: 'select_account' });
-      } catch (e) {
-        console.info('Google token prompt notice:', e);
-      }
+    setIsSubmitting(true);
+    try {
+      quickSocialLogin('google').then(handleAuthCompletion);
+    } catch (err: any) {
+      console.error('Google login error:', err);
+      setErrorMessage(err.message || 'Google account sign-in failed. Please try again.');
+      setIsSubmitting(false);
     }
   };
 
@@ -219,7 +265,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setTimeout(() => otpRefs.current[0]?.focus(), 150);
     } catch (err: any) {
       console.error('Error sending code:', err);
-      setErrorMessage(err.message || 'Failed to dispatch verification key. Please check your email.');
+      // Supabase may return plain text error messages in some edge cases
+      const msg = err?.message || 'Failed to dispatch verification key. Please check your email.';
+      setErrorMessage(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -289,6 +337,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       handleAuthCompletion(user);
     } catch (err: any) {
       console.error('Verification error:', err);
+      // Supabase may return plain text error messages in some edge cases
       setErrorMessage(err.message || 'Invalid or expired code. Please check your email inbox.');
     } finally {
       setIsSubmitting(false);
@@ -338,7 +387,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* Top Bar Navigation: Back & Close Controls */}
           <div className="absolute top-2 left-3 right-3 z-20 flex items-center justify-between">
-            {(step === 'otp_verify' || step === 'google_account_select') && !currentUser ? (
+            {step === 'otp_verify' && !currentUser ? (
               <button
                 type="button"
                 onClick={() => {
@@ -453,118 +502,263 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               </div>
             </div>
-          ) : step === 'google_account_select' ? (
+          
+          ) : step === 'password_auth' ? (
             /* ---------------------------------------------------- */
-            /* GOOGLE ACCOUNT CHOOSER / ACCOUNT LOGIN SELECTOR     */
+            /* EMAIL + PASSWORD SIGN IN / SIGN UP                    */
             /* ---------------------------------------------------- */
             <div>
               <div className="text-center mb-4">
-                <div className="w-12 h-12 rounded-2xl bg-white dark:bg-[#071F36] border-2 border-slate-200 dark:border-[#1E4366] flex items-center justify-center mx-auto mb-2 shadow-xs">
-                  <svg className="w-6 h-6" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                  </svg>
-                </div>
-                <h2 className="text-lg font-black text-slate-900 dark:text-white">
-                  Choose a Google Account
+                <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                  {confirmationEmail ? 'Confirm your email' : passwordMode === 'signin' ? 'Sign In to ABU' : 'Create your ABU account'}
                 </h2>
-                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
-                  to continue to <strong className="text-slate-900 dark:text-white font-black">ABU Marketplace</strong>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-[300px] mx-auto leading-relaxed font-medium">
+                  {confirmationEmail
+                    ? 'One more step before you can sign in.'
+                    : passwordMode === 'signin'
+                      ? 'Use the email and password you registered with.'
+                      : 'Join ABU Marketplace to shop, sell and track your orders.'}
                 </p>
               </div>
 
-              {errorMessage && (
-                <div className="mb-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border-2 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2 font-medium">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-                  <span>{errorMessage}</span>
-                </div>
-              )}
-
-              {/* Verified Primary Google Account Option */}
-              <div className="space-y-2 mb-3">
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => handleExecuteGoogleLogin('Fouad Babasie Kamara', 'fouadbabasiekamara@gmail.com')}
-                  className="w-full p-3 rounded-2xl bg-white dark:bg-[#071F36] hover:bg-slate-50 dark:hover:bg-[#0A2946] active:scale-[0.99] border-2 border-slate-300 dark:border-[#1E4E7A] text-left flex items-center gap-3 transition-all cursor-pointer shadow-xs group disabled:opacity-50"
-                >
-                  <img
-                    src="https://api.dicebear.com/7.x/identicon/svg?seed=G_fouadbabasiekamara%40gmail.com&backgroundColor=4285F4,34A853"
-                    alt="Fouad Babasie Kamara"
-                    className="w-10 h-10 rounded-full border-2 border-slate-200 dark:border-[#1E4E7A] shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-xs font-black text-slate-900 dark:text-white group-hover:text-[#4285F4] transition-colors truncate">
-                      Fouad Babasie Kamara
-                    </div>
-                    <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate">
-                      fouadbabasiekamara@gmail.com
+              {confirmationEmail ? (
+                <div className="space-y-4">
+                  <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-300 dark:border-emerald-800">
+                    <div className="flex items-start gap-2.5">
+                      <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400 mt-0.5" />
+                      <div className="text-xs text-emerald-900 dark:text-emerald-100 font-medium leading-relaxed">
+                        <p className="font-extrabold mb-1">Account created</p>
+                        <p>
+                          We sent a confirmation link to{' '}
+                          <span className="font-bold break-all">{confirmationEmail}</span>. Open it,
+                          then come back and sign in with your password.
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-[#4285F4] group-hover:translate-x-0.5 transition-all shrink-0" />
-                </button>
-
-                {/* Alternate Google Account Input Toggle */}
-                {!showCustomGoogleInput ? (
                   <button
                     type="button"
-                    onClick={() => setShowCustomGoogleInput(true)}
-                    className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-[#031424] hover:bg-slate-100 dark:hover:bg-[#071F36] border-2 border-dashed border-slate-300 dark:border-[#1E4366] text-left flex items-center gap-3 transition-all cursor-pointer text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+                    onClick={() => {
+                      setConfirmationEmail(null);
+                      switchPasswordMode('signin');
+                    }}
+                    className="w-full h-11 bg-gradient-to-r from-[#00875A] to-[#009E69] hover:from-[#00704A] hover:to-[#00875A] text-white rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
                   >
-                    <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-[#0C243B] flex items-center justify-center shrink-0 text-slate-500">
-                      <User className="w-5 h-5" />
-                    </div>
-                    <span>Use another Google account</span>
+                    <span>Back to sign in</span>
+                    <ArrowRight className="w-4 h-4" />
                   </button>
-                ) : (
-                  <div className="p-3 bg-slate-50 dark:bg-[#031424] rounded-2xl border-2 border-slate-300 dark:border-[#1E4366] animate-in fade-in duration-150">
-                    <label className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 block mb-1.5">
-                      Enter Google Email:
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="email"
-                        value={customGoogleEmail}
-                        onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                        placeholder="yourname@gmail.com"
-                        className="flex-1 h-10 px-3 text-xs rounded-xl border-2 border-slate-300 dark:border-[#1E4366] bg-white dark:bg-[#041424] text-slate-900 dark:text-white focus:outline-none focus:border-[#4285F4]"
-                      />
-                      <button
-                        type="button"
-                        disabled={isSubmitting || !customGoogleEmail.includes('@')}
-                        onClick={() => {
-                          const clean = customGoogleEmail.trim().toLowerCase();
-                          const derivedName = clean.split('@')[0];
-                          handleExecuteGoogleLogin(derivedName, clean);
-                        }}
-                        className="px-3 h-10 rounded-xl bg-[#4285F4] hover:bg-[#3367D6] text-white font-black text-xs disabled:opacity-50 cursor-pointer shadow-xs shrink-0"
-                      >
-                        Sign In
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {isSubmitting && (
-                <div className="p-3 bg-blue-50 dark:bg-[#071F36] rounded-xl border border-blue-200 dark:border-blue-900/50 flex items-center justify-center gap-2 text-xs font-bold text-blue-900 dark:text-blue-300 mb-3 animate-pulse">
-                  <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" />
-                  <span>Connecting to Google Identity Services...</span>
                 </div>
+              ) : (
+                <>
+                  {/* Mode tabs */}
+                  <div className="mb-4 grid grid-cols-2 gap-1 p-1 bg-slate-100 dark:bg-[#031526] rounded-xl border border-slate-200 dark:border-[#133552]">
+                    {(['signin', 'signup'] as PasswordMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => switchPasswordMode(mode)}
+                        className={`h-9 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                          passwordMode === mode
+                            ? 'bg-white dark:bg-[#0B3B60] text-[#0B3B60] dark:text-white shadow-xs'
+                            : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        {mode === 'signin' ? 'Sign In' : 'Sign Up'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {errorMessage && (
+                    <div className="mb-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border-2 border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs flex items-center gap-2 font-medium">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                      <span>{errorMessage}</span>
+                    </div>
+                  )}
+
+                  <form onSubmit={handlePasswordSubmit} className="space-y-3.5" noValidate>
+                    {passwordMode === 'signup' && (
+                      <div>
+                        <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-100 mb-1.5">
+                          Full Name *
+                        </label>
+                        <div className="relative">
+                          <User className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            placeholder="e.g. Aminata Kamara"
+                            autoComplete="name"
+                            className="w-full h-11 pl-10 pr-3 rounded-xl border-2 border-slate-300 dark:border-[#1E4366] bg-white dark:bg-[#041424] text-slate-900 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#00875A] focus:ring-4 focus:ring-[#00875A]/20 transition-all placeholder-slate-400 dark:placeholder-slate-500"
+                          />
+                        </div>
+                        {fieldErrors.fullName && (
+                          <p className="mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">{fieldErrors.fullName}</p>
+                        )}
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-100 mb-1.5">
+                        Email Address *
+                      </label>
+                      <div className="relative">
+                        <Mail className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="e.g. yourname@gmail.com"
+                          autoComplete="email"
+                          className="w-full h-11 pl-10 pr-3 rounded-xl border-2 border-slate-300 dark:border-[#1E4366] bg-white dark:bg-[#041424] text-slate-900 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#00875A] focus:ring-4 focus:ring-[#00875A]/20 transition-all placeholder-slate-400 dark:placeholder-slate-500"
+                        />
+                      </div>
+                      {fieldErrors.email && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">{fieldErrors.email}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-100 mb-1.5">
+                        Password *
+                      </label>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder={passwordMode === 'signup' ? 'At least 8 characters' : 'Your password'}
+                          autoComplete={passwordMode === 'signup' ? 'new-password' : 'current-password'}
+                          className="w-full h-11 pl-10 pr-11 rounded-xl border-2 border-slate-300 dark:border-[#1E4366] bg-white dark:bg-[#041424] text-slate-900 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#00875A] focus:ring-4 focus:ring-[#00875A]/20 transition-all placeholder-slate-400 dark:placeholder-slate-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((v) => !v)}
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white cursor-pointer"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      {fieldErrors.password && (
+                        <p className="mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">{fieldErrors.password}</p>
+                      )}
+                    </div>
+
+                    {passwordMode === 'signup' && (
+                      <>
+                        <div>
+                          <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-100 mb-1.5">
+                            Confirm Password *
+                          </label>
+                          <div className="relative">
+                            <Lock className="w-4 h-4 text-slate-500 dark:text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <input
+                              type={showPassword ? 'text' : 'password'}
+                              value={confirmPassword}
+                              onChange={(e) => setConfirmPassword(e.target.value)}
+                              placeholder="Repeat your password"
+                              autoComplete="new-password"
+                              className="w-full h-11 pl-10 pr-3 rounded-xl border-2 border-slate-300 dark:border-[#1E4366] bg-white dark:bg-[#041424] text-slate-900 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#00875A] focus:ring-4 focus:ring-[#00875A]/20 transition-all placeholder-slate-400 dark:placeholder-slate-500"
+                            />
+                          </div>
+                          {fieldErrors.confirmPassword && (
+                            <p className="mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400">{fieldErrors.confirmPassword}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-extrabold text-slate-900 dark:text-slate-100 mb-1.5">
+                            Delivery City
+                          </label>
+                          <input
+                            type="text"
+                            value={signupCity}
+                            onChange={(e) => setSignupCity(e.target.value)}
+                            placeholder="e.g. Freetown (Central / CBD)"
+                            className="w-full h-11 px-3 rounded-xl border-2 border-slate-300 dark:border-[#1E4366] bg-white dark:bg-[#041424] text-slate-900 dark:text-white text-xs sm:text-sm font-semibold focus:outline-none focus:border-[#00875A] focus:ring-4 focus:ring-[#00875A]/20 transition-all placeholder-slate-400 dark:placeholder-slate-500"
+                          />
+                        </div>
+
+                        <div className={`p-2.5 bg-slate-50 dark:bg-[#031526] rounded-xl border border-slate-200 dark:border-[#133552] ${termsError ? 'ring-2 ring-rose-500 bg-rose-50 dark:bg-rose-950/40' : ''}`}>
+                          <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={agreedToTerms}
+                              onChange={(e) => {
+                                setAgreedToTerms(e.target.checked);
+                                if (e.target.checked) setTermsError(false);
+                              }}
+                              className="mt-0.5 w-4 h-4 rounded text-[#00875A] border-slate-300 dark:border-slate-500 focus:ring-[#00875A] cursor-pointer shrink-0"
+                            />
+                            <span className="text-[11px] leading-tight text-slate-600 dark:text-slate-300 font-medium">
+                              I agree to Abu Marketplace's{' '}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  onOpenTerms?.();
+                                }}
+                                className="underline text-slate-900 dark:text-white hover:text-[#00875A] font-bold"
+                              >
+                                Terms
+                              </button>{' '}
+                              and{' '}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  onOpenPrivacy?.();
+                                }}
+                                className="underline text-slate-900 dark:text-white hover:text-[#00875A] font-bold"
+                              >
+                                Privacy Policy
+                              </button>
+                            </span>
+                          </label>
+                          {termsError && (
+                            <p className="mt-1 ml-7 text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                              Please accept the Terms and Privacy Policy to continue
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full h-11 bg-gradient-to-r from-[#00875A] to-[#009E69] hover:from-[#00704A] hover:to-[#00875A] disabled:opacity-60 text-white rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.99] border border-[#00603f] transition-all cursor-pointer"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-white" />
+                          <span>{passwordMode === 'signin' ? 'Signing in...' : 'Creating account...'}</span>
+                        </>
+                      ) : (
+                        <>
+                          {passwordMode === 'signin' ? <KeyRound className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                          <span>{passwordMode === 'signin' ? 'Sign In' : 'Create Account'}</span>
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </>
               )}
 
-              <div className="pt-2 text-center">
-                <button
-                  type="button"
-                  onClick={() => setStep('email_input')}
-                  className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer font-bold inline-flex items-center gap-1"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Back to all sign-in options</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setErrorMessage('');
+                  setFieldErrors({});
+                  setStep('email_input');
+                }}
+                className="mt-3 w-full h-9 text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:text-[#00875A] dark:hover:text-[#8df7c1] flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Use a one-time email code instead
+              </button>
             </div>
           ) : step === 'email_input' ? (
             /* ---------------------------------------------------- */
@@ -626,6 +820,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   )}
                 </button>
               </form>
+
+              {/* Email + password alternative */}
+              <div className="mt-2 flex items-center justify-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                <span>Have a password?</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErrorMessage('');
+                    setFieldErrors({});
+                    switchPasswordMode('signin');
+                    setStep('password_auth');
+                  }}
+                  className="font-extrabold text-[#00875A] dark:text-[#8df7c1] hover:underline cursor-pointer"
+                >
+                  Sign in or create an account
+                </button>
+              </div>
 
               {/* Or Divider */}
               <div className="relative my-4 flex items-center justify-center">

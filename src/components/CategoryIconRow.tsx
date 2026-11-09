@@ -226,6 +226,19 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
       },
       isActive: activeView === 'services',
     },
+    {
+      label: 'Others',
+      sublabel: 'More & Mixed',
+      icon: LayoutGrid,
+      color: '#64748B',
+      bgColor: 'bg-slate-50 dark:bg-slate-800/40',
+      textColor: 'text-slate-600 dark:text-slate-300',
+      onClick: () => {
+        onSelectView('marketplace');
+        onSelectCategory('Others');
+      },
+      isActive: activeView === 'marketplace' && selectedCategory === 'Others',
+    },
   ];
 
   return (

@@ -1,80 +1,124 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { DatabaseSync } from 'node:sqlite';
+// Load .env before reading any variable (ES imports run before server.ts calls dotenv.config())
+import 'dotenv/config';
+import fs from 'node:fs';
+import tls from 'node:tls';
+import pg from 'pg';
 import { betterAuth } from 'better-auth';
 import { bearer, phoneNumber } from 'better-auth/plugins';
 import { Request } from 'express';
 import { generateAlphanumericOtp } from './otp.ts';
+import { dash, createSMSSender } from '@better-auth/infra';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Supabase signs its database certificates with a private root CA that is not in
+// Node's trust store, so it is bundled to keep full certificate verification on.
+const SUPABASE_ROOT_CA = new URL('../certs/supabase-root-2021-ca.pem', import.meta.url);
 
-// Database path in prisma/dev.db
-const dbPath = path.resolve(__dirname, '..', 'prisma', 'dev.db');
-export const db = new DatabaseSync(dbPath);
+function trustedCAs(): string[] {
+  const override = process.env.DATABASE_SSL_CA;
+  const custom = override
+    ? override.includes('BEGIN CERTIFICATE')
+      ? override
+      : fs.readFileSync(override, 'utf8')
+    : fs.readFileSync(SUPABASE_ROOT_CA, 'utf8');
+  // Keep the public roots so non-Supabase databases still verify normally.
+  return [custom, ...tls.rootCertificates];
+}
 
-// Ensure Better Auth tables exist with required columns
-db.exec(`
-  CREATE TABLE IF NOT EXISTS user (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    emailVerified INTEGER NOT NULL DEFAULT 0,
-    image TEXT,
-    phoneNumber TEXT UNIQUE,
-    phoneNumberVerified INTEGER DEFAULT 0,
-    role TEXT DEFAULT 'buyer',
-    preferredCity TEXT,
-    provider TEXT DEFAULT 'google',
-    cart TEXT DEFAULT '[]',
-    createdAt INTEGER NOT NULL,
-    updatedAt INTEGER NOT NULL
+// pg reads sslmode out of the URL itself and that would override the ssl config
+// below, so it is removed and handled here instead.
+function withoutSslMode(connectionString: string): string {
+  const [base, ...query] = connectionString.split('?');
+  if (query.length === 0) return connectionString;
+  const rest = query
+    .join('?')
+    .split('&')
+    .filter((param) => !/^sslmode=/i.test(param));
+  return rest.length > 0 ? `${base}?${rest.join('&')}` : base;
+}
+
+/**
+ * Builds the Postgres pool config. TLS certificates are always verified (chain
+ * and hostname) unless explicitly opted out of — see DATABASE_SSL_NO_VERIFY.
+ */
+function postgresConfig(): pg.PoolConfig {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    console.error('[db] DATABASE_URL is not set; the Postgres pool cannot connect.');
+    return { max: 5 };
+  }
+
+  let sslMode = process.env.DATABASE_SSL_MODE?.toLowerCase();
+  try {
+    const parsed = new URL(connectionString);
+    sslMode = parsed.searchParams.get('sslmode')?.toLowerCase() || sslMode;
+  } catch {
+    console.error('[db] DATABASE_URL is not a valid URL; TLS verification uses defaults.');
+  }
+
+  const cleaned = withoutSslMode(connectionString);
+
+  if (sslMode === 'disable') {
+    console.warn('[db] WARNING: TLS is disabled for the Postgres connection (sslmode=disable).');
+    return { connectionString: cleaned, max: 5 };
+  }
+
+  if (sslMode === 'no-verify' || process.env.DATABASE_SSL_NO_VERIFY === 'true') {
+    console.warn(
+      '[db] WARNING: Postgres TLS certificate verification is DISABLED. ' +
+        'Traffic is encrypted but the server identity is not checked, so this is open to ' +
+        'man-in-the-middle attacks. Remove DATABASE_SSL_NO_VERIFY, DATABASE_SSL_MODE or ' +
+        'sslmode=no-verify to restore verification.',
+    );
+    return { connectionString: cleaned, ssl: { rejectUnauthorized: false }, max: 5 };
+  }
+
+  return {
+    connectionString: cleaned,
+    ssl: { rejectUnauthorized: true, ca: trustedCAs() },
+    max: 5,
+  };
+}
+
+// Postgres (Supabase) connection
+export const pool = new pg.Pool(postgresConfig());
+
+// Columns that Postgres needs in double quotes because they are camelCase
+const QUOTE = [
+  'phoneNumberVerified', 'phoneNumber', 'emailVerified', 'preferredCity',
+  'createdAt', 'updatedAt', 'expiresAt', 'ipAddress', 'userAgent', 'userId',
+  'accountId', 'providerId', 'accessTokenExpiresAt', 'refreshTokenExpiresAt',
+  'accessToken', 'refreshToken', 'idToken',
+];
+const quoteRe = new RegExp(`(?<!")\\b(${QUOTE.join('|')})\\b(?!")`, 'g');
+
+// Converts an old SQLite-style query into a Postgres one
+function toPg(sql: string, params: any[]) {
+  let i = 0;
+  const text = sql
+    .replace(quoteRe, '"$1"')
+    .replace(/\b(FROM|UPDATE|INTO|TABLE)\s+user\b/gi, '$1 "user"')
+    .replace(/\?/g, () => `$${++i}`);
+  // Date.now() numbers become real timestamps
+  const values = params.map((p) =>
+    typeof p === 'number' && p > 1e12 ? new Date(p) : p
   );
+  return { text, values };
+}
 
-  CREATE TABLE IF NOT EXISTS session (
-    id TEXT PRIMARY KEY,
-    expiresAt INTEGER NOT NULL,
-    token TEXT NOT NULL UNIQUE,
-    createdAt INTEGER NOT NULL,
-    updatedAt INTEGER NOT NULL,
-    ipAddress TEXT,
-    userAgent TEXT,
-    userId TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS account (
-    id TEXT PRIMARY KEY,
-    accountId TEXT NOT NULL,
-    providerId TEXT NOT NULL,
-    userId TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
-    accessToken TEXT,
-    refreshToken TEXT,
-    idToken TEXT,
-    accessTokenExpiresAt INTEGER,
-    refreshTokenExpiresAt INTEGER,
-    scope TEXT,
-    password TEXT,
-    createdAt INTEGER NOT NULL,
-    updatedAt INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS verification (
-    id TEXT PRIMARY KEY,
-    identifier TEXT NOT NULL,
-    value TEXT NOT NULL,
-    expiresAt INTEGER NOT NULL,
-    createdAt INTEGER NOT NULL,
-    updatedAt INTEGER NOT NULL
-  );
-`);
-
-// Add any missing columns to existing user table safely
-try { db.exec('ALTER TABLE user ADD COLUMN phoneNumber TEXT UNIQUE'); } catch {}
-try { db.exec('ALTER TABLE user ADD COLUMN phoneNumberVerified INTEGER DEFAULT 0'); } catch {}
-try { db.exec("ALTER TABLE user ADD COLUMN role TEXT DEFAULT 'buyer'"); } catch {}
-try { db.exec('ALTER TABLE user ADD COLUMN preferredCity TEXT'); } catch {}
-try { db.exec("ALTER TABLE user ADD COLUMN provider TEXT DEFAULT 'google'"); } catch {}
-try { db.exec("ALTER TABLE user ADD COLUMN cart TEXT DEFAULT '[]'"); } catch {}
+export const db = {
+  async get(sql: string, params: any[] = []) {
+    const { text, values } = toPg(sql, params);
+    return (await pool.query(text, values)).rows[0];
+  },
+  async all(sql: string, params: any[] = []) {
+    const { text, values } = toPg(sql, params);
+    return (await pool.query(text, values)).rows;
+  },
+  async run(sql: string, params: any[] = []) {
+    const { text, values } = toPg(sql, params);
+    return pool.query(text, values);
+  },
+};
 
 // In-memory record of latest dispatched OTPs for carrier gateway confirmation & notification
 export const dispatchedOtps = new Map<string, { code: string; sentAt: number; channel: string }>();
@@ -92,16 +136,20 @@ export function getDispatchedOtp(phoneNumber: string): string | undefined {
   return undefined;
 }
 
-import { dash, createSMSSender } from '@better-auth/infra';
-
-export const BETTER_AUTH_API_KEY = process.env.BETTER_AUTH_API_KEY || 'ba_cn6v0fyinlj38h4q6t49ksdjmq8g9tqf';
-export const BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET || 'abu-marketplace-secure-auth-secret-sl-2026-prod-token';
+// Secrets are never hardcoded: they must come from the environment. The values
+// that used to be committed here as fallbacks are compromised and were rotated.
+const envApiKey = process.env.BETTER_AUTH_API_KEY;
+if (!envApiKey) console.warn('[auth] BETTER_AUTH_API_KEY is not set; Better Auth Infra SMS is disabled.');
+export const BETTER_AUTH_API_KEY = envApiKey || '';
+const envSecret = process.env.BETTER_AUTH_SECRET;
+if (!envSecret) console.warn('[auth] BETTER_AUTH_SECRET is not set; generate one (openssl rand -hex 32) before deploying.');
+export const BETTER_AUTH_SECRET = envSecret || '';
 export const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL || 'https://abumarketplace.shop';
 
 const smsSender = createSMSSender({ apiKey: BETTER_AUTH_API_KEY });
 
 export const auth = betterAuth({
-  database: db,
+  database: pool,
   secret: BETTER_AUTH_SECRET,
   baseURL: BETTER_AUTH_URL,
   trustedOrigins: [
@@ -116,7 +164,9 @@ export const auth = betterAuth({
     'https://ais-pre-mwjnsmpsez6dbl5ruxi3bu-664654490955.europe-west2.run.app',
   ].filter(Boolean),
   advanced: {
-    useSecureCookies: false, // Allows session tokens to persist across localhost, preview iframes, and HTTPS production
+    // Session cookies are Secure in any https deployment. Only plain-http
+    // development (localhost) runs with insecure cookies.
+    useSecureCookies: process.env.NODE_ENV === 'production',
   },
   plugins: [
     bearer(),
@@ -155,6 +205,7 @@ export const auth = betterAuth({
     additionalFields: {
       role: { type: 'string', required: false, defaultValue: 'buyer' },
       preferredCity: { type: 'string', required: false },
+      provider: { type: 'string', required: false, defaultValue: 'google' },
       cart: { type: 'string', required: false, defaultValue: '[]' },
     },
   },
