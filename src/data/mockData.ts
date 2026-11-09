@@ -1,5 +1,5 @@
 import { LocationNode, Product, VendorStore, BlueCollarService } from '../types.ts';
-import { EXPANDED_PRODUCTS, ADDITIONAL_STORES } from './expandedProducts';
+import { EXPANDED_PRODUCTS, ADDITIONAL_STORES } from './expandedProducts.ts';
 
 export const SIERRA_LEONE_LOCATIONS: LocationNode[] = [
   {
