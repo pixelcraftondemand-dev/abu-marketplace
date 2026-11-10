@@ -1,7 +1,19 @@
 import { Product, LocationNode, Order, MobileMoneyProvider, CartItem, VendorStore, BlueCollarService, ServiceBooking } from '../types';
 import { supabase } from '../lib/supabase';
 
+let clerkTokenProvider: (() => Promise<string | null>) | null = null;
+
+export function setClerkTokenProvider(provider: (() => Promise<string | null>) | null) {
+  clerkTokenProvider = provider;
+}
+
 async function authHeaders(required = false): Promise<Record<string, string>> {
+  if (import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) {
+    const token = await clerkTokenProvider?.();
+    if (required && !token) throw new Error('Please sign in to continue');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
   const { data, error } = await supabase.auth.getSession();
   if (error && required) throw new Error('Could not verify your session. Please sign in again.');
   const token = data.session?.access_token;
@@ -51,6 +63,13 @@ export interface StoreSubmission {
 }
 
 export const api = {
+  async getCurrentUser() {
+    const res = await fetch('/api/custom-auth/me', { headers: await authHeaders(true) });
+    if (!res.ok) return throwApiError(res, 'Could not load your account');
+    const data = await res.json();
+    return data.user;
+  },
+
   // 1. Fetch products
   async getProducts(params?: { category?: string; search?: string; flashDeals?: boolean }): Promise<Product[]> {
     try {

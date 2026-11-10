@@ -58,7 +58,7 @@ import { getActiveBetterAuthSession } from './lib/auth-client';
 import { getInitialTheme, applyTheme, ThemeMode } from './lib/theme';
 
 import { 
-  Category, 
+  Category,
   Product, 
   CartItem, 
   LocationNode, 
@@ -97,7 +97,19 @@ import {
   ShoppingBag
 } from 'lucide-react';
 
-export default function App() {
+interface AppProps {
+  clerkEnabled?: boolean;
+  clerkLoaded?: boolean;
+  clerkUser?: UserProfile | null;
+  onClerkSignOut?: () => Promise<void>;
+}
+
+export default function App({
+  clerkEnabled = false,
+  clerkLoaded = false,
+  clerkUser = null,
+  onClerkSignOut,
+}: AppProps = {}) {
   // Theme state (persisted in localStorage and synced with HTML document)
   const [theme, setTheme] = useState<ThemeMode>(() => getInitialTheme());
 
@@ -115,6 +127,7 @@ export default function App() {
 
   // WhatsApp Authentication state (persisted)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
+    if (clerkEnabled) return null;
     try {
       const saved = localStorage.getItem('abu_marketplace_user');
       return saved ? JSON.parse(saved) : null;
@@ -314,17 +327,44 @@ export default function App() {
           setServices(remoteServices);
         }
 
-        // Hydrate active Better Auth session from server
-        const activeUser = await getActiveBetterAuthSession();
-        if (activeUser) {
-          setCurrentUser(activeUser);
-        }
       } catch (e) {
         console.warn('Backend hydration notice:', e);
       }
     }
     loadBackendData();
   }, []);
+
+  useEffect(() => {
+    if (!clerkEnabled) {
+      void getActiveBetterAuthSession().then((user) => {
+        if (user) setCurrentUser(user);
+      });
+      return;
+    }
+    if (!clerkLoaded) return;
+    setCurrentUser(clerkUser);
+    if (!clerkUser) {
+      try {
+        localStorage.removeItem('abu_marketplace_user');
+      } catch {}
+      return;
+    }
+    try {
+      localStorage.setItem('abu_marketplace_user', JSON.stringify(clerkUser));
+    } catch {}
+    void api.getCurrentUser().then((user) => {
+      if (user) {
+        setCurrentUser({
+          ...clerkUser,
+          ...user,
+          avatar: user.image || clerkUser.avatar,
+          joinedAt: user.createdAt
+            ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+            : clerkUser.joinedAt,
+        } as UserProfile);
+      }
+    }).catch((error) => console.warn('Could not hydrate Clerk profile:', error));
+  }, [clerkEnabled, clerkLoaded, clerkUser]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -441,12 +481,13 @@ export default function App() {
     try {
       localStorage.setItem('abu_marketplace_user', JSON.stringify(user));
     } catch {}
-    const providerLabel = user.provider === 'google' ? 'Google' : user.provider === 'facebook' ? 'Facebook' : user.provider === 'apple' ? 'Apple ID' : 'Email';
+    const providerLabel = user.provider === 'clerk' ? 'Clerk' : user.provider === 'google' ? 'Google' : user.provider === 'facebook' ? 'Facebook' : user.provider === 'apple' ? 'Apple ID' : 'Email';
     showToast(`Welcome back, ${user.name}! Signed in via ${providerLabel}`);
     handleCloseAuth();
   };
 
   const handleLogout = () => {
+    if (clerkEnabled) void onClerkSignOut?.();
     setCurrentUser(null);
     try {
       localStorage.removeItem('abu_marketplace_user');

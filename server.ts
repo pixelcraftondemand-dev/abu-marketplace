@@ -261,7 +261,9 @@ app.post('/api/custom-auth/update-profile', requireSupabase, async (req: Request
     }
 
     if (Object.keys(updates).length > 0) {
-      const { error } = await supabaseAdmin.from('profiles').update(updates).eq('id', current.id);
+      const profileTable = current.provider === 'clerk' ? 'clerk_profiles' : 'profiles';
+      const profileIdColumn = current.provider === 'clerk' ? 'clerk_id' : 'id';
+      const { error } = await supabaseAdmin.from(profileTable).update(updates).eq(profileIdColumn, current.id);
       if (error) throw error;
     }
 

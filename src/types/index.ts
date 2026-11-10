@@ -169,7 +169,7 @@ export interface UserProfile {
   whatsappNumber?: string;
   phoneNumber?: string;
   email?: string;
-  provider: 'whatsapp' | 'google' | 'facebook' | 'apple' | 'phone' | 'email';
+  provider: 'whatsapp' | 'google' | 'facebook' | 'apple' | 'phone' | 'email' | 'clerk';
   isVerified: boolean;
   avatar?: string;
   preferredCity?: string;

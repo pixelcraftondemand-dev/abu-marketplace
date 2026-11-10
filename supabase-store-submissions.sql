@@ -2,7 +2,7 @@
 -- Safe to run more than once.
 create table if not exists public.store_submissions (
   id uuid primary key default gen_random_uuid(),
-  owner_id uuid references auth.users(id) on delete set null,
+  owner_id text,
   owner_email text not null,
   owner_name text,
   name text not null,
@@ -18,7 +18,7 @@ create table if not exists public.store_submissions (
   logo text,
   status text not null default 'pending' check (status in ('pending', 'approved', 'rejected')),
   review_note text,
-  reviewed_by uuid references auth.users(id) on delete set null,
+  reviewed_by text,
   reviewed_at timestamptz,
   -- Set when the submission is rejected; lets the same store try again later.
   created_store_id text,
@@ -34,7 +34,7 @@ alter table public.store_submissions enable row level security;
 -- Owners can read their own submissions so the UI can show "pending review".
 drop policy if exists "read own submissions" on public.store_submissions;
 create policy "read own submissions" on public.store_submissions
-  for select using (auth.uid() = owner_id);
+  for select using ((select auth.jwt()->>'sub') = owner_id);
 
 -- Deliberately no insert/update policy: the server writes with the secret key,
 -- so a client cannot approve its own store or rewrite its status.
