@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   X, 
   Search, 
+  BarChart3,
   Plus, 
   Edit3, 
   Trash2, 
@@ -42,7 +43,7 @@ interface AdminCMSModalProps {
   onShowToast: (msg: string) => void;
 }
 
-type CMSTab = 'overview' | 'products' | 'media' | 'stores' | 'services' | 'backup';
+type CMSTab = 'overview' | 'analytics' | 'products' | 'media' | 'stores' | 'services' | 'backup';
 
 const ALL_CATEGORIES: Category[] = [
   'Solar & Power',
@@ -125,6 +126,12 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
     });
     return count;
   }, [imageUsageMap]);
+
+  const inventorySnapshot = useMemo(() => ({
+    units: products.reduce((total, product) => total + Math.max(0, product.stockCount), 0),
+    lowStock: products.filter((product) => product.stockCount > 0 && product.stockCount <= 5).length,
+    outOfStock: products.filter((product) => product.stockCount <= 0).length,
+  }), [products]);
 
   // Filtered Products
   const filteredProducts = useMemo(() => {
@@ -330,6 +337,18 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveTab('analytics')}
+            className={`px-3 py-2 text-xs font-bold rounded-t-md transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'analytics'
+                ? 'bg-white dark:bg-[#0B1520] text-[#0B3B60] dark:text-[#38BDF8] border-t-2 border-t-[#FF6600] border-x border-[#E7ECF0] dark:border-[#1E2E3D]'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            <span>Site Analytics</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('products')}
             className={`px-3 py-2 text-xs font-bold rounded-t-md transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
               activeTab === 'products'
@@ -506,6 +525,36 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
                 </div>
               </div>
             </div>
+          )}
+
+          {activeTab === 'analytics' && (
+            <section className="space-y-5" aria-label="Sitewide commerce analytics">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Sitewide commerce snapshot</h3>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                  Current catalog and inventory counts. Sales and visitor tracking are not connected, so no estimated figures are shown.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {[
+                  { label: 'Product listings', value: products.length, icon: Package, color: 'text-sky-700 dark:text-sky-300' },
+                  { label: 'Approved stores', value: stores.length, icon: Store, color: 'text-emerald-700 dark:text-emerald-300' },
+                  { label: 'Service providers', value: services.length, icon: Wrench, color: 'text-amber-700 dark:text-amber-300' },
+                  { label: 'Units in stock', value: inventorySnapshot.units.toLocaleString(), icon: Package, color: 'text-slate-700 dark:text-slate-200' },
+                  { label: 'Low-stock listings', value: inventorySnapshot.lowStock, icon: AlertTriangle, color: 'text-orange-700 dark:text-orange-300' },
+                  { label: 'Out of stock', value: inventorySnapshot.outOfStock, icon: AlertTriangle, color: 'text-rose-700 dark:text-rose-300' },
+                ].map(({ label, value, icon: Icon, color }) => (
+                  <div key={label} className="rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-[#1E2E3D] dark:bg-[#111D27]">
+                    <div className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400">
+                      <span>{label}</span>
+                      <Icon className={`h-4 w-4 ${color}`} />
+                    </div>
+                    <p className="mt-2 text-2xl font-black text-slate-900 dark:text-white">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
           )}
 
           {/* 2. PRODUCTS TAB */}

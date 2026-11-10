@@ -230,7 +230,7 @@ app.get('/api/custom-auth/me', requireSupabase, async (req: Request, res: Respon
   try {
     const user = await getSessionUser(req);
     if (!user) return res.json({ success: false, user: null });
-    res.json({ success: true, user });
+    res.json({ success: true, user, isAdmin: isAdmin(user) });
   } catch (err) {
     if (err instanceof SupabaseConfigurationError) return supabaseUnavailable(res);
     console.error('[auth] session lookup failed:', err);

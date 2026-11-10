@@ -118,16 +118,26 @@ export function rateLimit(req: Request, res: Response, routeKey: string, max: nu
 // Security headers & CSRF-style origin enforcement
 // ----------------------------------------------------
 
+const clerkOrigin = (() => {
+  const publishableKey = process.env.VITE_CLERK_PUBLISHABLE_KEY?.trim();
+  const encodedFrontendApi = publishableKey?.match(/^pk_(?:test|live)_(.+)$/)?.[1];
+  if (!encodedFrontendApi) return '';
+
+  const frontendApi = Buffer.from(encodedFrontendApi, 'base64').toString('utf8').replace(/\$$/, '');
+  return /^[a-z0-9.-]+$/i.test(frontendApi) ? ` https://${frontendApi}` : '';
+})();
+
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  // Vite injects inline bootstraps; fonts & Supabase/Google endpoints are documented needs.
-  "script-src 'self' 'unsafe-inline' https://accounts.google.com",
+  // Vite injects inline bootstraps; Clerk, fonts, and Google endpoints are documented needs.
+  `script-src 'self' 'unsafe-inline' https://accounts.google.com${clerkOrigin}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' data: https://fonts.gstatic.com",
+  `font-src 'self' data: https://fonts.gstatic.com${clerkOrigin}`,
   "img-src 'self' data: blob: https://api.dicebear.com https:",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.googleapis.com https://fonts.googleapis.com https://api.dicebear.com https://api.abumarketplace.shop wss://*.loca.lt https://*.run.app",
-  "frame-src 'self' https://accounts.google.com",
-  "form-action 'self'",
+  "worker-src 'self' blob:",
+  `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.googleapis.com https://fonts.googleapis.com https://api.dicebear.com https://api.abumarketplace.shop wss://*.loca.lt https://*.run.app${clerkOrigin}`,
+  `frame-src 'self' https://accounts.google.com${clerkOrigin}`,
+  `form-action 'self'${clerkOrigin}`,
   "frame-ancestors 'self'",
   'base-uri \'self\'',
   'object-src \'none\'',

@@ -88,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Dedicated "Create Shop" / "My Shop" Button */}
             <button
               type="button"
-              onClick={() => onOpenMerchantHub(isShopApproved ? 'analytics' : 'store')}
+              onClick={() => onOpenMerchantHub('store')}
               className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer border shrink-0 ${
                 isShopApproved
                   ? 'bg-[#00875A] hover:bg-[#00704A] text-white border-[#8df7c1]/50'
@@ -194,7 +194,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenWhatsAppAuth}
-                className="bg-[#0b3b60] hover:bg-[#144b77] border border-[#8df7c1]/50 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 sm:gap-2 transition-all shadow-2xs hover:shadow-xs cursor-pointer shrink-0 min-h-[36px]"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#8df7c1]/50 bg-[#0b3b60] px-0 text-white transition-all hover:bg-[#144b77] sm:h-auto sm:w-auto sm:gap-2 sm:px-3 sm:py-1.5"
                 title="View Account Profile"
               >
                 <div className="relative shrink-0">
@@ -205,7 +205,7 @@ export const Header: React.FC<HeaderProps> = ({
                   />
                   <span className="w-2 h-2 rounded-full bg-[#16A34A] absolute -bottom-0.5 -right-0.5 ring-1 ring-[#002541]"></span>
                 </div>
-                <div className="flex flex-col text-left leading-none">
+                <div className="hidden flex-col text-left leading-none sm:flex">
                   <span className="text-[10px] sm:text-[11px] text-[#8df7c1] font-bold">Hi, {currentUser.name.split(' ')[0]}</span>
                   <span className="text-[9px] text-white/80 font-medium hidden sm:inline mt-0.5">Account</span>
                 </div>
@@ -214,11 +214,12 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 type="button"
                 onClick={onOpenWhatsAppAuth}
-                className="bg-white text-[#002541] hover:bg-[#F4F6F8] active:scale-[0.98] px-2.5 sm:px-4 py-1.5 rounded-full text-[11px] sm:text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition-all shadow-xs hover:shadow-sm cursor-pointer shrink-0 min-h-[36px]"
-                title="Sign In with Google, Facebook or Apple"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white px-0 text-[#002541] shadow-xs transition-all hover:bg-[#F4F6F8] sm:h-auto sm:w-auto sm:gap-1.5 sm:px-4 sm:py-1.5"
+                title="Sign in or create an account"
+                aria-label="Sign in or create an account"
               >
-                <User className="w-3.5 h-3.5 text-[#00875A]" />
-                <span className="whitespace-nowrap">Sign In</span>
+                <User className="h-4 w-4 text-[#00875A]" />
+                <span className="hidden whitespace-nowrap text-xs font-bold sm:inline">Sign In</span>
               </button>
             )}
           </div>

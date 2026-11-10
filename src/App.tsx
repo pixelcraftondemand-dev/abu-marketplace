@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useAuth, useUser } from '@clerk/react';
 import { 
   Header 
 } from './components/Header';
@@ -54,7 +55,6 @@ import { LegalModal } from './components/LegalModal';
 import { MobileBottomBar } from './components/MobileBottomBar';
 import { AdminCMSModal } from './components/AdminCMSModal';
 import { AdminStoreApprovals } from './components/AdminStoreApprovals';
-import { getActiveBetterAuthSession } from './lib/auth-client';
 import { getInitialTheme, applyTheme, ThemeMode } from './lib/theme';
 
 import { 
@@ -74,7 +74,7 @@ import {
   INITIAL_STORES,
   INITIAL_SERVICES
 } from './data/mockData';
-import { api } from './services/api';
+import { api, setClerkTokenProvider } from './services/api';
 import { 
   PackageSearch,
   CheckCircle2,
@@ -97,19 +97,27 @@ import {
   ShoppingBag
 } from 'lucide-react';
 
-interface AppProps {
-  clerkEnabled?: boolean;
-  clerkLoaded?: boolean;
-  clerkUser?: UserProfile | null;
-  onClerkSignOut?: () => Promise<void>;
-}
+export default function App() {
+  const { getToken, isLoaded: clerkLoaded, isSignedIn, signOut } = useAuth();
+  const { user } = useUser();
+  const clerkUser = useMemo<UserProfile | null>(() => user
+    ? {
+        id: user.id,
+        name: user.fullName || user.primaryEmailAddress?.emailAddress?.split('@')[0] || 'Shopper',
+        email: user.primaryEmailAddress?.emailAddress,
+        provider: 'clerk',
+        isVerified: true,
+        avatar: user.imageUrl,
+        role: 'buyer',
+        joinedAt: user.createdAt?.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) || '',
+      }
+    : null, [user]);
 
-export default function App({
-  clerkEnabled = false,
-  clerkLoaded = false,
-  clerkUser = null,
-  onClerkSignOut,
-}: AppProps = {}) {
+  useEffect(() => {
+    setClerkTokenProvider(isSignedIn ? getToken : null);
+    return () => setClerkTokenProvider(null);
+  }, [getToken, isSignedIn]);
+
   // Theme state (persisted in localStorage and synced with HTML document)
   const [theme, setTheme] = useState<ThemeMode>(() => getInitialTheme());
 
@@ -125,16 +133,8 @@ export default function App({
     });
   };
 
-  // WhatsApp Authentication state (persisted)
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
-    if (clerkEnabled) return null;
-    try {
-      const saved = localStorage.getItem('abu_marketplace_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   // Direct URL Path Routing (/login, /register, /auth, /account, /signin, /signup)
   const [isWhatsAppAuthOpen, setIsWhatsAppAuthOpen] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -196,6 +196,11 @@ export default function App({
   });
 
   const handleOpenCMS = () => {
+    if (!currentUser || !isAdmin) {
+      if (!currentUser) handleOpenAuth('login');
+      else showToast('Admin access required');
+      return;
+    }
     setIsCMSOpen(true);
     if (typeof window !== 'undefined') window.history.pushState({}, '', '/cms');
   };
@@ -335,36 +340,29 @@ export default function App({
   }, []);
 
   useEffect(() => {
-    if (!clerkEnabled) {
-      void getActiveBetterAuthSession().then((user) => {
-        if (user) setCurrentUser(user);
-      });
-      return;
-    }
     if (!clerkLoaded) return;
     setCurrentUser(clerkUser);
     if (!clerkUser) {
-      try {
-        localStorage.removeItem('abu_marketplace_user');
-      } catch {}
+      setIsAdmin(false);
       return;
     }
-    try {
-      localStorage.setItem('abu_marketplace_user', JSON.stringify(clerkUser));
-    } catch {}
-    void api.getCurrentUser().then((user) => {
-      if (user) {
+    void api.getCurrentUser().then((session) => {
+      setIsAdmin(session.isAdmin);
+      if (session.user) {
         setCurrentUser({
           ...clerkUser,
-          ...user,
-          avatar: user.image || clerkUser.avatar,
-          joinedAt: user.createdAt
-            ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+          ...session.user,
+          avatar: session.user.image || clerkUser.avatar,
+          joinedAt: session.user.createdAt
+            ? new Date(session.user.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
             : clerkUser.joinedAt,
         } as UserProfile);
       }
-    }).catch((error) => console.warn('Could not hydrate Clerk profile:', error));
-  }, [clerkEnabled, clerkLoaded, clerkUser]);
+    }).catch((error) => {
+      setIsAdmin(false);
+      console.warn('Could not hydrate Clerk profile:', error);
+    });
+  }, [clerkLoaded, clerkUser]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -475,23 +473,10 @@ export default function App({
   const vehicleProducts = useMemo(() => products.filter((p) => p.category === 'Vehicles & E-Bikes'), [products]);
   const booksArtProducts = useMemo(() => products.filter((p) => p.category === 'Books, Art & Stationery'), [products]);
 
-  // Authentication Handlers (Email OTP, Google, Social)
-  const handleLoginSuccess = (user: UserProfile) => {
-    setCurrentUser(user);
-    try {
-      localStorage.setItem('abu_marketplace_user', JSON.stringify(user));
-    } catch {}
-    const providerLabel = user.provider === 'clerk' ? 'Clerk' : user.provider === 'google' ? 'Google' : user.provider === 'facebook' ? 'Facebook' : user.provider === 'apple' ? 'Apple ID' : 'Email';
-    showToast(`Welcome back, ${user.name}! Signed in via ${providerLabel}`);
-    handleCloseAuth();
-  };
-
   const handleLogout = () => {
-    if (clerkEnabled) void onClerkSignOut?.();
+    void signOut();
     setCurrentUser(null);
-    try {
-      localStorage.removeItem('abu_marketplace_user');
-    } catch {}
+    setIsAdmin(false);
     showToast('Signed out of account session');
   };
 
@@ -669,7 +654,7 @@ export default function App({
         isShopApproved={isShopApproved}
         theme={theme}
         onToggleTheme={handleToggleTheme}
-        onOpenCMS={handleOpenCMS}
+        onOpenCMS={isAdmin ? handleOpenCMS : undefined}
       />
 
       {/* Primary Semantic H1 for SEO Ranking (#1 for ABU, abu, Marketplace) */}
@@ -1343,7 +1328,7 @@ export default function App({
           if (docId) setActiveLegalDocId(docId);
           setIsLegalModalOpen(true);
         }}
-        onOpenCMS={handleOpenCMS}
+        onOpenCMS={isAdmin ? handleOpenCMS : undefined}
         onOpenStoreApprovals={handleOpenApprovals}
       />
 
@@ -1418,7 +1403,6 @@ export default function App({
         isOpen={isWhatsAppAuthOpen}
         onClose={handleCloseAuth}
         currentUser={currentUser}
-        onLoginSuccess={handleLoginSuccess}
         onLogout={handleLogout}
         onOpenTerms={() => setIsLegalModalOpen(true)}
         onOpenPrivacy={() => setIsLegalModalOpen(true)}
@@ -1452,7 +1436,9 @@ export default function App({
         onAddProduct={handleAddNewProduct}
         onAddStore={handleAddNewStore}
         onAddService={handleAddNewService}
-        onOpenCMS={handleOpenCMS}
+        onOpenCMS={isAdmin ? handleOpenCMS : undefined}
+        currentUser={currentUser}
+        onOpenAuth={() => handleOpenAuth('login')}
       />
 
       {/* Location Picker Modal */}
@@ -1489,7 +1475,7 @@ export default function App({
 
       {/* Administrative Content Management System (CMS) */}
       <AdminCMSModal
-        isOpen={isCMSOpen}
+        isOpen={isCMSOpen && isAdmin}
         onClose={handleCloseCMS}
         products={products}
         stores={stores}

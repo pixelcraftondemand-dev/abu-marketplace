@@ -1,10 +1,10 @@
 import React from 'react';
-import { ShieldCheck, Truck, Phone, MapPin, Store, RotateCcw, Sliders, BarChart3 } from 'lucide-react';
+import { ShieldCheck, Truck, Phone, MapPin, Store, RotateCcw, Sliders } from 'lucide-react';
 import { AbuLogo } from './AbuLogo';
 
 interface FooterProps {
   onOpenLocationPicker: () => void;
-  onOpenMerchantHub: (tab?: 'store' | 'single_product' | 'service' | 'analytics') => void;
+  onOpenMerchantHub: (tab?: 'store' | 'single_product' | 'service') => void;
   onOpenOrderTracking: () => void;
   onOpenLegal?: (docId?: string) => void;
   onOpenCMS?: () => void;
@@ -108,16 +108,6 @@ export const Footer: React.FC<FooterProps> = ({
                 >
                   <Store className="w-3.5 h-3.5 text-[#8df7c1] shrink-0" />
                   <span>Sell & Provide Services</span>
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => onOpenMerchantHub('analytics')}
-                  className="hover:text-white hover:underline flex items-center gap-2 text-left cursor-pointer transition-colors text-emerald-300 hover:text-emerald-200"
-                  title="View Store Sales, Top-Selling Products & Visitor Analytics"
-                >
-                  <BarChart3 className="w-3.5 h-3.5 text-[#8df7c1] shrink-0" />
-                  <span>Store Analytics Dashboard</span>
                 </button>
               </li>
               <li>

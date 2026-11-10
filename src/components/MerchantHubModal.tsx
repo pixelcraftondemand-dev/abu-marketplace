@@ -41,9 +41,9 @@ import {
   CartesianGrid,
   Cell,
 } from 'recharts';
-import { Category, Product, VendorStore, BlueCollarService, TradeCategory, ItemCondition } from '../types';
+import { Category, Product, VendorStore, BlueCollarService, TradeCategory, ItemCondition, UserProfile } from '../types';
 import { detectCarrier, INITIAL_PRODUCTS, INITIAL_STORES } from '../data/mockData';
-import { api } from '../services/api';
+import { api, type StoreSubmission } from '../services/api';
 import { AbuLogo } from './AbuLogo';
 
 // Tooltip for Sales & Visitor Trends Chart
@@ -127,9 +127,11 @@ interface MerchantHubModalProps {
   onAddStore?: (store: VendorStore) => void;
   onAddService?: (service: BlueCollarService) => void;
   onOpenCMS?: () => void;
+  onOpenAuth?: () => void;
+  currentUser?: UserProfile | null;
   products?: Product[];
   stores?: VendorStore[];
-  initialTab?: 'store' | 'single_product' | 'service' | 'analytics';
+  initialTab?: 'store' | 'single_product' | 'service';
 }
 
 export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
@@ -139,6 +141,8 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   onAddStore,
   onAddService,
   onOpenCMS,
+  onOpenAuth,
+  currentUser,
   products = [],
   stores = [],
   initialTab,
@@ -146,12 +150,9 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   const [activeTab, setActiveTab] = useState<'store' | 'single_product' | 'service' | 'analytics'>(initialTab || 'store');
   const [successMessage, setSuccessMessage] = useState('');
   const [storeError, setStoreError] = useState('');
-  const [pendingStore, setPendingStore] = useState<{
-    name: string;
-    status: string;
-    submittedAt: string;
-    emailStatus: string;
-  } | null>(null);
+  const [storeApplications, setStoreApplications] = useState<StoreSubmission[]>([]);
+  const [isLoadingApplications, setIsLoadingApplications] = useState(false);
+  const [applicationLoadError, setApplicationLoadError] = useState('');
   const [exportToast, setExportToast] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -174,6 +175,23 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   const [storeHub, setStoreHub] = useState('Freetown Central');
   const [storeStreet, setStoreStreet] = useState('');
   const [storePhone, setStorePhone] = useState('');
+
+  const loadStoreApplications = async () => {
+    if (!currentUser) return;
+    setIsLoadingApplications(true);
+    setApplicationLoadError('');
+    try {
+      setStoreApplications(await api.getMyStoreApplications());
+    } catch (error) {
+      setApplicationLoadError(error instanceof Error ? error.message : 'Could not load your store applications.');
+    } finally {
+      setIsLoadingApplications(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'store' && currentUser) void loadStoreApplications();
+  }, [isOpen, activeTab, currentUser?.id]);
 
   // 2. Single Product Form State
   const [singleTitle, setSingleTitle] = useState('');
@@ -379,7 +397,17 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   // Handlers
   const handleStoreSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!storeName || !storePhone) return;
+    setStoreError('');
+    setSuccessMessage('');
+    if (!storeName.trim() || !storePhone.trim()) {
+      setStoreError('Enter your store name and contact phone number to continue.');
+      return;
+    }
+    if (!currentUser) {
+      setStoreError('Sign in with Clerk to submit a store application.');
+      onOpenAuth?.();
+      return;
+    }
 
     setIsSubmitting(true);
     const detection = detectCarrier(storePhone);
@@ -399,23 +427,17 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     try {
       const { submission, emailStatus } = await api.submitStoreApplication(storePayload);
 
-      // Nothing is published yet: the store waits in the admin review queue.
-      setPendingStore({
-        name: submission.name,
-        status: submission.status,
-        submittedAt: submission.created_at,
-        emailStatus,
-      });
-
-      setSuccessMessage(
-        emailStatus === 'failed'
-          ? `Application for "${submission.name}" received, but we could not send the confirmation email. Our team can still review it.`
-          : `Application for "${submission.name}" received. We emailed a confirmation and will notify you once an admin reviews it.`
-      );
+      setStoreApplications((applications) => [submission, ...applications.filter((application) => application.id !== submission.id)]);
+      setSuccessMessage(emailStatus === 'sent'
+        ? `Application for "${submission.name}" submitted. A confirmation email was sent; the store will appear after review.`
+        : emailStatus === 'logged'
+          ? `Application for "${submission.name}" submitted. Email delivery is not configured, but you can track its review status here.`
+          : `Application for "${submission.name}" submitted, but the confirmation email failed. You can track its review status here.`);
       setStoreName('');
       setStoreTagline('');
       setStoreDesc('');
       setStoreStreet('');
+      setStorePhone('');
     } catch (err: any) {
       setSuccessMessage('');
       setStoreError(
@@ -610,22 +632,6 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
             <span className="truncate text-[11px] sm:text-xs">Offer Service</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('analytics');
-              setSuccessMessage('');
-            }}
-            className={`py-2 px-1 sm:px-1.5 rounded font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer relative ${
-              activeTab === 'analytics'
-                ? 'bg-[#0B3B60] dark:bg-[#00875A] text-white shadow-xs'
-                : 'bg-white dark:bg-[#0E1720] text-[#1A242D] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
-            }`}
-          >
-            <BarChart3 className="w-4 h-4 shrink-0 text-emerald-500 dark:text-[#8df7c1]" />
-            <span className="truncate text-[11px] sm:text-xs">Analytics</span>
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 absolute top-1.5 right-1.5 animate-pulse" />
-          </button>
         </div>
 
         {/* Form Body */}
@@ -644,19 +650,42 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
             </div>
           )}
 
-          {/* Pending application banner: the store is not live until an admin approves */}
-          {pendingStore && pendingStore.status === 'pending' && (
-            <div className="bg-amber-50 border border-amber-300 p-3 rounded">
-              <div className="flex items-center gap-2 text-xs font-bold text-amber-800">
-                <Clock className="w-4 h-4 shrink-0" />
-                <span>Pending admin review</span>
+          {activeTab === 'store' && currentUser && (
+            <section className="rounded border border-slate-200 bg-slate-50 p-3" aria-label="Your store applications">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <h3 className="text-xs font-extrabold text-slate-900">Your store applications</h3>
+                <button type="button" onClick={() => void loadStoreApplications()} disabled={isLoadingApplications} className="text-[11px] font-bold text-emerald-800 hover:underline disabled:opacity-50">
+                  {isLoadingApplications ? 'Refreshing…' : 'Refresh'}
+                </button>
               </div>
-              <p className="text-[11px] text-amber-700 mt-1 leading-relaxed">
-                <strong>{pendingStore.name}</strong> is queued for review (submitted{' '}
-                {new Date(pendingStore.submittedAt).toLocaleString()}). We sent a confirmation email;
-                you'll get another email when an admin approves or rejects it. The store stays hidden from
-                buyers until then.
-              </p>
+              {applicationLoadError && <p role="alert" className="text-[11px] text-rose-700">{applicationLoadError}</p>}
+              {!isLoadingApplications && !applicationLoadError && storeApplications.length === 0 && (
+                <p className="text-[11px] text-slate-600">No applications yet. Submit a storefront below to start review.</p>
+              )}
+              <div className="space-y-2">
+                {storeApplications.slice(0, 3).map((application) => (
+                  <div key={application.id} className="flex items-start justify-between gap-3 border-t border-slate-200 pt-2 text-[11px]">
+                    <div className="min-w-0">
+                      <p className="truncate font-bold text-slate-900">{application.name}</p>
+                      <p className="text-slate-500">Submitted {new Date(application.created_at).toLocaleDateString()}</p>
+                      {application.review_note && <p className="mt-1 break-words text-slate-600">{application.review_note}</p>}
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2 py-1 font-bold capitalize ${application.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : application.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>
+                      {application.status === 'pending' ? 'In review' : application.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {activeTab === 'store' && !currentUser && (
+            <div className="flex items-start justify-between gap-3 rounded border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-950">
+              <div>
+                <p className="font-extrabold">Sign in to submit your shop</p>
+                <p className="mt-1 text-[11px] leading-relaxed">Your application is saved to your account and reviewed before the storefront goes live.</p>
+              </div>
+              <button type="button" onClick={onOpenAuth} className="shrink-0 rounded bg-emerald-800 px-3 py-2 font-bold text-white hover:bg-emerald-900">Sign in</button>
             </div>
           )}
 
@@ -680,6 +709,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                   <input
                     type="text"
                     required
+                    maxLength={120}
                     value={storeName}
                     onChange={(e) => setStoreName(e.target.value)}
                     placeholder="e.g. Lumley Solar Hub SL"
@@ -693,6 +723,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                   </label>
                   <input
                     type="text"
+                    maxLength={160}
                     value={storeTagline}
                     onChange={(e) => setStoreTagline(e.target.value)}
                     placeholder="e.g. Genuine Solar & Power Backup Systems"
@@ -725,8 +756,10 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                     Merchant Contact Phone (+232) *
                   </label>
                   <input
-                    type="text"
+                    type="tel"
                     required
+                    autoComplete="tel"
+                    maxLength={24}
                     value={storePhone}
                     onChange={(e) => setStorePhone(e.target.value)}
                     placeholder="076 123 456"
@@ -763,7 +796,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
 
               <button
                 type="submit"
-                disabled={isSubmitting || !storeName}
+                disabled={isSubmitting || !storeName.trim() || !storePhone.trim()}
                 className="w-full h-10 bg-[#0B3B60] hover:bg-[#002541] disabled:opacity-50 text-white rounded font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow transition-colors cursor-pointer"
               >
                 <Building2 className="w-4 h-4 text-[#8df7c1]" />
