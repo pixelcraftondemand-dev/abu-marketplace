@@ -26,6 +26,7 @@ import {
   type SubmissionStatus,
 } from './server/storeSubmissions.ts';
 import { recentMail } from './server/mailer.ts';
+import { getStoreLogoExtension, MAX_STORE_LOGO_BYTES } from './server/storeLogo.ts';
 import {
   applySecurity,
   rateLimit,
@@ -728,6 +729,85 @@ app.post('/api/stores', requireSupabase, async (req: Request, res: Response) => 
 // ----------------------------------------------------
 // STORE SUBMISSIONS (merchant applies, admin approves)
 // ----------------------------------------------------
+
+app.post(
+  '/api/stores/logo',
+  requireSupabase,
+  express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '5mb' }),
+  async (req: Request, res: Response) => {
+    const actor = await currentActor(req);
+    if (!actor) return res.status(401).json({ success: false, error: 'Please sign in to upload a store logo' });
+    if (!rateLimit(req, res, 'store-logo', 8, 10 * 60 * 1000)) return;
+
+    const privateKey = process.env.IMAGEKIT_PRIVATE_KEY?.trim();
+    const imageKitEndpoint = process.env.IMAGEKIT_URL_ENDPOINT?.trim();
+    if (!privateKey || !imageKitEndpoint) {
+      return res.status(503).json({ success: false, error: 'Store logo uploads are not configured.' });
+    }
+
+    const contentType = req.headers['content-type']?.split(';', 1)[0].trim().toLowerCase() || '';
+    const imageBytes = Buffer.isBuffer(req.body) ? req.body : null;
+    if (!imageBytes || !imageBytes.length) {
+      return res.status(400).json({ success: false, error: 'Choose a JPEG, PNG, or WebP logo to upload.' });
+    }
+    if (imageBytes.length > MAX_STORE_LOGO_BYTES) {
+      return res.status(413).json({ success: false, error: 'Store logos must be 5 MB or smaller.' });
+    }
+
+    const extension = getStoreLogoExtension(contentType, imageBytes);
+    if (!extension) {
+      return res.status(415).json({ success: false, error: 'Choose a valid JPEG, PNG, or WebP image.' });
+    }
+
+    try {
+      let requestedName = 'store-logo';
+      try {
+        const encodedName = req.headers['x-file-name'];
+        requestedName = decodeURIComponent(Array.isArray(encodedName) ? encodedName[0] || requestedName : encodedName || requestedName);
+      } catch {
+        requestedName = 'store-logo';
+      }
+      const fileStem = sanitizeText(requestedName, 100)
+        .split(/[\\/]/)
+        .pop()
+        ?.replace(/\.[^.]+$/, '')
+        .replace(/[^a-zA-Z0-9_-]+/g, '-')
+        .slice(0, 60) || 'store-logo';
+      const fileName = `${fileStem}-${Date.now()}.${extension}`;
+      const uploadForm = new FormData();
+      const uploadBytes = new Uint8Array(imageBytes.length);
+      uploadBytes.set(imageBytes);
+      uploadForm.append('file', new Blob([uploadBytes.buffer], { type: contentType }), fileName);
+      uploadForm.append('fileName', fileName);
+      uploadForm.append('folder', '/store-logos');
+
+      const uploadResponse = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${Buffer.from(`${privateKey}:`).toString('base64')}`,
+        },
+        body: uploadForm,
+      });
+      const payload: any = await uploadResponse.json().catch(() => ({}));
+      if (!uploadResponse.ok || typeof payload.url !== 'string') {
+        console.error('[stores] ImageKit logo upload failed:', uploadResponse.status);
+        return res.status(502).json({ success: false, error: 'Could not upload the logo. Please try again.' });
+      }
+
+      const uploadedUrl = new URL(payload.url);
+      const expectedHost = new URL(imageKitEndpoint).host;
+      if (uploadedUrl.protocol !== 'https:' || uploadedUrl.host !== expectedHost) {
+        console.error('[stores] ImageKit returned an unexpected logo URL host');
+        return res.status(502).json({ success: false, error: 'The image service returned an invalid logo URL.' });
+      }
+
+      res.status(201).json({ success: true, url: uploadedUrl.toString() });
+    } catch (error) {
+      console.error('[stores] Logo upload failed:', error);
+      res.status(502).json({ success: false, error: 'Could not upload the logo. Please try again.' });
+    }
+  },
+);
 
 // Merchant: submit a store for review. Nothing goes live until an admin approves.
 app.post('/api/stores/submissions', requireSupabase, async (req: Request, res: Response) => {

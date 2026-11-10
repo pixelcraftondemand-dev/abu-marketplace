@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   X, 
   Store, 
@@ -22,6 +22,7 @@ import {
   Calendar,
   Sparkles,
   Download,
+  Upload,
   Filter,
   Layers,
   ExternalLink,
@@ -175,6 +176,10 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   const [storeHub, setStoreHub] = useState('Freetown Central');
   const [storeStreet, setStoreStreet] = useState('');
   const [storePhone, setStorePhone] = useState('');
+  const [storeLogoUrl, setStoreLogoUrl] = useState('');
+  const [storeLogoError, setStoreLogoError] = useState('');
+  const [isUploadingStoreLogo, setIsUploadingStoreLogo] = useState(false);
+  const storeLogoInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadStoreApplications = async () => {
     if (!currentUser) return;
@@ -192,6 +197,39 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   useEffect(() => {
     if (isOpen && activeTab === 'store' && currentUser) void loadStoreApplications();
   }, [isOpen, activeTab, currentUser?.id]);
+
+  const handleStoreLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setStoreLogoError('Choose a JPEG, PNG, or WebP image.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setStoreLogoError('Store logos must be 5 MB or smaller.');
+      return;
+    }
+    if (!currentUser) {
+      setStoreLogoError('Sign in before uploading a store logo.');
+      onOpenAuth?.();
+      return;
+    }
+
+    setStoreLogoError('');
+    setIsUploadingStoreLogo(true);
+    try {
+      setStoreLogoUrl(await api.uploadStoreLogo(file));
+    } catch (error) {
+      setStoreLogoUrl('');
+      setStoreLogoError(error instanceof Error ? error.message : 'Could not upload the store logo.');
+    } finally {
+      setIsUploadingStoreLogo(false);
+    }
+  };
 
   // 2. Single Product Form State
   const [singleTitle, setSingleTitle] = useState('');
@@ -421,7 +459,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       phone: storePhone.trim(),
       payoutProvider: detection.carrier || 'orange',
       payoutPhone: storePhone.trim(),
-      logo: '/src/assets/images/flagship_smartphone_device_1791485459581.jpg',
+      logo: storeLogoUrl || '/src/assets/images/flagship_smartphone_device_1791485459581.jpg',
     };
 
     try {
@@ -438,6 +476,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       setStoreDesc('');
       setStoreStreet('');
       setStorePhone('');
+      setStoreLogoUrl('');
     } catch (err: any) {
       setSuccessMessage('');
       setStoreError(
@@ -701,6 +740,39 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                 </p>
               </div>
 
+              <div className="flex items-center gap-3 rounded border border-[#DCE1E5] bg-white p-3">
+                <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded border border-slate-200 bg-slate-50">
+                  {storeLogoUrl ? (
+                    <img src={storeLogoUrl} alt="Store logo preview" className="h-full w-full object-cover" />
+                  ) : (
+                    <Store className="h-6 w-6 text-slate-400" aria-hidden="true" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <label htmlFor="store-logo-upload" className="mb-1 block font-bold text-[#1A242D]">Store Logo</label>
+                  <input
+                    ref={storeLogoInputRef}
+                    id="store-logo-upload"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleStoreLogoUpload}
+                    className="sr-only"
+                    aria-describedby="store-logo-help store-logo-error"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => storeLogoInputRef.current?.click()}
+                    disabled={isUploadingStoreLogo || !currentUser}
+                    className="inline-flex h-9 items-center gap-2 rounded bg-[#0B3B60] px-3 text-xs font-bold text-white hover:bg-[#002541] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    {isUploadingStoreLogo ? 'Uploading…' : storeLogoUrl ? 'Change logo' : 'Upload logo'}
+                  </button>
+                  <p id="store-logo-help" className="mt-1 text-[10px] text-slate-600">JPEG, PNG, or WebP. Maximum 5 MB.</p>
+                  <p id="store-logo-error" role="alert" className="mt-1 text-[11px] font-semibold text-rose-700">{storeLogoError}</p>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="store-name" className="block font-bold text-[#1A242D] mb-1">
@@ -802,7 +874,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
 
               <button
                 type="submit"
-                disabled={isSubmitting || !storeName.trim() || !storePhone.trim()}
+                disabled={isSubmitting || isUploadingStoreLogo || !storeName.trim() || !storePhone.trim()}
                 className="w-full h-10 bg-[#0B3B60] hover:bg-[#002541] disabled:opacity-50 text-white rounded font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow transition-colors cursor-pointer"
               >
                 <Building2 className="w-4 h-4 text-[#8df7c1]" />

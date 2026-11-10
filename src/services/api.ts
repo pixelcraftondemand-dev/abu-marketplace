@@ -231,6 +231,22 @@ export const api = {
     return data.data;
   },
 
+  async uploadStoreLogo(file: File): Promise<string> {
+    const res = await fetch('/api/stores/logo', {
+      method: 'POST',
+      headers: {
+        ...await authHeaders(true),
+        'Content-Type': file.type,
+        'X-File-Name': encodeURIComponent(file.name),
+      },
+      body: file,
+    });
+    if (!res.ok) return throwApiError(res, 'Could not upload the store logo');
+    const data = await res.json();
+    if (!data.success || typeof data.url !== 'string') throw new Error('The image service returned an invalid logo URL');
+    return data.url;
+  },
+
   /** Merchant: submit a store for review. Returns the pending application — the store only becomes public once an admin approves it. */
   async submitStoreApplication(storeData: Partial<VendorStore>): Promise<{ submission: StoreSubmission; emailStatus: 'sent' | 'logged' | 'failed' }> {
     const headers = await authHeaders(true);
