@@ -23,7 +23,7 @@ interface HeaderProps {
   onOpenCart: () => void;
   onOpenWishlist: () => void;
   onOpenOrderTracking: () => void;
-  onOpenMerchantHub: (tab?: 'store' | 'single_product' | 'service' | 'analytics') => void;
+  onOpenMerchantHub: (tab?: 'store' | 'single_product' | 'service') => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   selectedCategory: Category;
@@ -85,24 +85,26 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </button>
 
-            {/* Dedicated "Create Shop" / "My Shop" Button */}
-            <button
-              type="button"
-              onClick={() => onOpenMerchantHub('store')}
-              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer border shrink-0 ${
-                isShopApproved
-                  ? 'bg-[#00875A] hover:bg-[#00704A] text-white border-[#8df7c1]/50'
-                  : 'bg-[#082d49] hover:bg-[#0d3f66] text-[#8df7c1] hover:text-white border-[#8df7c1]/35'
-              }`}
-              title={isShopApproved ? "Open My Shop Dashboard & Listings" : "Create & Register Your Shop on ABU Marketplace"}
-            >
-              <Store className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#8df7c1] shrink-0" />
-              <span className="whitespace-nowrap hidden sm:inline">{isShopApproved ? 'My Shop' : 'Create Shop'}</span>
-              <span className="whitespace-nowrap sm:hidden">{isShopApproved ? 'Shop' : '+Shop'}</span>
-              {isShopApproved && (
-                <span className="w-1.5 h-1.5 rounded-full bg-[#8df7c1] animate-pulse"></span>
-              )}
-            </button>
+            {currentUser && (
+              <button
+                type="button"
+                onClick={() => onOpenMerchantHub('store')}
+                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer border shrink-0 ${
+                  isShopApproved
+                    ? 'bg-[#00875A] hover:bg-[#00704A] text-white border-[#8df7c1]/50'
+                    : 'bg-[#082d49] hover:bg-[#0d3f66] text-[#8df7c1] hover:text-white border-[#8df7c1]/35'
+                }`}
+                title={isShopApproved ? "Open My Shop Dashboard & Listings" : "Create & Register Your Shop on ABU Marketplace"}
+                aria-label={isShopApproved ? 'Open My Shop' : 'Create Store'}
+              >
+                <Store className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#8df7c1] shrink-0" />
+                <span className="whitespace-nowrap hidden sm:inline">{isShopApproved ? 'My Shop' : 'Create Shop'}</span>
+                <span className="whitespace-nowrap sm:hidden">{isShopApproved ? 'Shop' : '+Shop'}</span>
+                {isShopApproved && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#8df7c1] animate-pulse"></span>
+                )}
+              </button>
+            )}
           </div>
 
           {/* Desktop Center Search Bar (Hidden on mobile, placed below for true mobile layout) */}

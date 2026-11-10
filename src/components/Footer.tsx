@@ -5,6 +5,7 @@ import { AbuLogo } from './AbuLogo';
 interface FooterProps {
   onOpenLocationPicker: () => void;
   onOpenMerchantHub: (tab?: 'store' | 'single_product' | 'service') => void;
+  isAuthenticated?: boolean;
   onOpenOrderTracking: () => void;
   onOpenLegal?: (docId?: string) => void;
   onOpenCMS?: () => void;
@@ -14,6 +15,7 @@ interface FooterProps {
 export const Footer: React.FC<FooterProps> = ({
   onOpenLocationPicker,
   onOpenMerchantHub,
+  isAuthenticated = false,
   onOpenOrderTracking,
   onOpenLegal,
   onOpenCMS,
@@ -101,15 +103,17 @@ export const Footer: React.FC<FooterProps> = ({
               Services & Portals
             </h4>
             <ul className="space-y-2.5 pt-0.5">
-              <li>
-                <button
-                  onClick={() => onOpenMerchantHub('store')}
-                  className="hover:text-white hover:underline flex items-center gap-2 text-left cursor-pointer transition-colors"
-                >
-                  <Store className="w-3.5 h-3.5 text-[#8df7c1] shrink-0" />
-                  <span>Sell & Provide Services</span>
-                </button>
-              </li>
+              {isAuthenticated && (
+                <li>
+                  <button
+                    onClick={() => onOpenMerchantHub('store')}
+                    className="hover:text-white hover:underline flex items-center gap-2 text-left cursor-pointer transition-colors"
+                  >
+                    <Store className="w-3.5 h-3.5 text-[#8df7c1] shrink-0" />
+                    <span>Sell & Provide Services</span>
+                  </button>
+                </li>
+              )}
               <li>
                 <button
                   onClick={onOpenOrderTracking}

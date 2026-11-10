@@ -541,7 +541,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-[#002541]/75 dark:bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
       <div 
-        className={`relative bg-white dark:bg-[#111D27] text-[#1A242D] dark:text-[#F1F5F9] rounded-t-2xl sm:rounded-lg shadow-2xl ${activeTab === 'analytics' ? 'max-w-4xl' : 'max-w-2xl'} w-full border border-[#DCE1E5] dark:border-[#1E2E3D] overflow-hidden max-h-[92vh] flex flex-col transition-all duration-200`}
+        className="relative w-full max-w-2xl overflow-hidden rounded-t-2xl border border-[#DCE1E5] bg-white text-[#1A242D] shadow-2xl transition-all duration-200 dark:border-[#1E2E3D] dark:bg-[#111D27] dark:text-[#F1F5F9] sm:rounded-lg"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header with Abu Logo */}
@@ -553,7 +553,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                 ABU Merchant & Trade Hub
               </h2>
               <p className="text-[11px] text-[#8df7c1]">
-                Stores · Single Product Listings · Artisan Services · Store Analytics
+                Stores · Single Product Listings · Artisan Services
               </p>
             </div>
           </div>
@@ -582,22 +582,22 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
           </div>
         </div>
 
-        {/* 4-Track Selector Bar */}
-        <div className="grid grid-cols-4 bg-[#eaf5ff] dark:bg-[#152738] border-b border-[#DCE1E5] dark:border-[#1E2E3D] p-1.5 gap-1.5 text-xs shrink-0">
+        {/* 3-Track Selector Bar */}
+        <div className="grid grid-cols-3 bg-[#eaf5ff] dark:bg-[#152738] border-b border-[#DCE1E5] dark:border-[#1E2E3D] p-1.5 gap-1.5 text-xs shrink-0">
           <button
             type="button"
             onClick={() => {
               setActiveTab('store');
               setSuccessMessage('');
             }}
-            className={`py-2 px-1 sm:px-1.5 rounded font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
+            className={`min-h-12 px-1 py-1 sm:px-1.5 rounded font-bold flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer ${
               activeTab === 'store'
                 ? 'bg-[#0B3B60] dark:bg-[#00875A] text-white shadow-xs'
                 : 'bg-white dark:bg-[#0E1720] text-[#1A242D] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
           >
             <Building2 className="w-4 h-4 shrink-0" />
-            <span className="truncate text-[11px] sm:text-xs">Create Store</span>
+            <span className="block max-w-full whitespace-normal text-center text-[10px] leading-tight sm:text-xs">Create Store</span>
           </button>
 
           <button
@@ -606,14 +606,14 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
               setActiveTab('single_product');
               setSuccessMessage('');
             }}
-            className={`py-2 px-1 sm:px-1.5 rounded font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
+            className={`min-h-12 px-1 py-1 sm:px-1.5 rounded font-bold flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer ${
               activeTab === 'single_product'
                 ? 'bg-[#0B3B60] dark:bg-[#00875A] text-white shadow-xs'
                 : 'bg-white dark:bg-[#0E1720] text-[#1A242D] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
           >
             <Tag className="w-4 h-4 shrink-0" />
-            <span className="truncate text-[11px] sm:text-xs">List Product</span>
+            <span className="block max-w-full whitespace-normal text-center text-[10px] leading-tight sm:text-xs">List Product</span>
           </button>
 
           <button
@@ -622,14 +622,14 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
               setActiveTab('service');
               setSuccessMessage('');
             }}
-            className={`py-2 px-1 sm:px-1.5 rounded font-bold flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${
+            className={`min-h-12 px-1 py-1 sm:px-1.5 rounded font-bold flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer ${
               activeTab === 'service'
                 ? 'bg-[#0B3B60] dark:bg-[#00875A] text-white shadow-xs'
                 : 'bg-white dark:bg-[#0E1720] text-[#1A242D] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
             }`}
           >
             <Wrench className="w-4 h-4 shrink-0" />
-            <span className="truncate text-[11px] sm:text-xs">Offer Service</span>
+            <span className="block max-w-full whitespace-normal text-center text-[10px] leading-tight sm:text-xs">Offer Service</span>
           </button>
 
         </div>
@@ -691,22 +691,23 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
 
           {/* TRACK 1: CREATE A STORE */}
           {activeTab === 'store' && (
-            <form onSubmit={handleStoreSubmit} className="space-y-3.5 text-xs">
+            <form onSubmit={handleStoreSubmit} className="merchant-hub-form space-y-3.5 text-xs">
               <div className="bg-[#f5faff] p-3 rounded border border-[#DCE1E5]">
                 <h4 className="font-bold text-[#0B3B60] mb-1">
                   Full Merchant Storefront
                 </h4>
-                <p className="text-[11px] text-[#5A6872]">
+                <p className="text-[11px] text-[#334155]">
                   For shop owners and wholesale distributors. Get your dedicated branded storefront with product collections and verified merchant badge.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-[#1A242D] mb-1">
+                  <label htmlFor="store-name" className="block font-bold text-[#1A242D] mb-1">
                     Store / Business Name *
                   </label>
                   <input
+                    id="store-name"
                     type="text"
                     required
                     maxLength={120}
@@ -718,10 +719,11 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#1A242D] mb-1">
+                  <label htmlFor="store-tagline" className="block font-bold text-[#1A242D] mb-1">
                     Store Catchphrase / Tagline
                   </label>
                   <input
+                    id="store-tagline"
                     type="text"
                     maxLength={160}
                     value={storeTagline}
@@ -734,10 +736,11 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-[#1A242D] mb-1">
+                  <label htmlFor="store-hub" className="block font-bold text-[#1A242D] mb-1">
                     Fulfillment Hub / City *
                   </label>
                   <select
+                    id="store-hub"
                     value={storeHub}
                     onChange={(e) => setStoreHub(e.target.value)}
                     className="w-full h-9 px-2 bg-white border border-[#DCE1E5] rounded text-xs focus:outline-none focus:border-[#0B3B60]"
@@ -752,10 +755,11 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#1A242D] mb-1">
+                  <label htmlFor="store-phone" className="block font-bold text-[#1A242D] mb-1">
                     Merchant Contact Phone (+232) *
                   </label>
                   <input
+                    id="store-phone"
                     type="tel"
                     required
                     autoComplete="tel"
@@ -769,10 +773,11 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
               </div>
 
               <div>
-                <label className="block font-bold text-[#1A242D] mb-1">
+                <label htmlFor="store-address" className="block font-bold text-[#1A242D] mb-1">
                   Physical Showroom Address
                 </label>
                 <input
+                  id="store-address"
                   type="text"
                   value={storeStreet}
                   onChange={(e) => setStoreStreet(e.target.value)}
@@ -782,10 +787,11 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
               </div>
 
               <div>
-                <label className="block font-bold text-[#1A242D] mb-1">
+                <label htmlFor="store-description" className="block font-bold text-[#1A242D] mb-1">
                   Store Description
                 </label>
                 <textarea
+                  id="store-description"
                   rows={2}
                   value={storeDesc}
                   onChange={(e) => setStoreDesc(e.target.value)}
@@ -809,12 +815,12 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
 
           {/* TRACK 2: LIST SINGLE ITEM */}
           {activeTab === 'single_product' && (
-            <form onSubmit={handleSingleProductSubmit} className="space-y-3.5 text-xs">
+            <form onSubmit={handleSingleProductSubmit} className="merchant-hub-form space-y-3.5 text-xs">
               <div className="bg-[#f5faff] p-3 rounded border border-[#DCE1E5]">
                 <h4 className="font-bold text-[#0B3B60] mb-1">
                   Quick Single-Item Listing
                 </h4>
-                <p className="text-[11px] text-[#5A6872]">
+                <p className="text-[11px] text-[#334155]">
                   Got an individual smartphone, solar inverter, car part, or gadget to sell? List it here in 60 seconds.
                 </p>
               </div>
@@ -943,12 +949,12 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
 
           {/* TRACK 3: OFFER A BLUE-COLLAR SERVICE */}
           {activeTab === 'service' && (
-            <form onSubmit={handleServiceSubmit} className="space-y-3.5 text-xs">
+            <form onSubmit={handleServiceSubmit} className="merchant-hub-form space-y-3.5 text-xs">
               <div className="bg-[#f5faff] p-3 rounded border border-[#DCE1E5]">
                 <h4 className="font-bold text-[#0B3B60] mb-1">
                   Blue-Collar Artisan & Technician Registration
                 </h4>
-                <p className="text-[11px] text-[#5A6872]">
+                <p className="text-[11px] text-[#334155]">
                   Join ABU Marketplace's verified trade network. Get booked by homeowners and businesses for solar setups, electrical work, plumbing, AC maintenance, and auto diagnostics.
                 </p>
               </div>

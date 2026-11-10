@@ -176,6 +176,14 @@ export default function App() {
     setIsWhatsAppAuthOpen(true);
   };
 
+  const handleOpenMerchantHub = () => {
+    if (!currentUser) {
+      handleOpenAuth('login');
+      return;
+    }
+    setIsMerchantHubOpen(true);
+  };
+
   const handleCloseAuth = () => {
     setIsWhatsAppAuthOpen(false);
     if (typeof window !== 'undefined') {
@@ -641,7 +649,7 @@ export default function App() {
         wishlistCount={wishlist.length}
         onOpenCart={() => setIsCartOpen(true)}
         onOpenWishlist={() => setIsWishlistOpen(true)}
-        onOpenMerchantHub={() => setIsMerchantHubOpen(true)}
+        onOpenMerchantHub={handleOpenMerchantHub}
         onOpenOrderTracking={() => setIsOrderTrackingOpen(true)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -1322,7 +1330,8 @@ export default function App() {
       {/* Institutional Trust Footer */}
       <Footer
         onOpenLocationPicker={() => setIsLocationPickerOpen(true)}
-        onOpenMerchantHub={() => setIsMerchantHubOpen(true)}
+        onOpenMerchantHub={handleOpenMerchantHub}
+        isAuthenticated={Boolean(currentUser)}
         onOpenOrderTracking={() => setIsOrderTrackingOpen(true)}
         onOpenLegal={(docId) => {
           if (docId) setActiveLegalDocId(docId);
@@ -1462,7 +1471,7 @@ export default function App() {
 
       {/* Functional & Responsive Q&A Chatbot */}
       <ChatbotWidget
-        onOpenMerchantHub={() => setIsMerchantHubOpen(true)}
+        onOpenMerchantHub={handleOpenMerchantHub}
         onOpenOrderTracking={() => setIsOrderTrackingOpen(true)}
         onOpenLocationPicker={() => setIsLocationPickerOpen(true)}
         onSelectCategory={(cat) => {

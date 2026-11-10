@@ -59,6 +59,25 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+.merchant-hub-form label {
+  color: #0B3B60;
+  font-weight: 800;
+}
+
+.dark .merchant-hub-form label {
+  color: #FFFFFF;
+}
+
+.merchant-hub-form :is(input, select, textarea) {
+  color: #1A242D;
+  color-scheme: light;
+}
+
+.merchant-hub-form :is(input, textarea)::placeholder {
+  color: #64748B;
+  opacity: 1;
+}
+
 #root {
   overflow-x: hidden;
   width: 100%;
