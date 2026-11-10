@@ -1,12 +1,26 @@
 import { Product, LocationNode, Order, MobileMoneyProvider, CartItem, VendorStore, BlueCollarService, ServiceBooking } from '../types';
 import { supabase } from '../lib/supabase';
 
-// Admin/merchant endpoints are Bearer-authenticated, so pull the live token
-async function authToken(): Promise<string> {
-  const { data } = await supabase.auth.getSession();
+async function authHeaders(required = false): Promise<Record<string, string>> {
+  const { data, error } = await supabase.auth.getSession();
+  if (error && required) throw new Error('Could not verify your session. Please sign in again.');
   const token = data.session?.access_token;
-  if (!token) throw new Error('Please sign in to continue');
-  return token;
+  if (required && !token) throw new Error('Please sign in to continue');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function throwApiError(res: Response, fallback: string): Promise<never> {
+  const text = await res.text();
+  let message = fallback;
+  if (text) {
+    try {
+      const payload = JSON.parse(text);
+      if (typeof payload.error === 'string') message = payload.error;
+    } catch {
+      message = text;
+    }
+  }
+  throw new Error(message);
 }
 
 export type ReviewStatus = 'pending' | 'approved' | 'rejected';
@@ -60,24 +74,15 @@ export const api = {
   },
 
   // 2. Add product (Merchant Hub: Store or Single Item)
-  async createProduct(productData: Partial<Product>): Promise<Product | null> {
-    try {
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productData),
-      });
-      // Handle non-JSON error responses from the server
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || 'Failed to create product');
-      }
-      const data = await res.json();
-      return data.data;
-    } catch (err) {
-      console.warn('API error creating product:', err);
-      return null;
-    }
+  async createProduct(productData: Partial<Product>): Promise<Product> {
+    const res = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...await authHeaders(true) },
+      body: JSON.stringify(productData),
+    });
+    if (!res.ok) return throwApiError(res, 'Failed to create product');
+    const data = await res.json();
+    return data.data;
   },
 
   // 3. Fetch Locations
@@ -109,9 +114,10 @@ export const api = {
     buyerId?: string;
   }): Promise<Order | null> {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('better_auth_token') : null;
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...await authHeaders(),
+      };
 
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -134,9 +140,7 @@ export const api = {
   // 4b. Fetch Orders with Better Auth Row-Level Security
   async getOrders(): Promise<Order[]> {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('better_auth_token') : null;
-      const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const headers = await authHeaders();
 
       const res = await fetch('/api/orders', { headers });
       // Handle non-JSON error responses from the server
@@ -206,35 +210,27 @@ export const api = {
     }
   },
 
-  async createStore(storeData: Partial<VendorStore>): Promise<VendorStore | null> {
-    try {
-      const res = await fetch('/api/stores', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(storeData),
-      });
-      if (!res.ok) throw new Error('Failed to create store');
-      const data = await res.json();
-      return data.data;
-    } catch (err) {
-      console.warn('API error creating store:', err);
-      return null;
-    }
+  async createStore(storeData: Partial<VendorStore>): Promise<VendorStore> {
+    const res = await fetch('/api/stores', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...await authHeaders(true) },
+      body: JSON.stringify(storeData),
+    });
+    if (!res.ok) return throwApiError(res, 'Failed to create store');
+    const data = await res.json();
+    return data.data;
   },
 
   /** Merchant: submit a store for review. Returns the pending application — the store only becomes public once an admin approves it. */
   async submitStoreApplication(storeData: Partial<VendorStore>): Promise<{ submission: StoreSubmission; emailStatus: 'sent' | 'logged' | 'failed' }> {
-    const token = await authToken();
+    const headers = await authHeaders(true);
     const res = await fetch('/api/stores/submissions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify(storeData),
     });
     // Handle non-JSON error responses from the server
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || 'Could not submit your store');
-    }
+    if (!res.ok) return throwApiError(res, 'Could not submit your store');
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Could not submit your store');
     return { submission: data.data as StoreSubmission, emailStatus: data.emailStatus };
@@ -242,15 +238,12 @@ export const api = {
 
   /** Merchant: my own applications, for showing pending/rejected status. */
   async getMyStoreApplications(): Promise<StoreSubmission[]> {
-    const token = await authToken();
+    const headers = await authHeaders(true);
     const res = await fetch('/api/stores/submissions/mine', {
-      headers: { Authorization: `Bearer ${token}` },
+      headers,
     });
     // Handle non-JSON error responses from the server
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || 'Could not load your applications');
-    }
+    if (!res.ok) return throwApiError(res, 'Could not load your applications');
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Could not load your applications');
     return data.data as StoreSubmission[];
@@ -258,16 +251,13 @@ export const api = {
 
   /** Admin: the review queue. */
   async getStoreSubmissions(status?: ReviewStatus): Promise<StoreSubmission[]> {
-    const token = await authToken();
+    const headers = await authHeaders(true);
     const query = status ? `?status=${status}` : '';
     const res = await fetch(`/api/admin/store-submissions${query}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers,
     });
     // Handle non-JSON error responses from the server
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || 'Could not load the review queue');
-    }
+    if (!res.ok) return throwApiError(res, 'Could not load the review queue');
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Could not load the review queue');
     return data.data as StoreSubmission[];
@@ -275,17 +265,14 @@ export const api = {
 
   /** Admin: approve a pending application, publishing the store and emailing the merchant. */
   async approveStoreSubmission(id: string, note?: string): Promise<{ submission: StoreSubmission; emailStatus: string }> {
-    const token = await authToken();
+    const headers = await authHeaders(true);
     const res = await fetch(`/api/admin/store-submissions/${id}/approve`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify({ note }),
     });
     // Handle non-JSON error responses from the server
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || 'Could not approve the application');
-    }
+    if (!res.ok) return throwApiError(res, 'Could not approve the application');
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Could not approve the application');
     return { submission: data.data as StoreSubmission, emailStatus: data.emailStatus };
@@ -293,17 +280,14 @@ export const api = {
 
   /** Admin: reject a pending application with a reason that is emailed to the merchant. */
   async rejectStoreSubmission(id: string, reason: string): Promise<{ submission: StoreSubmission; emailStatus: string }> {
-    const token = await authToken();
+    const headers = await authHeaders(true);
     const res = await fetch(`/api/admin/store-submissions/${id}/reject`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify({ reason }),
     });
     // Handle non-JSON error responses from the server
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || 'Could not reject the application');
-    }
+    if (!res.ok) return throwApiError(res, 'Could not reject the application');
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Could not reject the application');
     return { submission: data.data as StoreSubmission, emailStatus: data.emailStatus };
@@ -329,20 +313,15 @@ export const api = {
     }
   },
 
-  async createService(serviceData: Partial<BlueCollarService>): Promise<BlueCollarService | null> {
-    try {
-      const res = await fetch('/api/services', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(serviceData),
-      });
-      if (!res.ok) throw new Error('Failed to create service');
-      const data = await res.json();
-      return data.data;
-    } catch (err) {
-      console.warn('API error creating service:', err);
-      return null;
-    }
+  async createService(serviceData: Partial<BlueCollarService>): Promise<BlueCollarService> {
+    const res = await fetch('/api/services', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...await authHeaders(true) },
+      body: JSON.stringify(serviceData),
+    });
+    if (!res.ok) return throwApiError(res, 'Failed to create service');
+    const data = await res.json();
+    return data.data;
   },
 
   async bookService(bookingData: {
@@ -430,7 +409,7 @@ export const api = {
     try {
       const res = await fetch(`/api/products/${encodeURIComponent(id)}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...await authHeaders(true) },
         body: JSON.stringify(updates),
       });
       // Handle non-JSON error responses from the server
@@ -450,6 +429,7 @@ export const api = {
     try {
       const res = await fetch(`/api/products/${encodeURIComponent(id)}`, {
         method: 'DELETE',
+        headers: await authHeaders(true),
       });
       // Handle non-JSON error responses from the server
       if (!res.ok) {
@@ -467,6 +447,7 @@ export const api = {
     try {
       const res = await fetch(`/api/products/${encodeURIComponent(id)}/duplicate`, {
         method: 'POST',
+        headers: await authHeaders(true),
       });
       // Handle non-JSON error responses from the server
       if (!res.ok) {
@@ -483,7 +464,10 @@ export const api = {
 
   async resetCatalog(): Promise<boolean> {
     try {
-      const res = await fetch('/api/cms/reset', { method: 'POST' });
+      const res = await fetch('/api/cms/reset', {
+        method: 'POST',
+        headers: await authHeaders(true),
+      });
       // Handle non-JSON error responses from the server
       if (!res.ok) {
         const text = await res.text();
@@ -498,7 +482,7 @@ export const api = {
 
   async getMediaAssets(): Promise<Array<{ fileName: string; url: string; usedBy: any }>> {
     try {
-      const res = await fetch('/api/cms/media');
+      const res = await fetch('/api/cms/media', { headers: await authHeaders(true) });
       // Handle non-JSON error responses from the server
       if (!res.ok) {
         const text = await res.text();

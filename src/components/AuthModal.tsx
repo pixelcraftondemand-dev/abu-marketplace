@@ -64,7 +64,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [showKeyAssistant, setShowKeyAssistant] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
   
-  const [agreedToTerms, setAgreedToTerms] = useState(true);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [termsError, setTermsError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -90,6 +90,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
       setErrorMessage('');
       setTermsError(false);
+      setAgreedToTerms(false);
       setOtpDigits(['', '', '', '', '', '']);
       setAuthenticatedUser(null);
       setEmailPreviewUrl(null);
@@ -141,7 +142,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     }
 
     if (!password) errors.password = 'Enter your password';
-    else if (password.length < 8) errors.password = 'Use at least 8 characters';
+    else if (passwordMode === 'signup' && password.length < 8) {
+      errors.password = 'Use at least 8 characters';
+    }
 
     if (passwordMode === 'signup') {
       if (!fullName.trim()) errors.fullName = 'Enter your full name';
@@ -222,7 +225,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
 
   // Google sign-in: the browser is redirected to Google's OAuth flow via Supabase
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
     if (!agreedToTerms) {
       setTermsError(true);
       return;
@@ -231,7 +234,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMessage('');
     setIsSubmitting(true);
     try {
-      quickSocialLogin('google').then(handleAuthCompletion);
+      await quickSocialLogin('google');
     } catch (err: any) {
       console.error('Google login error:', err);
       setErrorMessage(err.message || 'Google account sign-in failed. Please try again.');

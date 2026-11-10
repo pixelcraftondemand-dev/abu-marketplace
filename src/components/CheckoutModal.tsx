@@ -44,6 +44,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [landmark, setLandmark] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<MobileMoneyProvider>('cash');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [orderError, setOrderError] = useState('');
   const [ussdTimer, setUssdTimer] = useState(45);
 
   React.useEffect(() => {
@@ -70,7 +71,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   const handleInitiatePayment = async () => {
     if (paymentMethod === 'cash') {
-      await completeOrder('completed');
+      await completeOrder();
       return;
     }
 
@@ -85,8 +86,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setUssdTimer(45);
   };
 
-  const completeOrder = async (status: 'completed' | 'authorized') => {
+  const completeOrder = async () => {
     setIsProcessing(true);
+    setOrderError('');
     
     // Attempt backend persistence
     const backendOrder = await api.createOrder({
@@ -99,28 +101,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       paymentMethod,
     });
 
-    const trackingCode = backendOrder?.trackingNumber || `ABU-SL-${Math.floor(10000 + Math.random() * 90000)}`;
-    const finalOrder: Order = backendOrder || {
-      id: `ord-${Date.now()}`,
-      items: cartItems,
-      subtotalSLE: subtotal,
-      deliveryFeeSLE: deliveryFee,
-      totalSLE: totalAmount,
-      recipientName: recipientName.trim() || 'Sierra Leone Customer',
-      phone: rawPhone,
-      destination: selectedLocation,
-      streetAddress: streetAddress.trim() || 'Freetown Center',
-      landmark: landmark.trim(),
-      paymentMethod,
-      paymentStatus: status,
-      orderStatus: 'placed',
-      placedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      estimatedDelivery: selectedLocation.transitTime,
-      trackingNumber: trackingCode,
-    };
-
     setIsProcessing(false);
-    onOrderSuccess(finalOrder);
+    if (!backendOrder) {
+      setOrderError('We could not confirm your order. It was not placed. Please try again.');
+      return;
+    }
+    onOrderSuccess(backendOrder);
   };
 
   return (
@@ -207,6 +193,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
         {/* Modal Content Body */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1">
+          {orderError && (
+            <p role="alert" className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-medium text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+              {orderError}
+            </p>
+          )}
           {step === 'details' && (
             <div className="space-y-4">
               <div>
@@ -435,12 +426,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
               {/* Authorize Trigger Button */}
               <button
+                disabled={isProcessing}
                 onClick={handleInitiatePayment}
-                className="w-full h-11 bg-[#D84315] hover:bg-[#b12d00] text-white rounded font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-colors cursor-pointer"
+                className="w-full h-11 bg-[#D84315] hover:bg-[#b12d00] disabled:opacity-60 text-white rounded font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition-colors cursor-pointer disabled:cursor-wait"
               >
                 <Zap className="w-4 h-4" />
                 <span>
-                  {paymentMethod === 'cash'
+                  {isProcessing
+                    ? 'Placing Order...'
+                    : paymentMethod === 'cash'
                     ? 'Confirm Order with Pay on Delivery'
                     : `Authorize SLE ${new Intl.NumberFormat('en-US').format(totalAmount)} via ${
                         paymentMethod === 'orange' ? 'Orange Money' : 'Afrimoney'
@@ -498,7 +492,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="pt-2">
                 <button
                   disabled={isProcessing}
-                  onClick={() => completeOrder('authorized')}
+                    onClick={completeOrder}
                   className="w-full sm:w-auto px-6 h-11 bg-[#00875A] hover:bg-[#00704a] text-white font-bold text-xs sm:text-sm rounded shadow flex items-center justify-center gap-2 mx-auto cursor-pointer"
                 >
                   {isProcessing ? (

@@ -1,18 +1,44 @@
 // Load .env before reading any variable (ES imports run before server.ts calls dotenv.config())
 import 'dotenv/config';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Request } from 'express';
 
-const url = process.env.SUPABASE_URL;
-const secret = process.env.SUPABASE_SECRET_KEY;
+export class SupabaseConfigurationError extends Error {
+  readonly code = 'SUPABASE_NOT_CONFIGURED';
+  readonly status = 503;
 
-if (!url || !secret) {
-  throw new Error('SUPABASE_URL and SUPABASE_SECRET_KEY must be set in .env');
+  constructor() {
+    super('Supabase is not configured on this deployment.');
+    this.name = 'SupabaseConfigurationError';
+  }
 }
 
-// Server-side client with full access. Never expose this key to the browser.
-export const supabaseAdmin = createClient(url, secret, {
-  auth: { persistSession: false, autoRefreshToken: false },
+let adminClient: SupabaseClient | undefined;
+
+export function isSupabaseConfigured(): boolean {
+  return Boolean(process.env.SUPABASE_URL?.trim() && process.env.SUPABASE_SECRET_KEY?.trim());
+}
+
+function getSupabaseAdmin(): SupabaseClient {
+  if (!isSupabaseConfigured()) throw new SupabaseConfigurationError();
+  if (!adminClient) {
+    // Server-side client with full access. Never expose this key to the browser.
+    adminClient = createClient(
+      process.env.SUPABASE_URL!.trim(),
+      process.env.SUPABASE_SECRET_KEY!.trim(),
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+  }
+  return adminClient;
+}
+
+// Keep the existing client export while deferring configuration checks until use.
+export const supabaseAdmin = new Proxy({} as SupabaseClient, {
+  get(_target, property) {
+    const client = getSupabaseAdmin();
+    const value = Reflect.get(client, property, client);
+    return typeof value === 'function' ? value.bind(client) : value;
+  },
 });
 
 export interface SessionUser {
@@ -55,10 +81,11 @@ export async function getSessionUser(req: Request): Promise<SessionUser | null> 
   const token = header.slice(7).trim();
   if (!token) return null;
 
-  const { data, error } = await supabaseAdmin.auth.getUser(token);
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase.auth.getUser(token);
   if (error || !data?.user) return null;
 
-  const { data: profile } = await supabaseAdmin
+  const { data: profile } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', data.user.id)

@@ -68,6 +68,7 @@ export function pickAllowed<T extends Record<string, any>>(body: any, keys: read
 // ----------------------------------------------------
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const MAX_RATE_LIMIT_ENTRIES = 10_000;
 
 // Prune expired entries occasionally so long-running processes stay bounded.
 const PRUNE_INTERVAL_MS = 5 * 60 * 1000;
@@ -81,9 +82,9 @@ function pruneExpired(now: number) {
 }
 
 export function clientIp(req: Request): string {
-  // Behind one trusted proxy (Vercel / nginx), the last hop is the real client.
-  const fwd = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim();
-  return fwd || req.ip || 'unknown';
+  // Express derives this using the configured trusted-proxy count. Do not trust
+  // the raw forwarded header, which clients can spoof when sent directly.
+  return req.ip || req.socket.remoteAddress || 'unknown';
 }
 
 /**
@@ -96,6 +97,10 @@ export function rateLimit(req: Request, res: Response, routeKey: string, max: nu
   const key = `${req.originalUrl.split('?')[0]}|${routeKey}|${clientIp(req)}`;
   const entry = rateLimitMap.get(key);
   if (!entry || now > entry.resetAt) {
+    if (rateLimitMap.size >= MAX_RATE_LIMIT_ENTRIES) {
+      const oldestKey = rateLimitMap.keys().next().value;
+      if (oldestKey) rateLimitMap.delete(oldestKey);
+    }
     rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
     return true;
   }

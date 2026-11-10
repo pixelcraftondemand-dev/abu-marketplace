@@ -1,4 +1,4 @@
-import { supabaseAdmin } from './supabase.ts';
+import { isSupabaseConfigured, supabaseAdmin } from './supabase.ts';
 import { sendStoreSubmitted, sendStoreApproved, sendStoreRejected, type MailResult } from './mailer.ts';
 import type { VendorStore } from '../src/types/index.ts';
 
@@ -299,14 +299,21 @@ export function submissionToStore(row: SubmissionRow): VendorStore {
 
 /** Every approved submission, newest first — these are live stores. */
 export async function approvedStores(): Promise<VendorStore[]> {
-  const { data, error } = await supabaseAdmin
-    .from('store_submissions')
-    .select('*')
-    .eq('status', 'approved')
-    .order('reviewed_at', { ascending: false });
-  if (error) {
-    console.error('[stores] could not load approved submissions:', error.message);
+  if (!isSupabaseConfigured()) return [];
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('store_submissions')
+      .select('*')
+      .eq('status', 'approved')
+      .order('reviewed_at', { ascending: false });
+    if (error) {
+      console.error('[stores] could not load approved submissions:', error.message);
+      return [];
+    }
+    return (data || []).map((row) => submissionToStore(row as SubmissionRow));
+  } catch (error) {
+    console.error('[stores] could not load approved submissions:', error);
     return [];
   }
-  return (data || []).map((row) => submissionToStore(row as SubmissionRow));
 }

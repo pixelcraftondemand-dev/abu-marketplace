@@ -432,6 +432,8 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     if (!singleTitle || !singlePrice) return;
 
     setIsSubmitting(true);
+    setStoreError('');
+    setSuccessMessage('');
     const price = parseFloat(singlePrice) || 100;
     const originalPrice = Math.round(price * 1.2);
 
@@ -462,45 +464,18 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       sellerPhone: singlePhone,
     };
 
-    const createdProd = await api.createProduct(productPayload);
-    const finalProduct: Product = createdProd || {
-      id: `prod-single-${Date.now()}`,
-      title: singleTitle.trim(),
-      category: singleCategory,
-      priceSLE: price,
-      originalPriceSLE: originalPrice,
-      discountPercent: 15,
-      rating: 5.0,
-      reviewCount: 1,
-      soldCount: 0,
-      stockCount: 1,
-      image: assignedImage,
-      sellerName: singleSellerName.trim() || 'Individual Seller',
-      sellerLocation: `${singleLocation} (Verified)`,
-      isVerifiedSeller: true,
-      sellerRating: 5.0,
-      isFlashDeal: false,
-      condition: singleCondition,
-      sellerType: 'individual',
-      sellerPhone: singlePhone,
-      description: singleDesc.trim() || `Condition: ${singleCondition}. Direct seller sale.`,
-      specifications: {
-        'Condition': singleCondition.replace('_', ' ').toUpperCase(),
-        'Seller Contact': `+232 ${singlePhone}`,
-        'Location': singleLocation,
-      },
-      features: [
-        'Single verified inventory item',
-        'Direct inquiry or instant ABU courier checkout',
-      ],
-    };
-
-    onAddProduct(finalProduct);
-    setIsSubmitting(false);
-    setSuccessMessage(`Single item "${finalProduct.title}" is now listed live on ABU Marketplace!`);
-    setSingleTitle('');
-    setSinglePrice('');
-    setSingleDesc('');
+    try {
+      const createdProduct = await api.createProduct(productPayload);
+      onAddProduct(createdProduct);
+      setSuccessMessage(`Single item "${createdProduct.title}" is now listed live on ABU Marketplace!`);
+      setSingleTitle('');
+      setSinglePrice('');
+      setSingleDesc('');
+    } catch (err) {
+      setStoreError(err instanceof Error ? err.message : 'Could not list this item. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleServiceSubmit = async (e: React.FormEvent) => {
@@ -508,6 +483,8 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     if (!serviceTitle || !providerName || !servicePhone) return;
 
     setIsSubmitting(true);
+    setStoreError('');
+    setSuccessMessage('');
     const detection = detectCarrier(servicePhone);
     const skills = skillsText.split(',').map((s) => s.trim()).filter(Boolean);
 
@@ -526,35 +503,17 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       avatar: '/src/assets/images/solar_inverter_power_station_1791485447453.jpg',
     };
 
-    const createdService = await api.createService(servicePayload);
-    const finalService: BlueCollarService = createdService || {
-      id: `srv-${Date.now()}`,
-      title: serviceTitle.trim(),
-      tradeCategory,
-      providerName: providerName.trim(),
-      phone: servicePhone.trim(),
-      whatsapp: servicePhone.trim(),
-      payoutProvider: detection.carrier || 'orange',
-      experienceYears: parseInt(experienceYears, 10) || 5,
-      locationHub: serviceHub,
-      province: 'Western Area',
-      coverageAreas: ['Western Area', serviceHub],
-      calloutFeeSLE: parseFloat(calloutFeeSLE) || 100,
-      pricingModel: 'flat_callout',
-      rating: 5.0,
-      completedJobs: 0,
-      isAvailableNow: true,
-      avatar: '/src/assets/images/solar_inverter_power_station_1791485447453.jpg',
-      description: 'Professional trade technician available across Sierra Leone.',
-      skills: skills.length > 0 ? skills : ['On-site diagnosis', 'Standard tools supplied'],
-      certification: certification.trim() || 'Certified Guild Artisan SL',
-    };
-
-    if (onAddService) onAddService(finalService);
-    setIsSubmitting(false);
-    setSuccessMessage(`Artisan "${finalService.providerName}" registered under ${finalService.tradeCategory}!`);
-    setServiceTitle('');
-    setProviderName('');
+    try {
+      const createdService = await api.createService(servicePayload);
+      if (onAddService) onAddService(createdService);
+      setSuccessMessage(`Artisan "${createdService.providerName}" registered under ${createdService.tradeCategory}!`);
+      setServiceTitle('');
+      setProviderName('');
+    } catch (err) {
+      setStoreError(err instanceof Error ? err.message : 'Could not register this service. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import express, { type Request, type Response, type NextFunction } from 'express';
+import express, { type Request, type Response, type NextFunction, type RequestHandler } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -9,7 +9,12 @@ import { GoogleGenAI } from '@google/genai';
 import type { Product, VendorStore, BlueCollarService, ServiceBooking } from './src/types/index.ts';
 import { INITIAL_PRODUCTS, INITIAL_STORES, INITIAL_SERVICES } from './src/data/mockData.ts';
 
-import { supabaseAdmin, getSessionUser } from './server/supabase.ts';
+import {
+  getSessionUser,
+  isSupabaseConfigured,
+  SupabaseConfigurationError,
+  supabaseAdmin,
+} from './server/supabase.ts';
 import {
   approveSubmission,
   approvedStores,
@@ -40,12 +45,39 @@ async function currentActor(req: Request) {
 }
 
 function submissionErrorResponse(res: Response, err: unknown) {
+  if (err instanceof SupabaseConfigurationError) {
+    return res.status(err.status).json({
+      success: false,
+      error: err.message,
+      code: err.code,
+    });
+  }
   if (err instanceof SubmissionError) {
     return res.status(err.status).json({ success: false, error: err.message, code: err.code });
   }
   console.error('[stores] unexpected submission error:', err);
   return res.status(500).json({ success: false, error: 'Something went wrong. Please try again.' });
 }
+
+function supabaseUnavailable(res: Response) {
+  return res.status(503).json({
+    success: false,
+    error: 'Supabase is not configured on this deployment.',
+    code: 'SUPABASE_NOT_CONFIGURED',
+  });
+}
+
+const requireSupabase: RequestHandler = (_req, res, next) => {
+  if (!isSupabaseConfigured()) return supabaseUnavailable(res);
+  next();
+};
+
+const requireSupabaseForBearer: RequestHandler = (req, res, next) => {
+  const authorization = req.headers.authorization;
+  const hasBearerToken = authorization?.startsWith('Bearer ') && Boolean(authorization.slice(7).trim());
+  if (hasBearerToken && !isSupabaseConfigured()) return supabaseUnavailable(res);
+  next();
+};
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -194,18 +226,20 @@ app.get('/api/health', (req: Request, res: Response) => {
 const SELF_SERVICE_ROLES = ['buyer', 'merchant', 'artisan'];
 
 // Current authenticated session
-app.get('/api/custom-auth/me', async (req: Request, res: Response) => {
+app.get('/api/custom-auth/me', requireSupabase, async (req: Request, res: Response) => {
   try {
     const user = await getSessionUser(req);
     if (!user) return res.json({ success: false, user: null });
     res.json({ success: true, user });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+  } catch (err) {
+    if (err instanceof SupabaseConfigurationError) return supabaseUnavailable(res);
+    console.error('[auth] session lookup failed:', err);
+    res.status(500).json({ success: false, error: 'Could not load the current session.' });
   }
 });
 
 // Update profile
-app.post('/api/custom-auth/update-profile', async (req: Request, res: Response) => {
+app.post('/api/custom-auth/update-profile', requireSupabase, async (req: Request, res: Response) => {
   if (!rateLimit(req, res, 'profile', 10, 60 * 1000)) return;
   try {
     const current = await getSessionUser(req);
@@ -233,8 +267,10 @@ app.post('/api/custom-auth/update-profile', async (req: Request, res: Response) 
 
     const user = await getSessionUser(req);
     res.json({ success: true, user });
-  } catch (err: any) {
-    res.status(500).json({ success: false, error: err.message });
+  } catch (err) {
+    if (err instanceof SupabaseConfigurationError) return supabaseUnavailable(res);
+    console.error('[auth] profile update failed:', err);
+    res.status(500).json({ success: false, error: 'Could not update the profile.' });
   }
 });
 
@@ -273,7 +309,7 @@ app.get('/api/products/:id', (req: Request, res: Response) => {
 });
 
 // Add new product (Merchant Hub)
-app.post('/api/products', async (req: Request, res: Response) => {
+app.post('/api/products', requireSupabaseForBearer, async (req: Request, res: Response) => {
   if (!rateLimit(req, res, 'products-write', 30, 10 * 60 * 1000)) return;
   const actor = await currentActor(req);
   if (!actor) {
@@ -325,7 +361,7 @@ app.post('/api/products', async (req: Request, res: Response) => {
 // ----------------------------------------------------
 
 // Update an existing product
-app.put('/api/products/:id', async (req: Request, res: Response) => {
+app.put('/api/products/:id', requireSupabaseForBearer, async (req: Request, res: Response) => {
   if (!rateLimit(req, res, 'products-write', 30, 10 * 60 * 1000)) return;
   const actor = await currentActor(req);
   if (!actor) {
@@ -359,7 +395,7 @@ app.put('/api/products/:id', async (req: Request, res: Response) => {
 });
 
 // Delete a product
-app.delete('/api/products/:id', async (req: Request, res: Response) => {
+app.delete('/api/products/:id', requireSupabaseForBearer, async (req: Request, res: Response) => {
   const actor = await currentActor(req);
   if (!isAdmin(actor)) {
     return res.status(403).json({ success: false, error: 'Admin access required' });
@@ -374,7 +410,7 @@ app.delete('/api/products/:id', async (req: Request, res: Response) => {
 });
 
 // Duplicate a product
-app.post('/api/products/:id/duplicate', async (req: Request, res: Response) => {
+app.post('/api/products/:id/duplicate', requireSupabaseForBearer, async (req: Request, res: Response) => {
   const actor = await currentActor(req);
   if (!actor) {
     return res.status(401).json({ success: false, error: 'Please sign in first' });
@@ -398,7 +434,7 @@ app.post('/api/products/:id/duplicate', async (req: Request, res: Response) => {
 });
 
 // CMS Factory Reset: Reverts catalog to initial 105 verified products
-app.post('/api/cms/reset', async (req: Request, res: Response) => {
+app.post('/api/cms/reset', requireSupabaseForBearer, async (req: Request, res: Response) => {
   if (!rateLimit(req, res, 'cms', 10, 10 * 60 * 1000)) return;
   const actor = await currentActor(req);
   if (!isAdmin(actor)) {
@@ -409,7 +445,7 @@ app.post('/api/cms/reset', async (req: Request, res: Response) => {
 });
 
 // CMS Media Assets: List verified local product assets
-app.get('/api/cms/media', async (req: Request, res: Response) => {
+app.get('/api/cms/media', requireSupabaseForBearer, async (req: Request, res: Response) => {
   const actor = await currentActor(req);
   if (!isAdmin(actor)) {
     return res.status(403).json({ success: false, error: 'Admin access required' });
@@ -444,7 +480,7 @@ app.get('/api/locations', (req: Request, res: Response) => {
 });
 
 // 4. Orders API (Secured with Row-Level Security via Better Auth)
-app.get('/api/orders', async (req: Request, res: Response) => {
+app.get('/api/orders', requireSupabaseForBearer, async (req: Request, res: Response) => {
   // Extract Better Auth session context if available
   const authUser: any = await getSessionUser(req);
 
@@ -510,7 +546,7 @@ app.get('/api/orders/:trackingNumber', (req: Request, res: Response) => {
   });
 });
 
-app.post('/api/orders', async (req: Request, res: Response) => {
+app.post('/api/orders', requireSupabaseForBearer, async (req: Request, res: Response) => {
   if (!rateLimit(req, res, 'order-post', 20, 10 * 60 * 1000)) return;
   const body = pickAllowed(req.body, [
     'items', 'recipientName', 'phone', 'destinationId',
@@ -644,7 +680,7 @@ app.get('/api/stores/:idOrSlug', async (req: Request, res: Response) => {
   res.json({ success: true, data: { store, products: storeProducts } });
 });
 
-app.post('/api/stores', async (req: Request, res: Response) => {
+app.post('/api/stores', requireSupabase, async (req: Request, res: Response) => {
   if (!rateLimit(req, res, 'stores-write', 10, 10 * 60 * 1000)) return;
   const actor = await currentActor(req);
   if (!actor) {
@@ -692,7 +728,7 @@ app.post('/api/stores', async (req: Request, res: Response) => {
 // ----------------------------------------------------
 
 // Merchant: submit a store for review. Nothing goes live until an admin approves.
-app.post('/api/stores/submissions', async (req: Request, res: Response) => {
+app.post('/api/stores/submissions', requireSupabase, async (req: Request, res: Response) => {
   try {
     const actor = await currentActor(req);
     if (!actor) {
@@ -712,7 +748,7 @@ app.post('/api/stores/submissions', async (req: Request, res: Response) => {
 });
 
 // Merchant: the signed-in user's own applications, so the UI can show status.
-app.get('/api/stores/submissions/mine', async (req: Request, res: Response) => {
+app.get('/api/stores/submissions/mine', requireSupabase, async (req: Request, res: Response) => {
   try {
     const actor = await currentActor(req);
     if (!actor) return res.status(401).json({ success: false, error: 'Please sign in' });
@@ -725,7 +761,7 @@ app.get('/api/stores/submissions/mine', async (req: Request, res: Response) => {
 });
 
 // Admin: the review queue.
-app.get('/api/admin/store-submissions', async (req: Request, res: Response) => {
+app.get('/api/admin/store-submissions', requireSupabase, async (req: Request, res: Response) => {
   try {
     const actor = await currentActor(req);
     if (!isAdmin(actor)) {
@@ -742,7 +778,7 @@ app.get('/api/admin/store-submissions', async (req: Request, res: Response) => {
 });
 
 // Admin: approve, which publishes the store and emails the merchant.
-app.post('/api/admin/store-submissions/:id/approve', async (req: Request, res: Response) => {
+app.post('/api/admin/store-submissions/:id/approve', requireSupabase, async (req: Request, res: Response) => {
   try {
     const actor = await currentActor(req);
     if (!isAdmin(actor)) {
@@ -756,7 +792,7 @@ app.post('/api/admin/store-submissions/:id/approve', async (req: Request, res: R
 });
 
 // Admin: reject with a required reason, which is emailed to the merchant.
-app.post('/api/admin/store-submissions/:id/reject', async (req: Request, res: Response) => {
+app.post('/api/admin/store-submissions/:id/reject', requireSupabase, async (req: Request, res: Response) => {
   try {
     const actor = await currentActor(req);
     if (!isAdmin(actor)) {
@@ -770,7 +806,7 @@ app.post('/api/admin/store-submissions/:id/reject', async (req: Request, res: Re
 });
 
 // Admin: recent outbound mail, so the notification flow is inspectable in dev.
-app.get('/api/admin/mail', async (req: Request, res: Response) => {
+app.get('/api/admin/mail', requireSupabaseForBearer, async (req: Request, res: Response) => {
   const actor = await currentActor(req);
   if (!isAdmin(actor)) {
     return res.status(403).json({ success: false, error: 'Admin access required' });
@@ -799,7 +835,7 @@ app.get('/api/services', (req: Request, res: Response) => {
   res.json({ success: true, count: result.length, data: result });
 });
 
-app.post('/api/services', async (req: Request, res: Response) => {
+app.post('/api/services', requireSupabaseForBearer, async (req: Request, res: Response) => {
   if (!rateLimit(req, res, 'services-write', 15, 10 * 60 * 1000)) return;
   const actor = await currentActor(req);
   if (!actor) {
@@ -1129,4 +1165,3 @@ export default app;
 if (!process.env.VERCEL) {
   startServer();
 }
-

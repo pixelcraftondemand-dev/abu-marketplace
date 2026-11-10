@@ -161,18 +161,23 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
       return;
     }
 
-    if (isCreatingNew) {
-      onCreateProduct(editingProduct);
-      await api.createProduct(editingProduct);
-      onShowToast(`Created product: "${editingProduct.title.slice(0, 20)}..."`);
-    } else {
-      onUpdateProduct(editingProduct);
-      await api.updateProduct(editingProduct.id, editingProduct);
-      onShowToast(`Updated product: "${editingProduct.title.slice(0, 20)}..."`);
-    }
+    try {
+      if (isCreatingNew) {
+        const created = await api.createProduct(editingProduct);
+        onCreateProduct(created);
+        onShowToast(`Created product: "${created.title.slice(0, 20)}..."`);
+      } else {
+        const updated = await api.updateProduct(editingProduct.id, editingProduct);
+        if (!updated) throw new Error('The product was not updated. Please try again.');
+        onUpdateProduct(updated);
+        onShowToast(`Updated product: "${updated.title.slice(0, 20)}..."`);
+      }
 
-    setEditingProduct(null);
-    setIsCreatingNew(false);
+      setEditingProduct(null);
+      setIsCreatingNew(false);
+    } catch (err) {
+      onShowToast(err instanceof Error ? err.message : 'Could not save this product.');
+    }
   };
 
   // Handle duplicating a product
@@ -185,16 +190,24 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
       reviewCount: 0,
       rating: 5.0,
     };
-    onCreateProduct(duplicated);
-    await api.duplicateProduct(p.id);
-    onShowToast(`Duplicated: "${duplicated.title.slice(0, 24)}"`);
+    const savedDuplicate = await api.duplicateProduct(p.id);
+    if (!savedDuplicate) {
+      onShowToast('Could not duplicate this product. Please try again.');
+      return;
+    }
+    onCreateProduct(savedDuplicate);
+    onShowToast(`Duplicated: "${savedDuplicate.title.slice(0, 24)}"`);
   };
 
   // Handle deleting a product
   const handleDeleteProduct = async (p: Product) => {
     if (window.confirm(`Are you sure you want to remove "${p.title}" from the catalog?`)) {
+      const deleted = await api.deleteProduct(p.id);
+      if (!deleted) {
+        onShowToast('Could not delete this product. Please try again.');
+        return;
+      }
       onDeleteProduct(p.id);
-      await api.deleteProduct(p.id);
       onShowToast(`Deleted: "${p.title.slice(0, 20)}..."`);
     }
   };

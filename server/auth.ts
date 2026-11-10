@@ -120,22 +120,6 @@ export const db = {
   },
 };
 
-// In-memory record of latest dispatched OTPs for carrier gateway confirmation & notification
-export const dispatchedOtps = new Map<string, { code: string; sentAt: number; channel: string }>();
-
-export function getDispatchedOtp(phoneNumber: string): string | undefined {
-  const clean = phoneNumber.replace(/[^0-9]/g, '');
-  for (const [key, val] of dispatchedOtps.entries()) {
-    if (key.replace(/[^0-9]/g, '') === clean) {
-      // Valid for 10 minutes
-      if (Date.now() - val.sentAt < 10 * 60 * 1000) {
-        return val.code;
-      }
-    }
-  }
-  return undefined;
-}
-
 // Secrets are never hardcoded: they must come from the environment. The values
 // that used to be committed here as fallbacks are compromised and were rotated.
 const envApiKey = process.env.BETTER_AUTH_API_KEY;
@@ -180,23 +164,14 @@ export const auth = betterAuth({
         getTempName: (phone: string) => `Verified Shopper (+${phone.slice(-4)})`,
       },
       sendOTP: async ({ phoneNumber: phone, code }: { phoneNumber: string; code: string }) => {
-        console.log(`[Better Auth OTP Service] Dispatched 6-digit verification code ${code} to ${phone}`);
-        dispatchedOtps.set(phone, {
-          code,
-          sentAt: Date.now(),
-          channel: 'sms/whatsapp',
-        });
-
-        // Dispatch via Better Auth Managed SMS Infrastructure
         try {
           const smsRes = await smsSender.send({ to: phone, code });
           if (!smsRes?.success) {
-            console.info(`[Better Auth Infrastructure SMS] Notice: ${smsRes?.error || 'Local delivery active'}`);
-          } else {
-            console.log(`[Better Auth Infrastructure SMS] Sent successfully, ID: ${smsRes.messageId}`);
+            throw new Error('SMS provider rejected the verification message');
           }
-        } catch (smsErr) {
-          console.info('[Better Auth Infrastructure SMS Dispatch notice]:', smsErr);
+        } catch {
+          console.error('[auth] OTP delivery failed; verification code was not delivered.');
+          throw new Error('Could not send the verification code. Please try again later.');
         }
       },
     }),

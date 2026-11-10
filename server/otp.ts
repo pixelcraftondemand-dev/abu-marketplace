@@ -1,3 +1,5 @@
+import { randomInt } from 'node:crypto';
+
 /**
  * Guaranteed Alphanumeric OTP Generator
  *
@@ -6,6 +8,10 @@
  * Ambiguous characters (0/O, 1/I) are excluded to prevent user confusion.
  */
 export function generateAlphanumericOtp(length = 6): string {
+  if (!Number.isInteger(length) || length < 4) {
+    throw new RangeError('OTP length must be an integer of at least 4 characters');
+  }
+
   const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // 24 unambiguous uppercase letters
   const numbers = '23456789';                 // 8 unambiguous digits
   const combined = letters + numbers;
@@ -13,21 +19,21 @@ export function generateAlphanumericOtp(length = 6): string {
   const chars: string[] = [];
 
   // Guarantee at least 2 letters
-  chars.push(letters.charAt(Math.floor(Math.random() * letters.length)));
-  chars.push(letters.charAt(Math.floor(Math.random() * letters.length)));
+  chars.push(letters.charAt(randomInt(letters.length)));
+  chars.push(letters.charAt(randomInt(letters.length)));
 
   // Guarantee at least 2 digits
-  chars.push(numbers.charAt(Math.floor(Math.random() * numbers.length)));
-  chars.push(numbers.charAt(Math.floor(Math.random() * numbers.length)));
+  chars.push(numbers.charAt(randomInt(numbers.length)));
+  chars.push(numbers.charAt(randomInt(numbers.length)));
 
   // Fill any remaining positions from combined alphanumeric set
   while (chars.length < length) {
-    chars.push(combined.charAt(Math.floor(Math.random() * combined.length)));
+    chars.push(combined.charAt(randomInt(combined.length)));
   }
 
-  // Cryptographically shuffle positions (Fisher-Yates)
+  // Shuffle with cryptographically secure, unbiased random indices.
   for (let i = chars.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = randomInt(i + 1);
     [chars[i], chars[j]] = [chars[j], chars[i]];
   }
 
