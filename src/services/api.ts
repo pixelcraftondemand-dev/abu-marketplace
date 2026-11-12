@@ -12,6 +12,16 @@ async function authHeaders(required = false): Promise<Record<string, string>> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/** An API failure that keeps the HTTP status, so callers can tell auth problems apart from outages. */
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 async function throwApiError(res: Response, fallback: string): Promise<never> {
   const text = await res.text();
   let message = fallback;
@@ -23,7 +33,7 @@ async function throwApiError(res: Response, fallback: string): Promise<never> {
       message = text;
     }
   }
-  throw new Error(message);
+  throw new ApiError(message, res.status);
 }
 
 export type ReviewStatus = 'pending' | 'approved' | 'rejected';

@@ -44,8 +44,24 @@ import {
 } from 'recharts';
 import { Category, Product, VendorStore, BlueCollarService, TradeCategory, ItemCondition, UserProfile } from '../types';
 import { detectCarrier, INITIAL_PRODUCTS, INITIAL_STORES } from '../data/mockData';
-import { api, type StoreSubmission } from '../services/api';
+import { api, ApiError, type StoreSubmission } from '../services/api';
 import { AbuLogo } from './AbuLogo';
+
+/**
+ * Store failures must not tell a signed-in person to sign in. An expired session asks
+ * for sign-in, while outages and network errors are reported as a temporary problem.
+ */
+const describeStoreFailure = (error: unknown, action: string): string => {
+  const status = error instanceof ApiError ? error.status : null;
+  const message = error instanceof Error ? error.message : '';
+  if (status === 401 || status === 403 || /sign in/i.test(message)) {
+    return `Please sign in again to ${action}.`;
+  }
+  if (status === null || status >= 500) {
+    return `Store review is temporarily unavailable, so we could not ${action}. Please try again in a moment.`;
+  }
+  return message || `Could not ${action}.`;
+};
 
 // Tooltip for Sales & Visitor Trends Chart
 const CustomTrendsTooltip: React.FC<any> = ({ active, payload, label }) => {
@@ -188,7 +204,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     try {
       setStoreApplications(await api.getMyStoreApplications());
     } catch (error) {
-      setApplicationLoadError(error instanceof Error ? error.message : 'Could not load your store applications.');
+      setApplicationLoadError(describeStoreFailure(error, 'load your store applications'));
     } finally {
       setIsLoadingApplications(false);
     }
@@ -225,7 +241,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       setStoreLogoUrl(await api.uploadStoreLogo(file));
     } catch (error) {
       setStoreLogoUrl('');
-      setStoreLogoError(error instanceof Error ? error.message : 'Could not upload the store logo.');
+      setStoreLogoError(describeStoreFailure(error, 'upload the store logo'));
     } finally {
       setIsUploadingStoreLogo(false);
     }
@@ -477,12 +493,9 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       setStoreStreet('');
       setStorePhone('');
       setStoreLogoUrl('');
-    } catch (err: any) {
+    } catch (err) {
       setSuccessMessage('');
-      setStoreError(
-        err?.message ||
-          'Could not submit your store application. Please sign in and try again.'
-      );
+      setStoreError(describeStoreFailure(err, 'submit your store application'));
     } finally {
       setIsSubmitting(false);
     }

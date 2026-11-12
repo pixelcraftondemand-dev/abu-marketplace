@@ -55,10 +55,53 @@ export interface SessionUser {
   createdAt: string;
 }
 
+type TokenVerifier = typeof verifyToken;
+type ProfileLoader = (clerkId: string, secretKey: string) => Promise<SessionUser>;
+
+/** Loads the Clerk account and the matching marketplace profile for a verified session. */
+async function loadClerkProfile(clerkId: string, secretKey: string): Promise<SessionUser> {
+  clerkClient ??= createClerkClient({ secretKey });
+  const clerkUser = await clerkClient.users.getUser(clerkId);
+  const email = clerkUser.emailAddresses.find((address) => address.id === clerkUser.primaryEmailAddressId)?.emailAddress ?? null;
+  const name = clerkUser.fullName || email?.split('@')[0] || 'Verified Customer';
+  const { data: existingProfile } = await supabaseAdmin
+    .from('clerk_profiles')
+    .select('*')
+    .eq('clerk_id', clerkId)
+    .maybeSingle();
+  let profile = existingProfile;
+  if (!profile) {
+    const { data: createdProfile, error } = await supabaseAdmin
+      .from('clerk_profiles')
+      .insert({ clerk_id: clerkId, email, name, image: clerkUser.imageUrl })
+      .select('*')
+      .single();
+    if (error) throw error;
+    profile = createdProfile;
+  }
+
+  return {
+    id: clerkId,
+    email,
+    name: profile.name || name,
+    image: profile.image || clerkUser.imageUrl,
+    phoneNumber: profile.phone ?? clerkUser.phoneNumbers[0]?.phoneNumber ?? null,
+    role: profile.role || 'buyer',
+    preferredCity: profile.preferred_city ?? null,
+    provider: 'clerk',
+    createdAt: profile.created_at,
+  };
+}
+
 /**
  * Verifies a Clerk bearer token and loads the user's marketplace profile.
+ * The optional seams exist so tests can drive the payload handling without Clerk
+ * or Supabase; production callers always use the real implementations.
  */
-export async function getSessionUser(req: Request): Promise<SessionUser | null> {
+export async function getSessionUser(
+  req: Request,
+  seams: { verify?: TokenVerifier; loadProfile?: ProfileLoader } = {},
+): Promise<SessionUser | null> {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) return null;
   const token = header.slice(7).trim();
@@ -67,44 +110,18 @@ export async function getSessionUser(req: Request): Promise<SessionUser | null> 
   if (!secretKey) return null;
 
   try {
-    const verified = await verifyToken(token, {
+    const verify = seams.verify ?? verifyToken;
+    const verified = await verify(token, {
       secretKey,
       authorizedParties: process.env.CLERK_AUTHORIZED_PARTIES?.split(',').map((party) => party.trim()).filter(Boolean),
     });
-    const clerkId = (verified.data as { sub?: string } | undefined)?.sub;
+    // verifyToken resolves to the decoded session payload itself (it unwraps the
+    // { data } envelope), so the Clerk user id lives on `sub` directly.
+    const clerkId = (verified as { sub?: string } | null)?.sub;
     if (!clerkId) return null;
 
-    clerkClient ??= createClerkClient({ secretKey });
-    const clerkUser = await clerkClient.users.getUser(clerkId);
-    const email = clerkUser.emailAddresses.find((address) => address.id === clerkUser.primaryEmailAddressId)?.emailAddress ?? null;
-    const name = clerkUser.fullName || email?.split('@')[0] || 'Verified Customer';
-    const { data: existingProfile } = await supabaseAdmin
-      .from('clerk_profiles')
-      .select('*')
-      .eq('clerk_id', clerkId)
-      .maybeSingle();
-    let profile = existingProfile;
-    if (!profile) {
-      const { data: createdProfile, error } = await supabaseAdmin
-        .from('clerk_profiles')
-        .insert({ clerk_id: clerkId, email, name, image: clerkUser.imageUrl })
-        .select('*')
-        .single();
-      if (error) throw error;
-      profile = createdProfile;
-    }
-
-    return {
-      id: clerkId,
-      email,
-      name: profile.name || name,
-      image: profile.image || clerkUser.imageUrl,
-      phoneNumber: profile.phone ?? clerkUser.phoneNumbers[0]?.phoneNumber ?? null,
-      role: profile.role || 'buyer',
-      preferredCity: profile.preferred_city ?? null,
-      provider: 'clerk',
-      createdAt: profile.created_at,
-    };
+    const loadProfile = seams.loadProfile ?? loadClerkProfile;
+    return await loadProfile(clerkId, secretKey);
   } catch (error) {
     console.warn('[auth] Clerk token verification failed:', error);
     return null;
