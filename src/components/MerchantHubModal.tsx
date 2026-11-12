@@ -48,17 +48,17 @@ import { api, ApiError, type StoreSubmission } from '../services/api';
 import { AbuLogo } from './AbuLogo';
 
 /**
- * Store failures must not tell a signed-in person to sign in. An expired session asks
- * for sign-in, while outages and network errors are reported as a temporary problem.
+ * Merchant submission failures must not tell a signed-in person to sign in. An expired
+ * session asks for sign-in, while outages and network errors are reported as temporary.
  */
-const describeStoreFailure = (error: unknown, action: string): string => {
+export const describeMerchantFailure = (error: unknown, action: string): string => {
   const status = error instanceof ApiError ? error.status : null;
   const message = error instanceof Error ? error.message : '';
   if (status === 401 || status === 403 || /sign in/i.test(message)) {
     return `Please sign in again to ${action}.`;
   }
   if (status === null || status >= 500) {
-    return `Store review is temporarily unavailable, so we could not ${action}. Please try again in a moment.`;
+    return `The marketplace is temporarily unavailable, so we could not ${action}. Please try again in a moment.`;
   }
   return message || `Could not ${action}.`;
 };
@@ -204,7 +204,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     try {
       setStoreApplications(await api.getMyStoreApplications());
     } catch (error) {
-      setApplicationLoadError(describeStoreFailure(error, 'load your store applications'));
+      setApplicationLoadError(describeMerchantFailure(error, 'load your store applications'));
     } finally {
       setIsLoadingApplications(false);
     }
@@ -241,7 +241,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       setStoreLogoUrl(await api.uploadStoreLogo(file));
     } catch (error) {
       setStoreLogoUrl('');
-      setStoreLogoError(describeStoreFailure(error, 'upload the store logo'));
+      setStoreLogoError(describeMerchantFailure(error, 'upload the store logo'));
     } finally {
       setIsUploadingStoreLogo(false);
     }
@@ -495,7 +495,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       setStoreLogoUrl('');
     } catch (err) {
       setSuccessMessage('');
-      setStoreError(describeStoreFailure(err, 'submit your store application'));
+      setStoreError(describeMerchantFailure(err, 'submit your store application'));
     } finally {
       setIsSubmitting(false);
     }
@@ -546,7 +546,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       setSinglePrice('');
       setSingleDesc('');
     } catch (err) {
-      setStoreError(err instanceof Error ? err.message : 'Could not list this item. Please try again.');
+      setStoreError(describeMerchantFailure(err, 'list this item'));
     } finally {
       setIsSubmitting(false);
     }
@@ -584,7 +584,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       setServiceTitle('');
       setProviderName('');
     } catch (err) {
-      setStoreError(err instanceof Error ? err.message : 'Could not register this service. Please try again.');
+      setStoreError(describeMerchantFailure(err, 'register this service'));
     } finally {
       setIsSubmitting(false);
     }
