@@ -31,7 +31,7 @@ interface HeaderProps {
   activeView: 'marketplace' | 'services' | 'stores';
   onSelectView: (view: 'marketplace' | 'services' | 'stores') => void;
   currentUser?: UserProfile | null;
-  onOpenWhatsAppAuth?: () => void;
+  onOpenWhatsAppAuth?: (mode?: 'signin' | 'signup') => void;
   isShopApproved?: boolean;
   theme?: ThemeMode;
   onToggleTheme?: () => void;
@@ -195,7 +195,7 @@ export const Header: React.FC<HeaderProps> = ({
             {currentUser ? (
               <button
                 type="button"
-                onClick={onOpenWhatsAppAuth}
+                onClick={() => onOpenWhatsAppAuth?.()}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#8df7c1]/50 bg-[#0b3b60] px-0 text-white transition-all hover:bg-[#144b77] sm:h-auto sm:w-auto sm:gap-2 sm:px-3 sm:py-1.5"
                 title="View Account Profile"
               >
@@ -213,16 +213,27 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={onOpenWhatsAppAuth}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white px-0 text-[#002541] shadow-xs transition-all hover:bg-[#F4F6F8] sm:h-auto sm:w-auto sm:gap-1.5 sm:px-4 sm:py-1.5"
-                title="Sign in or create an account"
-                aria-label="Sign in or create an account"
-              >
-                <User className="h-4 w-4 text-[#00875A]" />
-                <span className="hidden whitespace-nowrap text-xs font-bold sm:inline">Sign In</span>
-              </button>
+              <div className="hidden items-center gap-1.5 sm:flex">
+                <button
+                  type="button"
+                  onClick={() => onOpenWhatsAppAuth?.('signin')}
+                  className="flex h-9 shrink-0 items-center justify-center rounded-full bg-white px-3 text-[#002541] shadow-xs transition-all hover:bg-[#F4F6F8]"
+                  title="Sign in"
+                  aria-label="Sign in"
+                >
+                  <User className="h-4 w-4 text-[#00875A]" />
+                  <span className="ml-1.5 whitespace-nowrap text-xs font-bold">Sign In</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenWhatsAppAuth?.('signup')}
+                  className="flex h-9 shrink-0 items-center justify-center rounded-full bg-[#00875A] px-3 text-white shadow-xs transition-all hover:bg-[#00704A]"
+                  title="Create an account"
+                  aria-label="Create an account"
+                >
+                  <span className="whitespace-nowrap text-xs font-bold">Sign Up</span>
+                </button>
+              </div>
             )}
           </div>
         </div>

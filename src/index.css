@@ -115,3 +115,117 @@ body {
   content-visibility: auto;
   contain-intrinsic-size: 1px 360px;
 }
+
+/* ============================================================
+   Auth modal — happy shopper pushing a cart (pure CSS animation)
+   ============================================================ */
+.shopper-bob,
+.shopper-cart-roll,
+.shopper-leg,
+.shopper-arm,
+.shopper-wheel-spin,
+.shopper-twinkle {
+  transform-box: fill-box;
+}
+
+.shopper-bob,
+.shopper-cart-roll {
+  transform-origin: center bottom;
+}
+
+.shopper-leg {
+  transform-origin: top center;
+}
+
+.shopper-arm {
+  transform-origin: left center;
+}
+
+.shopper-wheel-spin,
+.shopper-twinkle {
+  transform-origin: center center;
+}
+
+.shopper-bob {
+  animation: abu-shopper-bob 1.5s ease-in-out infinite;
+}
+
+.shopper-leg-front {
+  animation: abu-shopper-leg 0.62s ease-in-out infinite;
+}
+
+.shopper-leg-back {
+  animation: abu-shopper-leg 0.62s ease-in-out infinite reverse;
+}
+
+.shopper-arm {
+  animation: abu-shopper-arm 1.5s ease-in-out infinite;
+}
+
+.shopper-cart-roll {
+  animation: abu-shopper-cart 1.5s ease-in-out infinite;
+}
+
+.shopper-wheel-spin {
+  animation: abu-shopper-wheel 0.9s linear infinite;
+}
+
+.shopper-twinkle {
+  animation: abu-shopper-twinkle 2.2s ease-in-out infinite;
+}
+
+@keyframes abu-shopper-bob {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50% { transform: translateY(-3.5px) rotate(2deg); }
+}
+
+@keyframes abu-shopper-leg {
+  0%, 100% { transform: rotate(-11deg); }
+  50% { transform: rotate(11deg); }
+}
+
+@keyframes abu-shopper-arm {
+  0%, 100% { transform: rotate(2deg); }
+  50% { transform: rotate(-4deg); }
+}
+
+@keyframes abu-shopper-cart {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-2px) rotate(1.5deg); }
+}
+
+@keyframes abu-shopper-wheel {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes abu-shopper-twinkle {
+  0%, 100% { opacity: 0.25; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shopper-bob,
+  .shopper-leg,
+  .shopper-arm,
+  .shopper-cart-roll,
+  .shopper-wheel-spin,
+  .shopper-twinkle {
+    animation: none !important;
+  }
+}
+
+/* Auth form: reveal the Clerk card only once it is fully rendered */
+.auth-form-enter {
+  animation: abu-auth-form-in 0.28s ease-out both;
+}
+
+@keyframes abu-auth-form-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-form-enter {
+    animation: none;
+  }
+}

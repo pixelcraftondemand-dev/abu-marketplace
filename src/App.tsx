@@ -176,6 +176,10 @@ export default function App() {
     setIsWhatsAppAuthOpen(true);
   };
 
+  const handleOpenAuthModal = (mode: 'signin' | 'signup' = 'signin') => {
+    handleOpenAuth(mode === 'signup' ? 'register' : 'login');
+  };
+
   const handleOpenMerchantHub = () => {
     if (!currentUser) {
       handleOpenAuth('login');
@@ -658,7 +662,7 @@ export default function App() {
         activeView={activeView}
         onSelectView={setActiveView}
         currentUser={currentUser}
-        onOpenWhatsAppAuth={() => setIsWhatsAppAuthOpen(true)}
+        onOpenWhatsAppAuth={handleOpenAuthModal}
         isShopApproved={isShopApproved}
         theme={theme}
         onToggleTheme={handleToggleTheme}
@@ -1350,7 +1354,7 @@ export default function App() {
         cartCount={totalCartCount}
         onOpenCart={() => setIsCartOpen(true)}
         currentUser={currentUser}
-        onOpenWhatsAppAuth={() => setIsWhatsAppAuthOpen(true)}
+        onOpenWhatsAppAuth={handleOpenAuthModal}
       />
 
       {/* Modals & Slide-Overs */}

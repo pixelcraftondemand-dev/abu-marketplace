@@ -6,7 +6,7 @@ import { Category } from '../types';
 
 interface MinimalHeroBannerProps {
   onSelectCategory?: (cat: Category) => void;
-  onOpenWhatsAppAuth?: () => void;
+  onOpenWhatsAppAuth?: (mode?: 'signin' | 'signup') => void;
 }
 
 export const MinimalHeroBanner: React.FC<MinimalHeroBannerProps> = ({
@@ -83,14 +83,23 @@ export const MinimalHeroBanner: React.FC<MinimalHeroBannerProps> = ({
               )}
 
               {onOpenWhatsAppAuth && (
-                <button
-                  type="button"
-                  onClick={onOpenWhatsAppAuth}
-                  className="px-3 py-1.5 bg-white hover:bg-slate-100 text-[#002541] text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer ml-auto sm:ml-0"
-                >
-                  <User className="w-3.5 h-3.5 text-[#00875A]" />
-                  <span>Sign In</span>
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onOpenWhatsAppAuth('signin')}
+                    className="px-3 py-1.5 bg-white hover:bg-slate-100 text-[#002541] text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <User className="w-3.5 h-3.5 text-[#00875A]" />
+                    <span>Sign In</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenWhatsAppAuth('signup')}
+                    className="px-3 py-1.5 bg-[#00875A] hover:bg-[#00704A] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <span>Sign Up</span>
+                  </button>
+                </>
               )}
             </div>
           </div>

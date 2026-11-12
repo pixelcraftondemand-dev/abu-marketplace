@@ -17,7 +17,7 @@ interface MobileBottomBarProps {
   cartCount: number;
   onOpenCart: () => void;
   currentUser?: UserProfile | null;
-  onOpenWhatsAppAuth?: () => void;
+  onOpenWhatsAppAuth?: (mode?: 'signin' | 'signup') => void;
 }
 
 export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
@@ -156,7 +156,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
         {/* 5. Account / Sign In with Live User Avatar */}
         <button
           type="button"
-          onClick={onOpenWhatsAppAuth}
+          onClick={() => onOpenWhatsAppAuth?.(currentUser ? undefined : 'signin')}
           className="flex flex-col items-center justify-center min-h-[44px] py-1 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer relative"
           aria-label={currentUser ? "User Profile" : "Sign In"}
         >
