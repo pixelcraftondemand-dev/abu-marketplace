@@ -80,6 +80,22 @@ export const AdminStoreApprovals: React.FC<AdminStoreApprovalsProps> = ({ isOpen
     };
   }, [submissions]);
 
+  // Esc dismisses the queue, and locking the page keeps the catalog from
+  // scrolling behind the panel on touch devices.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleApprove = async (submission: StoreSubmission) => {
@@ -132,7 +148,12 @@ export const AdminStoreApprovals: React.FC<AdminStoreApprovalsProps> = ({ isOpen
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
-      <div className="w-full max-w-4xl max-h-[92vh] flex flex-col bg-white dark:bg-[#0E1720] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#1E2E3D] overflow-hidden">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Store application approvals"
+        className="w-full max-w-4xl max-h-[92vh] flex flex-col bg-white dark:bg-[#0E1720] rounded-2xl shadow-2xl border border-slate-200 dark:border-[#1E2E3D] overflow-hidden"
+      >
         {/* Header */}
         <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-4 border-b border-slate-200 dark:border-[#1E2E3D] bg-[#002541] text-white">
           <div className="flex items-center gap-2.5 min-w-0">

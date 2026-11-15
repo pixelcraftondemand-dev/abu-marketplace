@@ -229,3 +229,73 @@ body {
     animation: none;
   }
 }
+
+/* ============================================================
+   Site-wide accessibility & interaction polish
+   ============================================================ */
+
+/* Keyboard focus is visible everywhere without the mouse-click ring that made
+   buttons look stuck after a tap. */
+:where(a, button, input, select, textarea, summary, [role='button'], [tabindex]):focus-visible {
+  outline: 2px solid var(--color-verified-green);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+html.dark :where(a, button, input, select, textarea, summary, [role='button'], [tabindex]):focus-visible {
+  outline-color: #8df7c1;
+}
+
+/* Touch targets stay at least 40px on coarse pointers so small icon buttons are
+   reachable without pixel-perfect tapping. */
+@media (pointer: coarse) {
+  button,
+  [role='button'] {
+    touch-action: manipulation;
+  }
+}
+
+/* "Skip to catalog" — hidden until focused with the keyboard. */
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 100;
+  transform: translateY(-200%);
+  background: #002541;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.375rem;
+  border: 1px solid #8df7c1;
+  transition: transform 0.15s ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+::selection {
+  background: #8df7c1;
+  color: #002541;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Respect the OS motion preference for every transition, not just the doodles. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

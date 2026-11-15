@@ -8,7 +8,8 @@ import {
   ChevronDown, 
   X,
   User,
-  Sliders
+  Sliders,
+  ShieldCheck
 } from 'lucide-react';
 import { LocationNode, Category, UserProfile, ViewMode } from '../types';
 import { AbuLogo } from './AbuLogo';
@@ -57,6 +58,14 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTheme,
   onOpenCMS,
 }) => {
+  // The catalog filters live as the visitor types, so the search button only has
+  // to take them to the results rather than looking like a dead control.
+  const scrollToResults = () => {
+    const target =
+      document.getElementById('catalog-results') ?? document.getElementById('main-content');
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <header className="sticky top-0 z-40 bg-[#002541] text-white shadow-sm border-b border-[#0B3B60] w-full max-w-full overflow-x-clip">
       {/* Container with responsive padding */}
@@ -129,6 +138,7 @@ export const Header: React.FC<HeaderProps> = ({
               )}
               <button
                 type="button"
+                onClick={scrollToResults}
                 className="absolute right-1 top-1 bottom-1 px-3 bg-[#00875A] hover:bg-[#00704A] text-white text-xs font-bold rounded-full flex items-center gap-1 transition-colors cursor-pointer shrink-0"
               >
                 <Search className="w-3 h-3" />
@@ -189,6 +199,21 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Light / Dark Mode Toggle */}
             {onToggleTheme && (
               <ThemeToggle theme={theme} onToggle={onToggleTheme} className="shrink-0" />
+            )}
+
+            {/* Administrative entry. App only passes onOpenCMS for a session it has
+                verified as admin, so this control does not exist for anyone else. */}
+            {onOpenCMS && (
+              <button
+                type="button"
+                onClick={onOpenCMS}
+                className="flex h-9 min-w-9 shrink-0 items-center justify-center gap-1.5 rounded-full border border-[#8df7c1]/45 bg-[#0b3b60] px-2.5 text-[#8df7c1] transition-colors hover:bg-[#144b77] hover:text-white cursor-pointer"
+                title="Open Admin Dashboard"
+                aria-label="Open admin dashboard"
+              >
+                <ShieldCheck className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span className="hidden text-xs font-bold leading-none sm:inline">Admin</span>
+              </button>
             )}
 
             {/* 4. Sign In / User Account */}
@@ -260,6 +285,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
             <button
               type="button"
+              onClick={scrollToResults}
               className="absolute right-1 top-1 bottom-1 px-3 bg-[#00875A] hover:bg-[#00704A] text-white text-[11px] font-bold rounded-full flex items-center gap-1 transition-colors cursor-pointer shrink-0"
             >
               <Search className="w-3 h-3" />

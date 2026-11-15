@@ -61,7 +61,16 @@ export const ProductCard: React.FC<ProductCardProps> = memo(({
 
   return (
     <article
+      role="button"
+      tabIndex={0}
+      aria-label={`View ${product.title}`}
       onClick={() => onSelect(product)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSelect(product);
+        }
+      }}
       className="group bg-white dark:bg-[#111D27] rounded-md border border-[#E7ECF0] dark:border-[#1E2E3D] hover:border-[#0B3B60] dark:hover:border-[#38BDF8] transition-all cursor-pointer flex flex-col justify-between overflow-hidden shadow-2xs hover:shadow-sm h-full"
     >
       {/* 1:1 Image Container with Strict Aspect Ratio & Zero Layout Shift */}

@@ -247,6 +247,12 @@ export default function App() {
   // Store approval queue (merchant applications awaiting an admin decision)
   const [isApprovalsOpen, setIsApprovalsOpen] = useState(false);
   const handleOpenApprovals = () => setIsApprovalsOpen(true);
+  // Reaching the review queue from inside the CMS closes the CMS first, so the
+  // admin never ends up with two admin panels stacked on top of each other.
+  const handleOpenApprovalsFromCMS = () => {
+    handleCloseCMS();
+    setIsApprovalsOpen(true);
+  };
   const handleCloseApprovals = () => setIsApprovalsOpen(false);
 
   const handleCloseCMS = () => {
@@ -702,6 +708,10 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#FAF9F6] dark:bg-[#091118] text-[#1A242D] dark:text-[#F1F5F9] flex flex-col font-sans antialiased relative transition-colors duration-200 w-full max-w-full overflow-x-hidden pb-16 md:pb-0">
+      {/* First focusable element on the page: jumps keyboard visitors past the
+          header and its controls and into the content. */}
+      <a href="#main-content" className="skip-link">Skip to main content</a>
+
       {/* 1. Header with ABU Logo and 3-Track Mode navigation */}
       <Header
         currentLocation={currentLocation}
@@ -729,6 +739,8 @@ export default function App() {
       {/* Primary Semantic H1 for SEO Ranking (#1 for ABU, abu, Marketplace) */}
       <h1 className="sr-only">ABU Marketplace (abu) — Sierra Leone&apos;s #1 Online Marketplace</h1>
 
+      {/* Everything below the header is the page's main landmark. */}
+      <main id="main-content" tabIndex={-1} className="flex-1 scroll-mt-20 focus:outline-none">
       {/* VIEW: BLUE-COLLAR SERVICES */}
       {activeView === 'services' && (
         <BlueCollarServicesView
@@ -1345,7 +1357,10 @@ export default function App() {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-4">
+                <div
+                  id="catalog-results"
+                  className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5 sm:gap-4 scroll-mt-24"
+                >
                   {filteredProducts.map((product) => (
                     <ProductCard
                       key={product.id}
@@ -1362,6 +1377,8 @@ export default function App() {
           )}
         </>
       )}
+
+      </main>
 
       {/* Floating Mobile Cart (Positioned above MobileBottomBar on mobile) */}
       {cartItems.length > 0 && (
@@ -1561,6 +1578,7 @@ export default function App() {
         onDeleteProduct={handleDeleteProductCMS}
         onResetCatalog={handleResetCatalogCMS}
         onShowToast={showToast}
+        onOpenStoreApprovals={handleOpenApprovalsFromCMS}
       />
 
       {/* Store application review queue */}
@@ -1572,7 +1590,11 @@ export default function App() {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-20 sm:bottom-22 right-4 sm:right-6 z-50 bg-[#002541] text-white px-4 py-2.5 rounded shadow-xl border border-[#144b77] flex items-center gap-2.5 text-xs animate-in slide-in-from-bottom duration-200">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-20 sm:bottom-22 right-4 sm:right-6 z-50 bg-[#002541] text-white px-4 py-2.5 rounded shadow-xl border border-[#144b77] flex items-center gap-2.5 text-xs animate-in slide-in-from-bottom duration-200 max-w-[calc(100vw-2rem)]"
+        >
           <CheckCircle2 className="w-4 h-4 text-[#8df7c1] shrink-0" />
           <span className="font-semibold">{toastMessage}</span>
         </div>

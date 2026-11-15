@@ -55,6 +55,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
               ? 'text-[#00875A] dark:text-[#8df7c1]'
               : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
           }`}
+          aria-current={activeView === 'marketplace' && selectedCategory === 'All' ? 'page' : undefined}
           aria-label="Shop Catalog"
         >
           <div className="relative">
@@ -81,6 +82,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
               ? 'text-[#00875A] dark:text-[#8df7c1]'
               : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
           }`}
+          aria-current={activeView === 'marketplace' && selectedCategory !== 'All' ? 'page' : undefined}
           aria-label="Browse Categories"
         >
           <div className="relative">
@@ -104,6 +106,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
               ? 'text-[#00875A] dark:text-[#8df7c1]'
               : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
           }`}
+          aria-current={activeView === 'property' ? 'page' : undefined}
           aria-label="Property, land and vehicles"
         >
           <div className="relative">
@@ -127,6 +130,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
               ? 'text-[#00875A] dark:text-[#8df7c1]'
               : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
           }`}
+          aria-current={activeView === 'services' ? 'page' : undefined}
           aria-label="Certified Artisans"
         >
           <div className="relative">
@@ -168,6 +172,7 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
               ? 'text-[#00875A] dark:text-[#8df7c1]'
               : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
           }`}
+          aria-current={activeView === 'stores' ? 'page' : undefined}
           aria-label="Stores and Showrooms"
         >
           <div className="relative">

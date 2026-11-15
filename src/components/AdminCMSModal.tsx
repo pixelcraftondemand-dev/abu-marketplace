@@ -41,6 +41,7 @@ interface AdminCMSModalProps {
   onDeleteProduct: (productId: string) => void;
   onResetCatalog: () => void;
   onShowToast: (msg: string) => void;
+  onOpenStoreApprovals?: () => void;
 }
 
 type CMSTab = 'overview' | 'analytics' | 'products' | 'media' | 'stores' | 'services' | 'backup';
@@ -74,6 +75,7 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
   onDeleteProduct,
   onResetCatalog,
   onShowToast,
+  onOpenStoreApprovals,
 }) => {
   const [activeTab, setActiveTab] = useState<CMSTab>('overview');
   
@@ -151,6 +153,27 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
       return true;
     });
   }, [products, selectedCategoryFilter, stockFilter, productSearch]);
+
+  // Esc closes the product editor first, then the CMS itself, and the catalog behind
+  // the panel is locked so its scroll does not bleed through on touch devices.
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (editingProduct) {
+        setEditingProduct(null);
+        return;
+      }
+      onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen, editingProduct, onClose]);
 
   if (!isOpen) return null;
 
@@ -288,7 +311,12 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-[#002541]/75 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
-      <div className="relative bg-white dark:bg-[#0B1520] rounded-xl shadow-2xl max-w-6xl w-full border border-[#DCE1E5] dark:border-[#1E2E3D] overflow-hidden flex flex-col max-h-[92vh]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="ABU admin content management system"
+        className="relative bg-white dark:bg-[#0B1520] rounded-xl shadow-2xl max-w-6xl w-full border border-[#DCE1E5] dark:border-[#1E2E3D] overflow-hidden flex flex-col max-h-[92vh]"
+      >
         
         {/* Top Header */}
         <div className="bg-[#002541] text-white px-4 sm:px-6 py-3.5 flex items-center justify-between border-b border-[#0B3B60] shrink-0">
@@ -311,7 +339,18 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            {onOpenStoreApprovals && (
+              <button
+                type="button"
+                onClick={onOpenStoreApprovals}
+                className="h-8 px-2.5 rounded-lg hover:bg-white/10 text-[#8df7c1] hover:text-white flex items-center gap-1.5 text-[11px] font-bold transition-colors cursor-pointer"
+                title="Review merchant store applications"
+              >
+                <ShieldCheck className="w-4 h-4 shrink-0" aria-hidden="true" />
+                <span className="hidden sm:inline">Store approvals</span>
+              </button>
+            )}
             <button
               onClick={onClose}
               className="w-8 h-8 rounded-lg hover:bg-white/10 text-white/80 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
@@ -507,6 +546,15 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
                     return (
                       <div
                         key={cat}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setSelectedCategoryFilter(cat);
+                            setActiveTab('products');
+                          }
+                        }}
                         onClick={() => {
                           setSelectedCategoryFilter(cat);
                           setActiveTab('products');
