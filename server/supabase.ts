@@ -95,6 +95,31 @@ async function loadClerkProfile(clerkId: string, secretKey: string): Promise<Ses
 }
 
 /**
+ * The origins whose sessions this server trusts. verifyToken compares the token's
+ * `azp` claim against this list, and the live site canonicalises to the www host
+ * while deployments configure the apex domain, so an apex entry also covers its www
+ * sibling. Without that widening, every API call from the live www site looks like it
+ * came from an untrusted party and is rejected.
+ */
+export function expandAuthorizedParties(raw?: string): string[] | undefined {
+  const configured = (raw ?? '')
+    .split(',')
+    .map((party) => party.trim())
+    .filter(Boolean);
+  if (configured.length === 0) return undefined;
+
+  const allowed = new Set<string>();
+  for (const party of configured) {
+    allowed.add(party);
+    // Only bare https origins grow a www sibling: localhost, http and paths stay exact.
+    const bareHost = /^https:\/\/([^/:?#]+)\/?$/i.exec(party);
+    if (!bareHost || bareHost[1].toLowerCase().startsWith('www.')) continue;
+    allowed.add(`https://www.${bareHost[1]}`);
+  }
+  return [...allowed];
+}
+
+/**
  * Verifies a Clerk bearer token and loads the user's marketplace profile.
  * The optional seams exist so tests can drive the payload handling without Clerk
  * or Supabase; production callers always use the real implementations.
@@ -115,7 +140,7 @@ export async function getSessionUser(
     const verify = seams.verify ?? verifyToken;
     const verified = await verify(token, {
       secretKey,
-      authorizedParties: process.env.CLERK_AUTHORIZED_PARTIES?.split(',').map((party) => party.trim()).filter(Boolean),
+      authorizedParties: expandAuthorizedParties(process.env.CLERK_AUTHORIZED_PARTIES),
     });
     // verifyToken resolves to the decoded session payload itself (it unwraps the
     // { data } envelope), so the Clerk user id lives on `sub` directly.
