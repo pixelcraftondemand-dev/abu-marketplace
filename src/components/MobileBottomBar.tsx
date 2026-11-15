@@ -1,7 +1,8 @@
 import React from 'react';
 import { 
   ShoppingBag, 
-  LayoutGrid, 
+  LayoutGrid,
+  LandPlot, 
   Wrench, 
   Building2, 
   ShoppingCart,
@@ -36,7 +37,9 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
       className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-[#002541]/95 backdrop-blur-md border-t border-slate-200 dark:border-[#0B3B60] shadow-[0_-4px_16px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.3)] transition-colors duration-200"
       style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0.5rem))' }}
     >
-      <div className="grid grid-cols-5 h-14 items-center px-1 max-w-md mx-auto">
+      {/* Seven equal cells: at 320px each is ~44px wide, so icons sit at 18px and labels
+          truncate rather than wrapping the bar onto a second row. */}
+      <div className="grid grid-cols-7 h-14 items-center px-0.5 max-w-md mx-auto">
         {/* 1. Shop / Marketplace */}
         <button
           type="button"
@@ -55,12 +58,12 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
           aria-label="Shop Catalog"
         >
           <div className="relative">
-            <ShoppingBag className="w-5 h-5" strokeWidth={activeView === 'marketplace' && selectedCategory === 'All' ? 2.5 : 2} />
+            <ShoppingBag className="w-[18px] h-[18px]" strokeWidth={activeView === 'marketplace' && selectedCategory === 'All' ? 2.5 : 2} />
             {activeView === 'marketplace' && selectedCategory === 'All' && (
               <span className="w-1.5 h-1.5 rounded-full bg-[#00875A] dark:bg-[#8df7c1] absolute -bottom-1 left-1/2 -translate-x-1/2" />
             )}
           </div>
-          <span className="text-[10px] font-bold mt-1 leading-none tracking-tight">Shop</span>
+          <span className="text-[9px] font-bold mt-1 leading-none tracking-tight truncate w-full text-center">Shop</span>
         </button>
 
         {/* 2. Categories */}
@@ -81,15 +84,38 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
           aria-label="Browse Categories"
         >
           <div className="relative">
-            <LayoutGrid className="w-5 h-5" strokeWidth={activeView === 'marketplace' && selectedCategory !== 'All' ? 2.5 : 2} />
+            <LayoutGrid className="w-[18px] h-[18px]" strokeWidth={activeView === 'marketplace' && selectedCategory !== 'All' ? 2.5 : 2} />
             {activeView === 'marketplace' && selectedCategory !== 'All' && (
               <span className="w-1.5 h-1.5 rounded-full bg-[#00875A] dark:bg-[#8df7c1] absolute -bottom-1 left-1/2 -translate-x-1/2" />
             )}
           </div>
-          <span className="text-[10px] font-bold mt-1 leading-none tracking-tight">Categories</span>
+          <span className="text-[9px] font-bold mt-1 leading-none tracking-tight truncate w-full text-center">Categories</span>
         </button>
 
-        {/* 3. Blue-Collar Artisans */}
+        {/* 3. Property, Land & Vehicles */}
+        <button
+          type="button"
+          onClick={() => {
+            onSelectView('property');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className={`flex flex-col items-center justify-center min-h-[44px] py-1 transition-all cursor-pointer relative ${
+            activeView === 'property'
+              ? 'text-[#00875A] dark:text-[#8df7c1]'
+              : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+          }`}
+          aria-label="Property, land and vehicles"
+        >
+          <div className="relative">
+            <LandPlot className="w-[18px] h-[18px]" strokeWidth={activeView === 'property' ? 2.5 : 2} />
+            {activeView === 'property' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00875A] dark:bg-[#8df7c1] absolute -bottom-1 left-1/2 -translate-x-1/2" />
+            )}
+          </div>
+          <span className="text-[9px] font-bold mt-1 leading-none tracking-tight truncate w-full text-center">Property</span>
+        </button>
+
+        {/* 4. Blue-Collar Artisans */}
         <button
           type="button"
           onClick={() => {
@@ -104,15 +130,15 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
           aria-label="Certified Artisans"
         >
           <div className="relative">
-            <Wrench className="w-5 h-5" strokeWidth={activeView === 'services' ? 2.5 : 2} />
+            <Wrench className="w-[18px] h-[18px]" strokeWidth={activeView === 'services' ? 2.5 : 2} />
             {activeView === 'services' && (
               <span className="w-1.5 h-1.5 rounded-full bg-[#00875A] dark:bg-[#8df7c1] absolute -bottom-1 left-1/2 -translate-x-1/2" />
             )}
           </div>
-          <span className="text-[10px] font-bold mt-1 leading-none tracking-tight">Artisans</span>
+          <span className="text-[9px] font-bold mt-1 leading-none tracking-tight truncate w-full text-center">Artisans</span>
         </button>
 
-        {/* 3. Shopping Cart */}
+        {/* 5. Shopping Cart */}
         <button
           type="button"
           onClick={onOpenCart}
@@ -120,17 +146,17 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
           aria-label="Shopping Cart"
         >
           <div className="relative">
-            <ShoppingCart className="w-5 h-5" strokeWidth={2} />
+            <ShoppingCart className="w-[18px] h-[18px]" strokeWidth={2} />
             {cartCount > 0 && (
               <span className="absolute -top-1.5 -right-2.5 bg-[#00875A] text-white text-[9px] font-black h-4 min-w-4 px-1 rounded-full flex items-center justify-center shadow-xs">
                 {cartCount}
               </span>
             )}
           </div>
-          <span className="text-[10px] font-bold mt-1 leading-none tracking-tight">Cart</span>
+          <span className="text-[9px] font-bold mt-1 leading-none tracking-tight truncate w-full text-center">Cart</span>
         </button>
 
-        {/* 4. Showroom Stores */}
+        {/* 6. Showroom Stores */}
         <button
           type="button"
           onClick={() => {
@@ -145,15 +171,15 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
           aria-label="Stores and Showrooms"
         >
           <div className="relative">
-            <Building2 className="w-5 h-5" strokeWidth={activeView === 'stores' ? 2.5 : 2} />
+            <Building2 className="w-[18px] h-[18px]" strokeWidth={activeView === 'stores' ? 2.5 : 2} />
             {activeView === 'stores' && (
               <span className="w-1.5 h-1.5 rounded-full bg-[#00875A] dark:bg-[#8df7c1] absolute -bottom-1 left-1/2 -translate-x-1/2" />
             )}
           </div>
-          <span className="text-[10px] font-bold mt-1 leading-none tracking-tight">Stores</span>
+          <span className="text-[9px] font-bold mt-1 leading-none tracking-tight truncate w-full text-center">Stores</span>
         </button>
 
-        {/* 5. Account / Sign In with Live User Avatar */}
+        {/* 7. Account / Sign In with Live User Avatar */}
         <button
           type="button"
           onClick={() => onOpenWhatsAppAuth?.(currentUser ? undefined : 'signin')}
@@ -165,16 +191,16 @@ export const MobileBottomBar: React.FC<MobileBottomBarProps> = ({
               <img
                 src={currentUser.avatar}
                 alt={currentUser.name}
-                className="w-5 h-5 rounded-full object-cover border border-[#00875A]"
+                className="w-[18px] h-[18px] rounded-full object-cover border border-[#00875A]"
               />
               <span className="w-2 h-2 rounded-full bg-[#16A34A] absolute -bottom-0.5 -right-0.5 ring-1 ring-white dark:ring-[#002541]" />
             </div>
           ) : (
             <div className="relative">
-              <User className="w-5 h-5" strokeWidth={2} />
+              <User className="w-[18px] h-[18px]" strokeWidth={2} />
             </div>
           )}
-          <span className="text-[10px] font-bold mt-1 leading-none tracking-tight truncate max-w-[56px]">
+          <span className="text-[9px] font-bold mt-1 leading-none tracking-tight truncate w-full text-center">
             {currentUser ? currentUser.name.split(' ')[0] : 'Sign In'}
           </span>
         </button>

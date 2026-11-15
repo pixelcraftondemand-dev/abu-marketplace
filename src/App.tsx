@@ -101,6 +101,26 @@ import {
   ShoppingBag
 } from 'lucide-react';
 
+/** Addresses that belong to the property track (short stays, estates, land, vehicles). */
+const PROPERTY_PATHS = ['/property', '/properties', '/real-estate', '/vehicles', '/land', '/stays'];
+
+/** Canonical URL for each browse view. Everything else keeps whatever path it already has. */
+const VIEW_PATHS: Record<string, string> = {
+  marketplace: '/',
+  services: '/services',
+  stores: '/stores',
+  property: '/property',
+};
+
+/** Both the canonical paths and the older aliases resolve to the same view. */
+const viewFromPath = (path: string): ViewMode | null => {
+  if (path === '/' || path === '/marketplace') return 'marketplace';
+  if (path === '/services' || path === '/artisans') return 'services';
+  if (path === '/stores' || path === '/showrooms') return 'stores';
+  if (PROPERTY_PATHS.includes(path)) return 'property';
+  return null;
+};
+
 export default function App() {
   const { getToken, isLoaded: clerkLoaded, isSignedIn, signOut } = useAuth();
   const { user } = useUser();
@@ -231,7 +251,7 @@ export default function App() {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname.toLowerCase();
       if (['/cms', '/admin'].includes(path)) {
-        window.history.pushState({}, '', '/');
+        window.history.pushState({}, '', VIEW_PATHS[activeView] ?? '/');
       }
     }
   };
@@ -252,11 +272,10 @@ export default function App() {
         setIsWhatsAppAuthOpen(true);
       } else if (path === '/cms' || path === '/admin') {
         setIsCMSOpen(true);
-      } else if (['/property', '/properties', '/real-estate', '/vehicles', '/land', '/stays'].includes(path)) {
-        setActiveView('property');
-        setIsWhatsAppAuthOpen(false);
-        setIsCMSOpen(false);
       } else {
+        // Back/forward between browse views, including deep links into /property.
+        const view = viewFromPath(path);
+        if (view) setActiveView(view);
         setIsWhatsAppAuthOpen(false);
         setIsCMSOpen(false);
       }
@@ -280,13 +299,21 @@ export default function App() {
   // 1. Navigation View Mode ('marketplace' | 'services' | 'stores' | 'property')
   const [activeView, setActiveView] = useState<ViewMode>(() => {
     if (typeof window === 'undefined') return 'marketplace';
-    const path = window.location.pathname.toLowerCase();
-    // Deep links into the property track (short stays, estates, land, vehicles)
-    if (['/property', '/properties', '/real-estate', '/vehicles', '/land', '/stays'].includes(path)) {
-      return 'property';
-    }
-    return 'marketplace';
+    // A reload on /services, /stores or a property deep link reopens that view.
+    return viewFromPath(window.location.pathname.toLowerCase()) ?? 'marketplace';
   });
+
+  // Keep the address bar on the current view, so switching views is linkable and a
+  // reload lands where the visitor was. Paths this app does not own (auth screens,
+  // /cms, legal pages) are left alone and simply do not map to a view.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const path = window.location.pathname.toLowerCase();
+    const currentView = viewFromPath(path);
+    const target = VIEW_PATHS[activeView];
+    if (!currentView || !target || currentView === activeView || path === target) return;
+    window.history.pushState({}, '', target);
+  }, [activeView]);
 
 
   // 2. Core Datasets (Cached for instant 0ms homepage initial render)
@@ -399,9 +426,9 @@ export default function App() {
     if (!currentUser || typeof window === 'undefined') return;
     const path = window.location.pathname.toLowerCase();
     if (['/login', '/register', '/auth', '/account', '/signin', '/signup'].includes(path)) {
-      window.history.replaceState({}, '', '/');
+      window.history.replaceState({}, '', VIEW_PATHS[activeView] ?? '/');
     }
-  }, [currentUser]);
+  }, [currentUser, activeView]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
