@@ -84,6 +84,7 @@ export interface WhatsAppAuthModalProps {
   onLogout: () => void;
   onOpenTerms?: () => void;
   onOpenPrivacy?: () => void;
+  onOpenAdmin?: () => void;
   initialTab?: string;
   initialEmailMode?: string;
 }
@@ -95,6 +96,7 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
   onLogout,
   onOpenTerms,
   onOpenPrivacy,
+  onOpenAdmin,
   initialEmailMode,
 }) => {
   // Sign-in / sign-up switch, seeded from the route that opened the modal.
@@ -203,6 +205,19 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                   <span>Verified Member Session</span>
                 </div>
                 <div className="mt-6 flex flex-col gap-2 border-t border-slate-200 pt-5 dark:border-white/10">
+                  {onOpenAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onOpenAdmin();
+                      }}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#00875A]/40 bg-[#00875A]/10 px-4 py-2.5 text-xs font-bold text-[#00684a] hover:bg-[#00875A]/20 dark:text-[#8df7c1]"
+                    >
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>Admin dashboard</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {

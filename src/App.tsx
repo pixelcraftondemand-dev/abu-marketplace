@@ -161,6 +161,13 @@ export default function App() {
   };
 
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  // The profile API fills `currentUser` a tick after Clerk knows about the session.
+  // Every gate reads this value instead, so a freshly signed-in visitor is not sent
+  // back to the sign-in dialog when they immediately open "Create Shop".
+  const activeUser = currentUser ?? clerkUser;
+  // True when the visitor asked to open the merchant hub while still signed out, so
+  // the hub can open as soon as the session lands instead of asking them to click twice.
+  const [pendingMerchantHub, setPendingMerchantHub] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   // Direct URL Path Routing (/login, /register, /auth, /account, /signin, /signup)
   const [isWhatsAppAuthOpen, setIsWhatsAppAuthOpen] = useState(() => {
@@ -208,7 +215,8 @@ export default function App() {
   };
 
   const handleOpenMerchantHub = () => {
-    if (!currentUser) {
+    if (!activeUser) {
+      setPendingMerchantHub(true);
       handleOpenAuth('login');
       return;
     }
@@ -217,6 +225,8 @@ export default function App() {
 
   const handleCloseAuth = () => {
     setIsWhatsAppAuthOpen(false);
+    // Dismissing the dialog without a session abandons the pending "Create Shop" too.
+    if (!activeUser) setPendingMerchantHub(false);
     if (typeof window !== 'undefined') {
       const path = window.location.pathname.toLowerCase();
       if (['/login', '/register', '/auth', '/account', '/signin', '/signup', '/sso-callback'].includes(path)) {
@@ -235,8 +245,8 @@ export default function App() {
   });
 
   const handleOpenCMS = () => {
-    if (!currentUser || !isAdmin) {
-      if (!currentUser) handleOpenAuth('login');
+    if (!activeUser || !isAdmin) {
+      if (!activeUser) handleOpenAuth('login');
       else showToast('Admin access required');
       return;
     }
@@ -303,7 +313,7 @@ export default function App() {
     }
   });
 
-  const isShopApproved = Boolean(userStore || currentUser?.role === 'merchant');
+  const isShopApproved = Boolean(userStore || activeUser?.role === 'merchant');
 
   // 1. Navigation View Mode ('marketplace' | 'services' | 'stores' | 'property')
   const [activeView, setActiveView] = useState<ViewMode>(() => {
@@ -363,6 +373,13 @@ export default function App() {
   const [checkoutInitialMethod, setCheckoutInitialMethod] = useState<MobileMoneyProvider>('orange');
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const [isMerchantHubOpen, setIsMerchantHubOpen] = useState(false);
+
+  // Continue into the merchant hub once the sign-in that "Create Shop" triggered lands.
+  useEffect(() => {
+    if (!activeUser || !pendingMerchantHub) return;
+    setPendingMerchantHub(false);
+    setIsMerchantHubOpen(true);
+  }, [activeUser, pendingMerchantHub]);
   const [isOrderTrackingOpen, setIsOrderTrackingOpen] = useState(false);
   const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
   const [activeLegalDocId, setActiveLegalDocId] = useState('terms-of-service');
@@ -432,7 +449,7 @@ export default function App() {
   // this the URL stays on /login after a successful sign-in, so the next reload (or
   // back navigation) re-opens the sign-in dialog for a user who is already signed in.
   useEffect(() => {
-    if (!currentUser || typeof window === 'undefined') return;
+    if (!activeUser || typeof window === 'undefined') return;
     const path = window.location.pathname.toLowerCase();
     if (['/login', '/register', '/auth', '/account', '/signin', '/signup', '/sso-callback'].includes(path)) {
       window.history.replaceState({}, '', VIEW_PATHS[activeView] ?? '/');
@@ -728,7 +745,7 @@ export default function App() {
         onSelectCategory={setSelectedCategory}
         activeView={activeView}
         onSelectView={setActiveView}
-        currentUser={currentUser}
+        currentUser={activeUser}
         onOpenWhatsAppAuth={handleOpenAuthModal}
         isShopApproved={isShopApproved}
         theme={theme}
@@ -1415,7 +1432,7 @@ export default function App() {
       <Footer
         onOpenLocationPicker={() => setIsLocationPickerOpen(true)}
         onOpenMerchantHub={handleOpenMerchantHub}
-        isAuthenticated={Boolean(currentUser)}
+        isAuthenticated={Boolean(activeUser)}
         onOpenOrderTracking={() => setIsOrderTrackingOpen(true)}
         onOpenLegal={(docId) => {
           if (docId) setActiveLegalDocId(docId);
@@ -1433,7 +1450,7 @@ export default function App() {
         onSelectCategory={setSelectedCategory}
         cartCount={totalCartCount}
         onOpenCart={() => setIsCartOpen(true)}
-        currentUser={currentUser}
+        currentUser={activeUser}
         onOpenWhatsAppAuth={handleOpenAuthModal}
       />
 
@@ -1488,17 +1505,18 @@ export default function App() {
         currentLocation={currentLocation}
         initialPaymentMethod={checkoutInitialMethod}
         onOrderSuccess={handleOrderSuccess}
-        currentUser={currentUser}
+        currentUser={activeUser}
       />
 
       {/* Minimalist Authentication Modal (Google, Facebook, Apple) */}
       <WhatsAppAuthModal
         isOpen={isWhatsAppAuthOpen}
         onClose={handleCloseAuth}
-        currentUser={currentUser}
+        currentUser={activeUser}
         onLogout={handleLogout}
         onOpenTerms={() => setIsLegalModalOpen(true)}
         onOpenPrivacy={() => setIsLegalModalOpen(true)}
+        onOpenAdmin={isAdmin ? handleOpenCMS : undefined}
         initialTab={authInitialTab}
         initialEmailMode={authInitialEmailMode}
       />
@@ -1530,7 +1548,7 @@ export default function App() {
         onAddStore={handleAddNewStore}
         onAddService={handleAddNewService}
         onOpenCMS={isAdmin ? handleOpenCMS : undefined}
-        currentUser={currentUser}
+        currentUser={activeUser}
         onOpenAuth={() => handleOpenAuth('login')}
       />
 
