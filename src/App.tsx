@@ -45,6 +45,7 @@ import {
 import { 
   PropertyVehiclesView 
 } from './components/PropertyVehiclesView';
+import PhotographyCreditsView from './components/PhotographyCreditsView';
 import { 
   ChatbotWidget 
 } from './components/ChatbotWidget';
@@ -110,6 +111,7 @@ const VIEW_PATHS: Record<string, string> = {
   services: '/services',
   stores: '/stores',
   property: '/property',
+  credits: '/credits',
 };
 
 /** Both the canonical paths and the older aliases resolve to the same view. */
@@ -118,6 +120,7 @@ const viewFromPath = (path: string): ViewMode | null => {
   if (path === '/services' || path === '/artisans') return 'services';
   if (path === '/stores' || path === '/showrooms') return 'stores';
   if (PROPERTY_PATHS.includes(path)) return 'property';
+  if (path === '/credits' || path === '/photography-credits') return 'credits';
   return null;
 };
 
@@ -749,7 +752,10 @@ export default function App() {
       )}
 
       {/* VIEW: PROPERTY, LAND & VEHICLES */}
-      {activeView === 'property' && <PropertyVehiclesView />}
+      {activeView === 'property' && <PropertyVehiclesView onOpenCredits={() => setActiveView('credits')} />}
+
+      {/* VIEW: PHOTOGRAPHY CREDITS (licences behind the seeded listing photos) */}
+      {activeView === 'credits' && <PhotographyCreditsView onBack={() => setActiveView('property')} />}
 
       {/* VIEW: MARKETPLACE PRODUCTS (CLEAN, MINIMALIST SHOP-BY-CATEGORY LAYOUT) */}
       {activeView === 'marketplace' && (

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   BedDouble,
   Building2,
+  Camera,
   Car,
   CheckCircle2,
   FileCheck2,
@@ -24,6 +25,8 @@ import { getListingImages, resolveListingImageUrl } from '../data/listingImages'
 
 interface PropertyVehiclesViewProps {
   listings?: PropertyListing[];
+  /** Opens the photography credits page that carries the full photo attribution. */
+  onOpenCredits?: () => void;
 }
 
 type KindFilter = 'all' | ListingKind;
@@ -144,7 +147,7 @@ const DetailRow: React.FC<{ label: string; value: string }> = ({ label, value })
 );
 
 /** These photos are licensed stock, so credit the photographer and say it is not the exact property. */
-const ListingPhotoCredit: React.FC<{ image: ListingImage }> = ({ image }) => {
+const ListingPhotoCredit: React.FC<{ image: ListingImage; onOpenCredits?: () => void }> = ({ image, onOpenCredits }) => {
   const cover = image;
 
   return (
@@ -164,11 +167,24 @@ const ListingPhotoCredit: React.FC<{ image: ListingImage }> = ({ image }) => {
       )}
       {cover.license && <span>· {cover.license}</span>}
       <span>· Wikimedia Commons</span>
+      {onOpenCredits && (
+        <button
+          type="button"
+          onClick={onOpenCredits}
+          className="ml-auto font-bold text-[#0B3B60] dark:text-[#8df7c1] hover:underline cursor-pointer shrink-0"
+        >
+          All credits
+        </button>
+      )}
     </div>
   );
 };
 
-const ListingDetailModal: React.FC<{ listing: PropertyListing; onClose: () => void }> = ({ listing, onClose }) => {
+const ListingDetailModal: React.FC<{
+  listing: PropertyListing;
+  onClose: () => void;
+  onOpenCredits?: () => void;
+}> = ({ listing, onClose, onOpenCredits }) => {
   const photos = getListingImages(listing);
   const [photoIndex, setPhotoIndex] = useState(0);
 
@@ -237,7 +253,7 @@ const ListingDetailModal: React.FC<{ listing: PropertyListing; onClose: () => vo
             ))}
           </div>
         )}
-        {photos.length > 0 && <ListingPhotoCredit image={photos[photoIndex] ?? photos[0]} />}
+        {photos.length > 0 && <ListingPhotoCredit image={photos[photoIndex] ?? photos[0]} onOpenCredits={onOpenCredits} />}
 
         <div className="p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -374,7 +390,7 @@ const ListingDetailModal: React.FC<{ listing: PropertyListing; onClose: () => vo
   );
 };
 
-export const PropertyVehiclesView: React.FC<PropertyVehiclesViewProps> = ({ listings = PROPERTY_LISTINGS }) => {
+export const PropertyVehiclesView: React.FC<PropertyVehiclesViewProps> = ({ listings = PROPERTY_LISTINGS, onOpenCredits }) => {
   const [kind, setKind] = useState<KindFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [district, setDistrict] = useState('All');
@@ -446,6 +462,15 @@ export const PropertyVehiclesView: React.FC<PropertyVehiclesViewProps> = ({ list
           <span className="flex items-center gap-1 bg-[#082d49] border border-[#144b77] px-2 py-1 rounded">
             <MapPin className="w-3.5 h-3.5 text-[#8df7c1]" /> Freetown · Bo · Makeni · Kenema
           </span>
+          {onOpenCredits && (
+            <button
+              type="button"
+              onClick={onOpenCredits}
+              className="flex items-center gap-1 bg-[#082d49] border border-[#144b77] px-2 py-1 rounded hover:border-[#8df7c1] hover:text-white transition-colors cursor-pointer"
+            >
+              <Camera className="w-3.5 h-3.5 text-[#8df7c1]" /> Photo credits
+            </button>
+          )}
         </div>
       </div>
 
@@ -572,7 +597,9 @@ export const PropertyVehiclesView: React.FC<PropertyVehiclesViewProps> = ({ list
         </div>
       )}
 
-      {selected && <ListingDetailModal listing={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <ListingDetailModal listing={selected} onClose={() => setSelected(null)} onOpenCredits={onOpenCredits} />
+      )}
     </div>
   );
 };
