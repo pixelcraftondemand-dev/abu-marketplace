@@ -15,12 +15,20 @@ alter table public.clerk_profiles enable row level security;
 alter table public.store_submissions
   drop constraint if exists store_submissions_owner_id_fkey;
 alter table public.store_submissions
-  alter column owner_id type text using owner_id::text;
-alter table public.store_submissions
   drop constraint if exists store_submissions_reviewed_by_fkey;
+
+-- The policy below references owner_id, so Postgres refuses to change that column's
+-- type while it exists. Drop it first and recreate it after the two type changes.
+drop policy if exists "read own submissions" on public.store_submissions;
+
+alter table public.store_submissions
+  alter column owner_id type text using owner_id::text;
 alter table public.store_submissions
   alter column reviewed_by type text using reviewed_by::text;
 
-drop policy if exists "read own submissions" on public.store_submissions;
 create policy "read own submissions" on public.store_submissions
   for select using ((select auth.jwt()->>'sub') = owner_id);
+
+-- Make PostgREST pick up the new table immediately instead of waiting for its cache
+-- to expire, which is what made the API answer "sign in" to signed-in visitors.
+notify pgrst, 'reload schema';
