@@ -138,6 +138,10 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Send the visitor back to the origin they started on (www in production) instead of
+  // the apex domain the Clerk dashboard names, which only redirects again.
+  const redirectUrl = typeof window !== 'undefined' ? window.location.origin : undefined;
+
   // The scrim is solid rather than a backdrop blur: blurring the whole page behind the
   // dialog forces a fresh full-viewport snapshot on every repaint of the page or dialog.
   return (
@@ -278,8 +282,8 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                     <ClerkLoaded>
                       <div className="auth-form-enter">
                         {mode === 'signup'
-                          ? <SignUp key="signup" routing="hash" appearance={clerkAppearance} />
-                          : <SignIn key="signin" routing="hash" appearance={clerkAppearance} />}
+                          ? <SignUp key="signup" routing="hash" appearance={clerkAppearance} fallbackRedirectUrl={redirectUrl} />
+                          : <SignIn key="signin" routing="hash" appearance={clerkAppearance} fallbackRedirectUrl={redirectUrl} />}
                       </div>
                     </ClerkLoaded>
                   </div>

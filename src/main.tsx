@@ -18,8 +18,21 @@ if (!clerkPublishableKey) {
     </main>
   );
 } else {
+  // The Clerk dashboard points its sign-in/sign-up URLs at accounts.abumarketplace.shop
+  // and its post-auth redirect at the apex domain, which Vercel forwards to www. Every
+  // one of those hops costs the session cookie its host, so the OAuth handshake retries
+  // forever after an account is chosen. Keep each step inside this app on the origin the
+  // visitor is already on.
+  const appOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
+
   root.render(
-    <ClerkProvider publishableKey={clerkPublishableKey}>
+    <ClerkProvider
+      publishableKey={clerkPublishableKey}
+      signInUrl="/login"
+      signUpUrl="/register"
+      signInFallbackRedirectUrl={appOrigin}
+      signUpFallbackRedirectUrl={appOrigin}
+    >
       <App />
     </ClerkProvider>
   );

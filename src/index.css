@@ -338,6 +338,22 @@ html.dark :where(a, button, input, select, textarea, summary, [role='button'], [
   color: #00684a !important;
 }
 
+/* Belt and braces: whatever markup Clerk ships for a given step (verification codes,
+   password hints, account-picker rows), text inside the white card stays dark, while
+   the solid primary button keeps its white label. */
+.abu-auth-form :where(div, span, p, label, h1, h2, h3, h4, h5, h6, strong, small, li, dt, dd) {
+  color: #122033;
+}
+
+.abu-auth-form .cl-formButtonPrimary,
+.abu-auth-form .cl-formButtonPrimary :where(span, div) {
+  color: #ffffff !important;
+}
+
+.abu-auth-form :is(.cl-formFieldHintText, .cl-formFieldInfoText, .cl-formFieldWarningText) {
+  color: #475569 !important;
+}
+
 html {
   scroll-behavior: smooth;
 }

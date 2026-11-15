@@ -166,7 +166,7 @@ export default function App() {
   const [isWhatsAppAuthOpen, setIsWhatsAppAuthOpen] = useState(() => {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname.toLowerCase();
-      return ['/login', '/register', '/auth', '/account', '/signin', '/signup'].includes(path);
+      return ['/login', '/register', '/auth', '/account', '/signin', '/signup', '/sso-callback'].includes(path);
     }
     return false;
   });
@@ -219,7 +219,7 @@ export default function App() {
     setIsWhatsAppAuthOpen(false);
     if (typeof window !== 'undefined') {
       const path = window.location.pathname.toLowerCase();
-      if (['/login', '/register', '/auth', '/account', '/signin', '/signup'].includes(path)) {
+      if (['/login', '/register', '/auth', '/account', '/signin', '/signup', '/sso-callback'].includes(path)) {
         window.history.pushState({}, '', '/');
       }
     }
@@ -268,7 +268,7 @@ export default function App() {
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname.toLowerCase();
-      if (path === '/login' || path === '/signin') {
+      if (path === '/login' || path === '/signin' || path === '/sso-callback') {
         setAuthInitialTab('email');
         setAuthInitialEmailMode('signin');
         setIsWhatsAppAuthOpen(true);
@@ -434,7 +434,7 @@ export default function App() {
   useEffect(() => {
     if (!currentUser || typeof window === 'undefined') return;
     const path = window.location.pathname.toLowerCase();
-    if (['/login', '/register', '/auth', '/account', '/signin', '/signup'].includes(path)) {
+    if (['/login', '/register', '/auth', '/account', '/signin', '/signup', '/sso-callback'].includes(path)) {
       window.history.replaceState({}, '', VIEW_PATHS[activeView] ?? '/');
     }
   }, [currentUser, activeView]);
