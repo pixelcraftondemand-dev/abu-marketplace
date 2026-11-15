@@ -7,8 +7,8 @@ coverage/
 .env*
 !.env.example
 .local-pg/
-tmp-pgdata/
-tmp-classifieds/
+# One-off scratch scripts and their generated data (e.g. the listing photo generators)
+tmp-*
 .quickcart-ref/
 .dev.env.json
 .dev.pid
