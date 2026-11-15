@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { ClerkLoaded, ClerkLoading, SignIn, SignUp } from '@clerk/react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ClerkLoaded, SignIn, SignUp } from '@clerk/react';
 import { LogOut, ShieldCheck, X } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { AbuLogo } from './AbuLogo';
@@ -40,8 +40,12 @@ const clerkAppearance = {
   },
 };
 
-/** Shown while Clerk boots, so an empty half-rendered auth card never flashes up. */
-const AuthFormSkeleton: React.FC = () => (
+/**
+ * Shown from the moment the modal opens until Clerk's form has painted, so an empty
+ * half-rendered auth card never flashes up. clerk-js and its UI chunks are fetched
+ * from the instance's frontend API at runtime, which can take seconds on a cold cache.
+ */
+const AuthFormSkeleton: React.FC<{ slow?: boolean }> = ({ slow = false }) => (
   <div
     role="status"
     aria-live="polite"
@@ -56,6 +60,20 @@ const AuthFormSkeleton: React.FC = () => (
       <div className="h-9 w-full animate-pulse rounded-lg bg-slate-100 dark:bg-white/10" />
       <div className="h-9 w-3/4 animate-pulse rounded-lg bg-slate-100 dark:bg-white/10" />
     </div>
+    {slow && (
+      <div className="mt-3 flex flex-col items-center gap-2 text-center">
+        <p className="text-[11px] text-slate-600 dark:text-slate-300">
+          This is taking longer than usual. Check your connection.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="rounded-lg border border-slate-300 px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-100 dark:border-white/20 dark:text-slate-200 dark:hover:bg-white/10"
+        >
+          Try again
+        </button>
+      </div>
+    )}
   </div>
 );
 
@@ -86,14 +104,48 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
     setMode(initialEmailMode === 'signup' ? 'signup' : 'signin');
   }, [initialEmailMode, isOpen]);
 
+  // Clerk stays blank while it boots, so the modal renders its own skeleton on open
+  // and reveals Clerk's form only after the form has actually painted.
+  const [formReady, setFormReady] = useState(false);
+  const [slowLoad, setSlowLoad] = useState(false);
+  const formHostRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setFormReady(false);
+      setSlowLoad(false);
+      return;
+    }
+
+    const host = formHostRef.current;
+    if (!host) return;
+
+    // A tab switch remounts the form, so it has to be revealed again.
+    const hasForm = () => host.childElementCount > 0;
+    setFormReady(hasForm());
+
+    const observer = new MutationObserver(() => {
+      if (hasForm()) setFormReady(true);
+    });
+    observer.observe(host, { childList: true, subtree: true });
+    const slowTimer = window.setTimeout(() => setSlowLoad(true), 20000);
+
+    return () => {
+      observer.disconnect();
+      window.clearTimeout(slowTimer);
+    };
+  }, [isOpen, mode]);
+
   if (!isOpen) return null;
 
+  // The scrim is solid rather than a backdrop blur: blurring the whole page behind the
+  // dialog forces a fresh full-viewport snapshot on every repaint of the page or dialog.
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label="Account authentication"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 backdrop-blur-sm sm:p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-3 sm:p-4"
       onClick={onClose}
     >
       <div
@@ -101,7 +153,7 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="relative flex h-24 items-center justify-center overflow-hidden border-b-2 border-slate-200 bg-[#002541] dark:border-[#144b77]">
-          <EcommerceDoodles className="pointer-events-none absolute inset-0 opacity-40" weight="bold" mask={false} />
+          <EcommerceDoodles className="pointer-events-none absolute inset-0 opacity-40" weight="bold" mask={false} simplified />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#002541]/40 to-[#002541]/90" />
           <button
             type="button"
@@ -123,8 +175,9 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
         </div>
 
         <div className="relative overflow-hidden p-4 sm:p-6">
-          {/* Telegram-style chat doodle wallpaper behind the auth form */}
-          <EcommerceDoodles className="opacity-90" weight="bold" />
+          {/* Telegram-style chat doodle wallpaper behind the auth form. Simplified while
+              signing in: no blend/mask layers to re-rasterize on each form repaint. */}
+          <EcommerceDoodles className="opacity-90" weight="bold" simplified />
 
           <div className="relative z-10">
             {currentUser ? (
@@ -209,17 +262,23 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                   </button>
                 </div>
 
-                <div id="abu-auth-panel" role="tabpanel" aria-live="polite" className="mx-auto w-full max-w-sm">
-                  <ClerkLoading>
-                    <AuthFormSkeleton />
-                  </ClerkLoading>
-                  <ClerkLoaded>
-                    <div className="auth-form-enter">
-                      {mode === 'signup'
-                        ? <SignUp key="signup" routing="hash" appearance={clerkAppearance} />
-                        : <SignIn key="signin" routing="hash" appearance={clerkAppearance} />}
-                    </div>
-                  </ClerkLoaded>
+                <div id="abu-auth-panel" role="tabpanel" aria-live="polite" className="relative mx-auto w-full max-w-sm">
+                  {!formReady && <AuthFormSkeleton slow={slowLoad} />}
+                  {/* Rendered but hidden until painted, so the switch to the real form
+                      costs no extra round trip. `invisible` also keeps it unfocusable. */}
+                  <div
+                    ref={formHostRef}
+                    aria-hidden={formReady ? undefined : true}
+                    className={formReady ? undefined : 'pointer-events-none invisible absolute inset-0'}
+                  >
+                    <ClerkLoaded>
+                      <div className="auth-form-enter">
+                        {mode === 'signup'
+                          ? <SignUp key="signup" routing="hash" appearance={clerkAppearance} />
+                          : <SignIn key="signin" routing="hash" appearance={clerkAppearance} />}
+                      </div>
+                    </ClerkLoaded>
+                  </div>
                 </div>
                 <p className="mt-4 text-center text-[11px] text-slate-600 dark:text-slate-300">
                   By continuing, you agree to our{' '}

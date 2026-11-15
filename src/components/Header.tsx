@@ -10,7 +10,7 @@ import {
   User,
   Sliders
 } from 'lucide-react';
-import { LocationNode, Category, UserProfile } from '../types';
+import { LocationNode, Category, UserProfile, ViewMode } from '../types';
 import { AbuLogo } from './AbuLogo';
 import { ThemeToggle } from './ThemeToggle';
 import { ThemeMode } from '../lib/theme';
@@ -28,8 +28,8 @@ interface HeaderProps {
   onSearchChange: (q: string) => void;
   selectedCategory: Category;
   onSelectCategory: (cat: Category) => void;
-  activeView: 'marketplace' | 'services' | 'stores';
-  onSelectView: (view: 'marketplace' | 'services' | 'stores') => void;
+  activeView: ViewMode;
+  onSelectView: (view: ViewMode) => void;
   currentUser?: UserProfile | null;
   onOpenWhatsAppAuth?: (mode?: 'signin' | 'signup') => void;
   isShopApproved?: boolean;

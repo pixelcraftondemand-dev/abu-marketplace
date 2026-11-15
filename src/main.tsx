@@ -3,14 +3,18 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+// Injected by vite.config.ts: the development instance off production, the live
+// instance in production. Falls back to the plain env var if the tag is missing.
+const clerkPublishableKey =
+  document.querySelector<HTMLMetaElement>('meta[name="clerk-publishable-key"]')?.content ||
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const root = createRoot(document.getElementById('root')!);
 
 if (!clerkPublishableKey) {
   root.render(
     <main className="min-h-screen grid place-items-center bg-slate-950 p-6 text-center text-white">
-      <p role="alert">Set VITE_CLERK_PUBLISHABLE_KEY to enable sign-in.</p>
+      <p role="alert">Set VITE_CLERK_PUBLISHABLE_KEY (or CLERK_DEV_PUBLISHABLE_KEY) to enable sign-in.</p>
     </main>
   );
 } else {

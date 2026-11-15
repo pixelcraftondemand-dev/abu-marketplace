@@ -14,15 +14,16 @@ import {
   Trophy,
   Hammer,
   Bike,
-  BookOpen
+  BookOpen,
+  LandPlot
 } from 'lucide-react';
-import { Category } from '../types';
+import { Category, ViewMode } from '../types';
 
 interface CategoryIconRowProps {
   selectedCategory: Category;
   onSelectCategory: (cat: Category) => void;
-  activeView: 'marketplace' | 'services' | 'stores';
-  onSelectView: (view: 'marketplace' | 'services' | 'stores') => void;
+  activeView: ViewMode;
+  onSelectView: (view: ViewMode) => void;
 }
 
 export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
@@ -225,6 +226,18 @@ export const CategoryIconRow: React.FC<CategoryIconRowProps> = ({
         onSelectView('services');
       },
       isActive: activeView === 'services',
+    },
+    {
+      label: 'Property',
+      sublabel: 'Stays · Land · Autos',
+      icon: LandPlot,
+      color: '#0B3B60',
+      bgColor: 'bg-sky-50 dark:bg-sky-950/40',
+      textColor: 'text-sky-700 dark:text-sky-300',
+      onClick: () => {
+        onSelectView('property');
+      },
+      isActive: activeView === 'property',
     },
     {
       label: 'Others',

@@ -6,7 +6,20 @@ interface EcommerceDoodlesProps {
   opacity?: number;
   weight?: 'normal' | 'bold';
   mask?: boolean;
+  /**
+   * Use the pre-tinted tiles instead of recolouring the JPEG at runtime. The CSS
+   * filter chain, blend mode and radial mask each force this layer into its own
+   * blend group, which is re-rasterized whenever an ancestor repaints — costly inside
+   * a scrolling or blurred dialog. The tiles look the same for a fraction of the work.
+   */
+  simplified?: boolean;
 }
+
+// Pre-tinted from whatsapp_doodle.jpg (same filter chains baked in), 320px wide.
+const TILES = {
+  light: '/images/whatsapp_doodle_light.webp',
+  dark: '/images/whatsapp_doodle_dark.webp',
+};
 
 /**
  * Authentic WhatsApp & Telegram chat doodle wallpaper.
@@ -21,6 +34,7 @@ export const EcommerceDoodles: React.FC<EcommerceDoodlesProps> = ({
   opacity,
   weight = 'bold',
   mask = true,
+  simplified = false,
 }) => {
   return (
     <div 
@@ -31,15 +45,15 @@ export const EcommerceDoodles: React.FC<EcommerceDoodlesProps> = ({
       <div 
         className="absolute inset-0 bg-repeat bg-center dark:hidden transition-opacity duration-300"
         style={{
-          backgroundImage: "url('/images/whatsapp_doodle.jpg')",
+          backgroundImage: `url('${simplified ? TILES.light : '/images/whatsapp_doodle.jpg'}')`,
           backgroundSize: '320px auto',
-          filter: 'invert(1) hue-rotate(185deg) contrast(1.15) brightness(0.95)',
+          filter: simplified ? undefined : 'invert(1) hue-rotate(185deg) contrast(1.15) brightness(0.95)',
           opacity: opacity ?? (weight === 'bold' ? 0.08 : 0.06),
-          mixBlendMode: 'multiply',
-          maskImage: mask 
+          mixBlendMode: simplified ? undefined : 'multiply',
+          maskImage: mask && !simplified
             ? 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.65) 100%)' 
             : undefined,
-          WebkitMaskImage: mask 
+          WebkitMaskImage: mask && !simplified
             ? 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.65) 100%)' 
             : undefined,
         }}
@@ -49,15 +63,15 @@ export const EcommerceDoodles: React.FC<EcommerceDoodlesProps> = ({
       <div 
         className="absolute inset-0 bg-repeat bg-center hidden dark:block transition-opacity duration-300"
         style={{
-          backgroundImage: "url('/images/whatsapp_doodle.jpg')",
+          backgroundImage: `url('${simplified ? TILES.dark : '/images/whatsapp_doodle.jpg'}')`,
           backgroundSize: '320px auto',
-          filter: 'contrast(1.2) brightness(1.1)',
+          filter: simplified ? undefined : 'contrast(1.2) brightness(1.1)',
           opacity: opacity ?? (weight === 'bold' ? 0.20 : 0.15),
-          mixBlendMode: 'screen',
-          maskImage: mask 
+          mixBlendMode: simplified ? undefined : 'screen',
+          maskImage: mask && !simplified
             ? 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.8) 100%)' 
             : undefined,
-          WebkitMaskImage: mask 
+          WebkitMaskImage: mask && !simplified
             ? 'radial-gradient(ellipse at 50% 50%, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.8) 100%)' 
             : undefined,
         }}

@@ -161,6 +161,68 @@ export interface ServiceBooking {
 }
 
 // ----------------------------------------------------
+// PROPERTY, LAND & VEHICLE TRACK
+// ----------------------------------------------------
+export type ListingKind = 'airbnb' | 'estate' | 'land' | 'vehicle';
+
+/** How the asking price is charged: nightly short-let, monthly rent, or a one-off sale. */
+export type ListingPriceUnit = 'night' | 'month' | 'total';
+
+export type ListingDocumentStatus = 'verified' | 'pending' | 'missing';
+
+export interface ListingDocument {
+  name: string;
+  /** Who issued it, e.g. the Lands Ministry or the Sierra Leone Police (for vehicle papers). */
+  issuer: string;
+  status: ListingDocumentStatus;
+}
+
+export interface ListingImage {
+  /** Absolute CDN/storage URL, or a path relative to VITE_LISTING_IMAGE_CDN_BASE. */
+  url: string;
+  /** Photographer / uploader credit shown with the photo. */
+  credit: string;
+  /** Licence label, e.g. "CC BY-SA 3.0". */
+  license?: string;
+  /** Original file page, for full attribution. */
+  sourceUrl?: string;
+}
+
+export interface PropertyListing {
+  id: string;
+  kind: ListingKind;
+  title: string;
+  subtitle: string;
+  district: string;
+  area: string;
+  province: Province;
+  /** Listing photos, cover first. Empty or missing falls back to gradient artwork. */
+  images?: ListingImage[];
+  priceSLE: number;
+  priceUnit: ListingPriceUnit;
+  negotiable: boolean;
+  /** Short headline facts, e.g. Bedrooms / Bathrooms / Year / Fuel. */
+  highlights: Record<string, string>;
+  /** Footprint for property, payload or seating for vehicles. */
+  sizeLabel: string;
+  capacityLabel: string;
+  documents: ListingDocument[];
+  features: string[];
+  description: string;
+  ownerName: string;
+  ownerType: 'agency' | 'owner' | 'dealer';
+  phone: string;
+  whatsapp?: string;
+  rating: number;
+  reviews: number;
+  isVerified: boolean;
+  availableNow: boolean;
+  listedAt: string;
+}
+
+export type ViewMode = 'marketplace' | 'services' | 'stores' | 'property' | 'credits';
+
+// ----------------------------------------------------
 // USER AUTHENTICATION (WHATSAPP, GOOGLE, APPLE, PHONE)
 // ----------------------------------------------------
 export interface UserProfile {

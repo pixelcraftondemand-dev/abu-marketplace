@@ -7,11 +7,11 @@ import {
   ShoppingCart,
   User
 } from 'lucide-react';
-import { Category, UserProfile, LocationNode } from '../types';
+import { Category, UserProfile, LocationNode, ViewMode } from '../types';
 
 interface MobileBottomBarProps {
-  activeView: 'marketplace' | 'services' | 'stores';
-  onSelectView: (view: 'marketplace' | 'services' | 'stores') => void;
+  activeView: ViewMode;
+  onSelectView: (view: ViewMode) => void;
   selectedCategory: Category;
   onSelectCategory: (cat: Category) => void;
   cartCount: number;

@@ -43,6 +43,9 @@ import {
   StoresDirectoryView 
 } from './components/StoresDirectoryView';
 import { 
+  PropertyVehiclesView 
+} from './components/PropertyVehiclesView';
+import { 
   ChatbotWidget 
 } from './components/ChatbotWidget';
 import { 
@@ -66,7 +69,8 @@ import {
   MobileMoneyProvider,
   VendorStore,
   BlueCollarService,
-  UserProfile
+  UserProfile,
+  ViewMode
 } from './types';
 import { 
   INITIAL_PRODUCTS, 
@@ -248,6 +252,10 @@ export default function App() {
         setIsWhatsAppAuthOpen(true);
       } else if (path === '/cms' || path === '/admin') {
         setIsCMSOpen(true);
+      } else if (['/property', '/properties', '/real-estate', '/vehicles', '/land', '/stays'].includes(path)) {
+        setActiveView('property');
+        setIsWhatsAppAuthOpen(false);
+        setIsCMSOpen(false);
       } else {
         setIsWhatsAppAuthOpen(false);
         setIsCMSOpen(false);
@@ -269,8 +277,16 @@ export default function App() {
 
   const isShopApproved = Boolean(userStore || currentUser?.role === 'merchant');
 
-  // 1. Navigation View Mode ('marketplace' | 'services' | 'stores')
-  const [activeView, setActiveView] = useState<'marketplace' | 'services' | 'stores'>('marketplace');
+  // 1. Navigation View Mode ('marketplace' | 'services' | 'stores' | 'property')
+  const [activeView, setActiveView] = useState<ViewMode>(() => {
+    if (typeof window === 'undefined') return 'marketplace';
+    const path = window.location.pathname.toLowerCase();
+    // Deep links into the property track (short stays, estates, land, vehicles)
+    if (['/property', '/properties', '/real-estate', '/vehicles', '/land', '/stays'].includes(path)) {
+      return 'property';
+    }
+    return 'marketplace';
+  });
 
 
   // 2. Core Datasets (Cached for instant 0ms homepage initial render)
@@ -375,6 +391,17 @@ export default function App() {
       console.warn('Could not hydrate Clerk profile:', error);
     });
   }, [clerkLoaded, clerkUser]);
+
+  // Once a session exists, stop treating the auth routes as the current page. Without
+  // this the URL stays on /login after a successful sign-in, so the next reload (or
+  // back navigation) re-opens the sign-in dialog for a user who is already signed in.
+  useEffect(() => {
+    if (!currentUser || typeof window === 'undefined') return;
+    const path = window.location.pathname.toLowerCase();
+    if (['/login', '/register', '/auth', '/account', '/signin', '/signup'].includes(path)) {
+      window.history.replaceState({}, '', '/');
+    }
+  }, [currentUser]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -693,6 +720,9 @@ export default function App() {
           onOpenCreateStore={() => setIsMerchantHubOpen(true)}
         />
       )}
+
+      {/* VIEW: PROPERTY, LAND & VEHICLES */}
+      {activeView === 'property' && <PropertyVehiclesView />}
 
       {/* VIEW: MARKETPLACE PRODUCTS (CLEAN, MINIMALIST SHOP-BY-CATEGORY LAYOUT) */}
       {activeView === 'marketplace' && (

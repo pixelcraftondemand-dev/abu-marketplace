@@ -3,6 +3,7 @@ import 'dotenv/config';
 import { createClerkClient, verifyToken } from '@clerk/backend';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Request } from 'express';
+import { resolveClerkKeys } from './clerkKeys.ts';
 
 export class SupabaseConfigurationError extends Error {
   readonly code = 'SUPABASE_NOT_CONFIGURED';
@@ -106,7 +107,8 @@ export async function getSessionUser(
   if (!header || !header.startsWith('Bearer ')) return null;
   const token = header.slice(7).trim();
   if (!token) return null;
-  const secretKey = process.env.CLERK_SECRET_KEY?.trim();
+  // Must match the instance the browser signed in against, or every token is rejected.
+  const secretKey = resolveClerkKeys(process.env).secretKey;
   if (!secretKey) return null;
 
   try {
