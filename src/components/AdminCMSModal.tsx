@@ -25,7 +25,8 @@ import {
   ShieldCheck,
   ExternalLink,
   Save,
-  Tag
+  Tag,
+  RefreshCw
 } from 'lucide-react';
 import { Product, Category, VendorStore, BlueCollarService } from '../types';
 import { api } from '../services/api';
@@ -134,6 +135,33 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
     lowStock: products.filter((product) => product.stockCount > 0 && product.stockCount <= 5).length,
     outOfStock: products.filter((product) => product.stockCount <= 0).length,
   }), [products]);
+
+  // Live depth of the store review queue. The overview must not claim zero pending
+  // applications from stale data, so it asks the admin endpoint and shows failures.
+  const [pendingApprovals, setPendingApprovals] = useState<number | null>(null);
+  const [approvalsError, setApprovalsError] = useState<string | null>(null);
+  const [loadingApprovals, setLoadingApprovals] = useState(false);
+
+  const loadPendingApprovals = async () => {
+    setLoadingApprovals(true);
+    setApprovalsError(null);
+    try {
+      const pending = await api.getStoreSubmissions('pending');
+      setPendingApprovals(pending.length);
+    } catch (error) {
+      setPendingApprovals(null);
+      setApprovalsError(error instanceof Error ? error.message : 'Could not load the review queue');
+    } finally {
+      setLoadingApprovals(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (!isOpen || activeTab !== 'overview') return;
+    void loadPendingApprovals();
+    // The loader is intentionally re-run only when the overview becomes visible.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, activeTab]);
 
   // Filtered Products
   const filteredProducts = useMemo(() => {
@@ -349,6 +377,14 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
               >
                 <ShieldCheck className="w-4 h-4 shrink-0" aria-hidden="true" />
                 <span className="hidden sm:inline">Store approvals</span>
+                {typeof pendingApprovals === 'number' && pendingApprovals > 0 && (
+                  <span
+                    className="bg-[#FF6600] text-white text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none"
+                    aria-label={`${pendingApprovals} pending applications`}
+                  >
+                    {pendingApprovals}
+                  </span>
+                )}
               </button>
             )}
             <button
@@ -514,7 +550,107 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
                 </div>
               </div>
 
-              {/* Status Alert Banner */}
+              {/* Quick actions: the four jobs an admin actually opens this dashboard to do. */}
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                Needs your attention
+              </h3>
+              <button
+                type="button"
+                onClick={() => void loadPendingApprovals()}
+                disabled={loadingApprovals}
+                className="text-[11px] font-bold text-[#0B3B60] dark:text-[#38BDF8] hover:underline disabled:opacity-50 flex items-center gap-1 cursor-pointer"
+              >
+                <RefreshCw className={`w-3 h-3 ${loadingApprovals ? 'animate-spin' : ''}`} aria-hidden="true" />
+                <span>Refresh</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+              <button
+                type="button"
+                onClick={onOpenStoreApprovals}
+                disabled={!onOpenStoreApprovals}
+                className="text-left p-3 rounded-lg bg-[#F8FAFC] dark:bg-[#111D27] border border-[#E7ECF0] dark:border-[#1E2E3D] hover:border-[#0B3B60] dark:hover:border-[#38BDF8] transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label="Open the store approval queue"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <ShieldCheck className="w-4 h-4 text-[#00875A]" aria-hidden="true" />
+                  <span className="text-lg font-black tabular-nums text-slate-900 dark:text-white">
+                    {loadingApprovals && pendingApprovals === null
+                      ? '…'
+                      : approvalsError
+                      ? '—'
+                      : pendingApprovals ?? '—'}
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white mt-1">Store approvals</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  {approvalsError ? approvalsError : 'Merchant applications waiting for review'}
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setStockFilter('low_stock');
+                  setActiveTab('products');
+                }}
+                className="text-left p-3 rounded-lg bg-[#F8FAFC] dark:bg-[#111D27] border border-[#E7ECF0] dark:border-[#1E2E3D] hover:border-[#0B3B60] dark:hover:border-[#38BDF8] transition-colors cursor-pointer"
+                aria-label="Show low-stock products"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <AlertTriangle className="w-4 h-4 text-orange-600 dark:text-orange-400" aria-hidden="true" />
+                  <span className="text-lg font-black tabular-nums text-slate-900 dark:text-white">
+                    {inventorySnapshot.lowStock}
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white mt-1">Low stock</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Listings with five units or fewer
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('media')}
+                className="text-left p-3 rounded-lg bg-[#F8FAFC] dark:bg-[#111D27] border border-[#E7ECF0] dark:border-[#1E2E3D] hover:border-[#0B3B60] dark:hover:border-[#38BDF8] transition-colors cursor-pointer"
+                aria-label="Review duplicate product images"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <ImageIcon className="w-4 h-4 text-[#7A1CAC]" aria-hidden="true" />
+                  <span className="text-lg font-black tabular-nums text-slate-900 dark:text-white">
+                    {duplicateImageCount}
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white mt-1">Duplicate images</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Products sharing a photo
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('backup')}
+                className="text-left p-3 rounded-lg bg-[#F8FAFC] dark:bg-[#111D27] border border-[#E7ECF0] dark:border-[#1E2E3D] hover:border-[#0B3B60] dark:hover:border-[#38BDF8] transition-colors cursor-pointer"
+                aria-label="Open backup and reset tools"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <Download className="w-4 h-4 text-[#0B3B60] dark:text-[#38BDF8]" aria-hidden="true" />
+                  <span className="text-lg font-black tabular-nums text-slate-900 dark:text-white">
+                    {products.length}
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-slate-900 dark:text-white mt-1">Catalog backup</div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                  Export or restore the catalog
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Status Alert Banner */}
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-[#0c1a29] dark:to-[#122338] p-4 rounded-lg border border-blue-200 dark:border-blue-900/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <ShieldCheck className="w-5 h-5 text-[#0B3B60] dark:text-[#38BDF8] shrink-0 mt-0.5" />
