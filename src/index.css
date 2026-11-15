@@ -281,6 +281,63 @@ html.dark :where(a, button, input, select, textarea, summary, [role='button'], [
   color: #002541;
 }
 
+/* ------------------------------------------------------------
+   Auth form palette
+   ------------------------------------------------------------
+   The sign-in card is always a white surface, but clerk-js follows the page's
+   colour scheme and switches to its dark theme when the app is in dark mode. That
+   painted white text and dark native inputs onto the white card, so labels, the
+   Google button and the primary button were unreadable. Pin the form to a light
+   palette; the surrounding dialog still follows the app theme. */
+.abu-auth-form {
+  color-scheme: light;
+}
+
+.abu-auth-form :is(
+  .cl-card,
+  .cl-headerTitle,
+  .cl-headerSubtitle,
+  .cl-formFieldLabel,
+  .cl-socialButtonsBlockButton,
+  .cl-footerActionText,
+  .cl-footerPages,
+  .cl-footer,
+  .cl-dividerText,
+  .cl-identityPreviewText,
+  .cl-formResendCodeLink
+) {
+  color: #122033 !important;
+}
+
+.abu-auth-form :is(.cl-formFieldInput, .cl-otpCodeFieldInput, .cl-selectButton) {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #122033 !important;
+}
+
+.abu-auth-form :is(.cl-formFieldInput, .cl-otpCodeFieldInput)::placeholder {
+  color: #64748b !important;
+}
+
+.abu-auth-form .cl-formFieldInput:-webkit-autofill {
+  -webkit-text-fill-color: #122033;
+  -webkit-box-shadow: 0 0 0 1000px #f8fafc inset;
+}
+
+.abu-auth-form .cl-socialButtonsBlockButton {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+.abu-auth-form .cl-formButtonPrimary {
+  background-color: #047857 !important;
+  color: #ffffff !important;
+}
+
+.abu-auth-form :is(a, .cl-footerActionLink, .cl-formResendCodeLink, .cl-identityPreviewEditButton) {
+  color: #00684a !important;
+}
+
 html {
   scroll-behavior: smooth;
 }

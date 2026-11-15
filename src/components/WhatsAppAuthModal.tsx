@@ -25,14 +25,14 @@ const clerkAppearance = {
     cardBox: 'w-full shadow-none',
     logoBox: 'mx-auto mb-1 flex items-center justify-center',
     logoImage: 'h-12 w-12',
-    card: 'w-full rounded-xl border border-slate-200 bg-white p-4 shadow-none',
+    card: 'w-full rounded-xl border border-slate-200 bg-white p-4 shadow-none text-slate-900',
     headerTitle: 'text-xl font-black text-slate-900',
     headerSubtitle: 'text-sm text-slate-600',
     socialButtonsBlock: 'hidden',
     socialButtonsBlockButton: 'hidden',
     formFieldLabel: 'text-xs font-bold text-slate-800',
-    formFieldInput: 'h-10 border-slate-300 text-sm focus:border-emerald-700 focus:ring-emerald-700',
-    formButtonPrimary: 'h-10 bg-emerald-700 text-sm font-bold shadow-sm hover:bg-emerald-800',
+    formFieldInput: 'h-10 border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-500 focus:border-emerald-700 focus:ring-emerald-700',
+    formButtonPrimary: 'h-10 bg-emerald-700 text-sm font-bold text-white shadow-sm hover:bg-emerald-800',
     footer: 'bg-transparent shadow-none',
     footerActionLink: 'font-bold text-emerald-800 hover:text-emerald-900',
     dividerLine: 'bg-slate-200',
@@ -269,7 +269,11 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                   <div
                     ref={formHostRef}
                     aria-hidden={formReady ? undefined : true}
-                    className={formReady ? undefined : 'pointer-events-none invisible absolute inset-0'}
+                    // The card is a white surface in both themes, so the form is pinned
+                    // to a light colour scheme; otherwise Clerk follows the page's dark
+                    // scheme and paints white labels and inputs onto the white card.
+                    style={{ colorScheme: 'light' }}
+                    className={`abu-auth-form ${formReady ? '' : 'pointer-events-none invisible absolute inset-0'}`}
                   >
                     <ClerkLoaded>
                       <div className="auth-form-enter">
@@ -280,7 +284,7 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                     </ClerkLoaded>
                   </div>
                 </div>
-                <p className="mt-4 text-center text-[11px] text-slate-600 dark:text-slate-300">
+                <p className="mx-auto mt-4 w-fit rounded-lg bg-white/85 px-2 py-1 text-center text-[11px] text-slate-600 dark:bg-[#07243B]/90 dark:text-slate-200">
                   By continuing, you agree to our{' '}
                   <button type="button" onClick={onOpenTerms} className="font-bold underline">Terms</button>
                   {' '}and{' '}
