@@ -49,13 +49,20 @@ export interface Actor {
   role?: string | null;
 }
 
-/** Admin access: a role of `admin` in profiles, or an address listed in ADMIN_EMAILS. */
+/**
+ * The site owner's address is always an admin. `ADMIN_EMAILS` would cover this too, but
+ * the deployment does not carry that variable yet and the profile row that could hold
+ * the role only exists after a first signed-in load, which left the dashboard
+ * unreachable. Extra operators can still be added through `ADMIN_EMAILS`.
+ */
+const OWNER_ADMIN_EMAILS = ['fouadbabasiekamara@gmail.com'];
+
+/** Admin access: an `admin` role, an owner address, or an address listed in ADMIN_EMAILS. */
 export function isAdmin(actor: Actor | null): boolean {
   if (!actor) return false;
   if (actor.role === 'admin') return true;
-  const allowList = (process.env.ADMIN_EMAILS || '')
-    .split(',')
-    .map((v) => v.trim().toLowerCase())
+  const allowList = [...OWNER_ADMIN_EMAILS, ...(process.env.ADMIN_EMAILS || '').split(',')]
+    .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
   return !!actor.email && allowList.includes(actor.email.toLowerCase());
 }
