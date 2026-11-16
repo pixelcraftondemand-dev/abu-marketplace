@@ -719,18 +719,34 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                 <p className="text-[11px] text-slate-600">No applications yet. Submit a storefront below to start review.</p>
               )}
               <div className="space-y-2">
-                {storeApplications.slice(0, 3).map((application) => (
-                  <div key={application.id} className="flex items-start justify-between gap-3 border-t border-slate-200 pt-2 text-[11px]">
-                    <div className="min-w-0">
-                      <p className="truncate font-bold text-slate-900">{application.name}</p>
-                      <p className="text-slate-500">Submitted {new Date(application.created_at).toLocaleDateString()}</p>
-                      {application.review_note && <p className="mt-1 break-words text-slate-600">{application.review_note}</p>}
+                {/* A rejection reason is the most actionable entry, so keep it above the
+                    other rows: only the first three applications are shown here. */}
+                {[...storeApplications]
+                  .sort((a, b) => Number(b.status === 'rejected' && !!b.review_note) - Number(a.status === 'rejected' && !!a.review_note))
+                  .slice(0, 3)
+                  .map((application) => (
+                    <div key={application.id} className="border-t border-slate-200 pt-2 text-[11px]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-bold text-slate-900">{application.name}</p>
+                          <p className="text-slate-500">Submitted {new Date(application.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2 py-1 font-bold capitalize ${application.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : application.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>
+                          {application.status === 'pending' ? 'In review' : application.status}
+                        </span>
+                      </div>
+                      {application.review_note && (
+                        application.status === 'rejected' ? (
+                          <div className="mt-2 rounded border border-rose-300 bg-rose-50 p-2">
+                            <p className="text-[10px] font-extrabold uppercase tracking-wide text-rose-700">Why it was rejected</p>
+                            <p className="mt-1 break-words text-[11px] leading-relaxed text-rose-900">{application.review_note}</p>
+                          </div>
+                        ) : (
+                          <p className="mt-1 break-words text-slate-600">{application.review_note}</p>
+                        )
+                      )}
                     </div>
-                    <span className={`shrink-0 rounded-full px-2 py-1 font-bold capitalize ${application.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : application.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>
-                      {application.status === 'pending' ? 'In review' : application.status}
-                    </span>
-                  </div>
-                ))}
+                  ))}
               </div>
             </section>
           )}
