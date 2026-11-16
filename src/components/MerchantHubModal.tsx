@@ -44,7 +44,7 @@ import {
 } from 'recharts';
 import { Category, Product, VendorStore, BlueCollarService, TradeCategory, ItemCondition, UserProfile } from '../types';
 import { detectCarrier, INITIAL_PRODUCTS, INITIAL_STORES } from '../data/mockData';
-import { api, ApiError, type StoreSubmission } from '../services/api';
+import { api, ApiError } from '../services/api';
 import { AbuLogo } from './AbuLogo';
 
 /**
@@ -167,9 +167,6 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   const [activeTab, setActiveTab] = useState<'store' | 'single_product' | 'service' | 'analytics'>(initialTab || 'store');
   const [successMessage, setSuccessMessage] = useState('');
   const [storeError, setStoreError] = useState('');
-  const [storeApplications, setStoreApplications] = useState<StoreSubmission[]>([]);
-  const [isLoadingApplications, setIsLoadingApplications] = useState(false);
-  const [applicationLoadError, setApplicationLoadError] = useState('');
   const [exportToast, setExportToast] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -196,25 +193,6 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   const [storeLogoError, setStoreLogoError] = useState('');
   const [isUploadingStoreLogo, setIsUploadingStoreLogo] = useState(false);
   const storeLogoInputRef = useRef<HTMLInputElement | null>(null);
-
-  const loadStoreApplications = async () => {
-    if (!currentUser) return;
-    setIsLoadingApplications(true);
-    setApplicationLoadError('');
-    try {
-      setStoreApplications(await api.getMyStoreApplications());
-    } catch {
-      // This panel only lists applications; never tell a signed-in merchant to sign in
-      // when the request fails for another reason (expired token, outage, stale session).
-      setApplicationLoadError('Could not load your applications right now. Use Refresh to try again.');
-    } finally {
-      setIsLoadingApplications(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen && activeTab === 'store' && currentUser) void loadStoreApplications();
-  }, [isOpen, activeTab, currentUser?.id]);
 
   const handleStoreLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
@@ -483,12 +461,11 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     try {
       const { submission, emailStatus } = await api.submitStoreApplication(storePayload);
 
-      setStoreApplications((applications) => [submission, ...applications.filter((application) => application.id !== submission.id)]);
       setSuccessMessage(emailStatus === 'sent'
         ? `Application for "${submission.name}" submitted. A confirmation email was sent; the store will appear after review.`
         : emailStatus === 'logged'
-          ? `Application for "${submission.name}" submitted. Email delivery is not configured, but you can track its review status here.`
-          : `Application for "${submission.name}" submitted, but the confirmation email failed. You can track its review status here.`);
+          ? `Application for "${submission.name}" submitted. Email delivery is not configured; the store will appear after review.`
+          : `Application for "${submission.name}" submitted, but the confirmation email failed. The store will still appear after review.`);
       setStoreName('');
       setStoreTagline('');
       setStoreDesc('');
@@ -700,56 +677,6 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{storeError}</span>
             </div>
-          )}
-
-          {activeTab === 'store' && currentUser && (
-            <section className="rounded border border-slate-200 bg-slate-50 p-3" aria-label="Your applications">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <h3 className="text-xs font-extrabold text-slate-900">Your applications</h3>
-                <button type="button" onClick={() => void loadStoreApplications()} disabled={isLoadingApplications} className="text-[11px] font-bold text-emerald-800 hover:underline disabled:opacity-50">
-                  {isLoadingApplications ? 'Refreshing…' : 'Refresh'}
-                </button>
-              </div>
-              {applicationLoadError && <p role="alert" className="text-[11px] text-rose-700">{applicationLoadError}</p>}
-              {!isLoadingApplications && !applicationLoadError && storeApplications.length === 0 && (
-                <p className="text-[11px] text-slate-600">No applications yet. Submit a storefront below to start review.</p>
-              )}
-              <div className="space-y-2">
-                {/* A rejection reason is the most actionable entry, so keep it above the
-                    other rows: only the first three applications are shown here. */}
-                {[...storeApplications]
-                  .sort((a, b) => Number(b.status === 'rejected' && !!b.review_note) - Number(a.status === 'rejected' && !!a.review_note))
-                  .slice(0, 3)
-                  .map((application) => (
-                    <div key={application.id} className="border-t border-slate-200 pt-2 text-[11px]">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p className="truncate font-bold text-slate-900">{application.name}</p>
-                            <span className="shrink-0 rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-700">
-                              {application.kind === 'product' ? 'Item' : application.kind === 'service' ? 'Artisan' : 'Store'}
-                            </span>
-                          </div>
-                          <p className="text-slate-500">Submitted {new Date(application.created_at).toLocaleDateString()}</p>
-                        </div>
-                        <span className={`shrink-0 rounded-full px-2 py-1 font-bold capitalize ${application.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : application.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>
-                          {application.status === 'pending' ? 'In review' : application.status}
-                        </span>
-                      </div>
-                      {application.review_note && (
-                        application.status === 'rejected' ? (
-                          <div className="mt-2 rounded border border-rose-300 bg-rose-50 p-2">
-                            <p className="text-[10px] font-extrabold uppercase tracking-wide text-rose-700">Why it was rejected</p>
-                            <p className="mt-1 break-words text-[11px] leading-relaxed text-rose-900">{application.review_note}</p>
-                          </div>
-                        ) : (
-                          <p className="mt-1 break-words text-slate-600">{application.review_note}</p>
-                        )
-                      )}
-                    </div>
-                  ))}
-              </div>
-            </section>
           )}
 
           {activeTab === 'store' && !currentUser && (
