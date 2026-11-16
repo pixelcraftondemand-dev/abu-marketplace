@@ -1,5 +1,13 @@
 import { isSupabaseConfigured, supabaseAdmin } from './supabase.ts';
-import { sendStoreSubmitted, sendStoreApproved, sendStoreRejected, type MailResult } from './mailer.ts';
+import {
+  sendStoreSubmitted,
+  sendStoreApproved,
+  sendStoreRejected,
+  sendListingSubmitted,
+  sendListingApproved,
+  sendListingRejected,
+  type MailResult,
+} from './mailer.ts';
 import type { VendorStore, Product, BlueCollarService } from '../src/types/index.ts';
 
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
@@ -145,9 +153,15 @@ export async function createListingSubmission(
     throw new SubmissionError(`Could not save the listing: ${error?.message || 'unknown error'}`, 500, 'DB_ERROR');
   }
 
-  // Listing decisions are reviewed in the same queue but no listing email template
-  // exists yet, so the merchant sees the outcome in their applications panel.
-  return { submission: data as SubmissionRow, mail: { status: 'logged' } };
+  const submission = data as SubmissionRow;
+  const mail = await sendListingSubmitted({
+    to: ownerEmail,
+    ownerName: submission.owner_name,
+    itemName: submission.name,
+    kind,
+  });
+
+  return { submission, mail };
 }
 
 /**
@@ -295,7 +309,12 @@ export async function approveSubmission(
         storeName: submission.name,
         storeId,
       })
-    : { status: 'logged' };
+    : await sendListingApproved({
+        to: submission.owner_email,
+        ownerName: submission.owner_name,
+        itemName: submission.name,
+        kind: submission.kind,
+      });
 
   return { submission, mail };
 }
@@ -341,7 +360,13 @@ export async function rejectSubmission(
         storeId: row.id,
         note: reason,
       })
-    : { status: 'logged' };
+    : await sendListingRejected({
+        to: submission.owner_email,
+        ownerName: submission.owner_name,
+        itemName: submission.name,
+        kind: submission.kind,
+        note: reason,
+      });
 
   return { submission, mail };
 }

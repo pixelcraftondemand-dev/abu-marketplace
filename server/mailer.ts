@@ -20,7 +20,13 @@ export interface SentMail {
   error?: string;
 }
 
-export type StoreMailKind = 'store_submitted' | 'store_approved' | 'store_rejected';
+export type StoreMailKind =
+  | 'store_submitted'
+  | 'store_approved'
+  | 'store_rejected'
+  | 'listing_submitted'
+  | 'listing_approved'
+  | 'listing_rejected';
 
 // The verified Resend sending domain, so the default sender is deliverable.
 const FROM =
@@ -251,4 +257,112 @@ export async function sendStoreRejected(input: StoreMailInput): Promise<MailResu
     `Reason: ${reason}\n\nYou are welcome to address this and submit a new application at any time.\n`;
 
   return deliver(input.to, subject, 'store_rejected', html, text);
+}
+
+export type ListingKind = 'product' | 'service';
+
+export interface ListingMailInput {
+  to: string;
+  ownerName?: string | null;
+  itemName: string;
+  kind: ListingKind;
+  note?: string | null;
+}
+
+/** Wording differs for a single item and an artisan profile, so build it once. */
+function listingCopy(kind: ListingKind) {
+  return kind === 'product'
+    ? {
+        noun: 'single-item listing',
+        subjectNoun: 'listing',
+        where: 'the marketplace catalog',
+        action: 'Open your merchant hub to manage the listing, its stock and pricing.',
+      }
+    : {
+        noun: 'artisan registration',
+        subjectNoun: 'artisan profile',
+        where: 'the artisan directory',
+        action: 'Open your artisan hub to manage availability, skills and your callout fee.',
+      };
+}
+
+/** Confirmation that a listing or artisan registration is queued for review. */
+export async function sendListingSubmitted(input: ListingMailInput): Promise<MailResult> {
+  const who = input.ownerName || 'there';
+  const copy = listingCopy(input.kind);
+  const subject = `We received your ${copy.subjectNoun}: ${input.itemName}`;
+  const html = layout(
+    'Submission received',
+    `<p style="margin:0 0 12px;font-size:14px;line-height:1.6">Hello ${who},</p>
+     <p style="margin:0 0 12px;font-size:14px;line-height:1.6">
+       Thanks for submitting your ${copy.noun} <strong>${input.itemName}</strong> to ${BRAND}.
+       It is now queued for review by our merchant team.
+     </p>
+     <p style="margin:0 0 12px;font-size:14px;line-height:1.6">
+       Reviews usually finish within 1-2 business days. You'll get a separate email
+       as soon as a decision is made, so there is nothing else you need to do right now.
+     </p>`,
+    'You are receiving this because you submitted a listing on ABU Marketplace.',
+  );
+  const text =
+    `Hello ${who},\n\nWe received your ${copy.noun} "${input.itemName}" on ${BRAND}.\n` +
+    `It is queued for review and usually takes 1-2 business days. We will email you again as soon as a decision is made.\n`;
+
+  return deliver(input.to, subject, 'listing_submitted', html, text);
+}
+
+/** Acceptance: the listing or artisan profile is live and discoverable. */
+export async function sendListingApproved(input: ListingMailInput): Promise<MailResult> {
+  const who = input.ownerName || 'there';
+  const copy = listingCopy(input.kind);
+  const subject = `Your ${copy.subjectNoun} is live: ${input.itemName}`;
+  const html = layout(
+    `Your ${copy.subjectNoun} is approved`,
+    `<p style="margin:0 0 12px;font-size:14px;line-height:1.6">Hello ${who},</p>
+     <p style="margin:0 0 12px;font-size:14px;line-height:1.6">
+       Good news — your ${copy.noun} <strong>${input.itemName}</strong> has been approved
+       and is now live in ${copy.where} on ${BRAND}. Customers can find it immediately.
+     </p>
+     <p style="margin:0 0 12px;font-size:14px;line-height:1.6">${copy.action}</p>
+     <p style="margin:0;font-size:14px;line-height:1.6">
+       <a href="${process.env.APP_URL || 'https://abumarketplace.shop'}"
+          style="display:inline-block;background:#0B3B60;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600">
+         View ${BRAND}
+       </a>
+     </p>`,
+    'You are receiving this because your submission was approved.',
+  );
+  const text =
+    `Hello ${who},\n\nYour ${copy.noun} "${input.itemName}" has been approved and is now live in ${copy.where} on ${BRAND}.\n` +
+    `${copy.action}\n`;
+
+  return deliver(input.to, subject, 'listing_approved', html, text);
+}
+
+/** Rejection with the reviewer's reason so the merchant can fix and resubmit. */
+export async function sendListingRejected(input: ListingMailInput): Promise<MailResult> {
+  const who = input.ownerName || 'there';
+  const copy = listingCopy(input.kind);
+  const subject = `Update on your ${copy.subjectNoun}: ${input.itemName}`;
+  const reason = input.note?.trim() || 'The submission did not meet our marketplace requirements.';
+  const html = layout(
+    'Submission not approved',
+    `<p style="margin:0 0 12px;font-size:14px;line-height:1.6">Hello ${who},</p>
+     <p style="margin:0 0 12px;font-size:14px;line-height:1.6">
+       Thank you for submitting your ${copy.noun} <strong>${input.itemName}</strong> to ${BRAND}.
+       After reviewing it, we are not able to publish it at this time.
+     </p>
+     <div style="margin:0 0 12px;padding:12px 14px;background:#fef2f2;border-left:3px solid #dc2626;border-radius:6px;font-size:14px;line-height:1.6">
+       <strong>Reason:</strong> ${reason}
+     </div>
+     <p style="margin:0;font-size:14px;line-height:1.6">
+       You are welcome to address the points above and submit it again at any time.
+     </p>`,
+    'You are receiving this because your submission was reviewed.',
+  );
+  const text =
+    `Hello ${who},\n\nWe reviewed your ${copy.noun} "${input.itemName}" and are not able to publish it at this time.\n\n` +
+    `Reason: ${reason}\n\nYou are welcome to address this and submit it again at any time.\n`;
+
+  return deliver(input.to, subject, 'listing_rejected', html, text);
 }
