@@ -703,7 +703,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
           )}
 
           {activeTab === 'store' && currentUser && (
-            <section className="rounded border border-slate-200 bg-slate-50 p-3" aria-label="Your store applications">
+            <section className="rounded border border-slate-200 bg-slate-50 p-3" aria-label="Your applications">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <h3 className="text-xs font-extrabold text-slate-900">Your applications</h3>
                 <button type="button" onClick={() => void loadStoreApplications()} disabled={isLoadingApplications} className="text-[11px] font-bold text-emerald-800 hover:underline disabled:opacity-50">
