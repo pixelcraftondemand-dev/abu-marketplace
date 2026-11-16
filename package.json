@@ -14,6 +14,7 @@
     "test:session-user": "tsx --test tests/sessionUser.test.ts",
     "test:clerk-keys": "tsx --test tests/clerkKeys.test.ts",
     "test:store-form-errors": "tsx --test tests/storeFormErrors.test.ts",
+    "test:auth-retry": "tsx --test tests/apiAuthRetry.test.ts",
     "sync:github": "git fetch origin main && git merge origin/main --no-edit"
   },
   "dependencies": {

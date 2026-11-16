@@ -44,7 +44,7 @@ import {
 } from 'recharts';
 import { Category, Product, VendorStore, BlueCollarService, TradeCategory, ItemCondition, UserProfile } from '../types';
 import { detectCarrier, INITIAL_PRODUCTS, INITIAL_STORES } from '../data/mockData';
-import { api, ApiError, type StoreSubmission } from '../services/api';
+import { api, ApiError } from '../services/api';
 import { AbuLogo } from './AbuLogo';
 
 /**
@@ -169,9 +169,6 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   const [activeTab, setActiveTab] = useState<'store' | 'single_product' | 'service' | 'analytics'>(initialTab || 'store');
   const [successMessage, setSuccessMessage] = useState('');
   const [storeError, setStoreError] = useState('');
-  const [storeApplications, setStoreApplications] = useState<StoreSubmission[]>([]);
-  const [isLoadingApplications, setIsLoadingApplications] = useState(false);
-  const [applicationLoadError, setApplicationLoadError] = useState('');
   const [exportToast, setExportToast] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -198,23 +195,6 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   const [storeLogoError, setStoreLogoError] = useState('');
   const [isUploadingStoreLogo, setIsUploadingStoreLogo] = useState(false);
   const storeLogoInputRef = useRef<HTMLInputElement | null>(null);
-
-  const loadStoreApplications = async () => {
-    if (!currentUser) return;
-    setIsLoadingApplications(true);
-    setApplicationLoadError('');
-    try {
-      setStoreApplications(await api.getMyStoreApplications());
-    } catch (error) {
-      setApplicationLoadError(describeMerchantFailure(error, 'load your store applications'));
-    } finally {
-      setIsLoadingApplications(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isOpen && activeTab === 'store' && currentUser) void loadStoreApplications();
-  }, [isOpen, activeTab, currentUser?.id]);
 
   const handleStoreLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
@@ -483,12 +463,11 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     try {
       const { submission, emailStatus } = await api.submitStoreApplication(storePayload);
 
-      setStoreApplications((applications) => [submission, ...applications.filter((application) => application.id !== submission.id)]);
       setSuccessMessage(emailStatus === 'sent'
         ? `Application for "${submission.name}" submitted. A confirmation email was sent; the store will appear after review.`
         : emailStatus === 'logged'
-          ? `Application for "${submission.name}" submitted. Email delivery is not configured, but you can track its review status here.`
-          : `Application for "${submission.name}" submitted, but the confirmation email failed. You can track its review status here.`);
+          ? `Application for "${submission.name}" submitted. Email delivery is not configured, but the application is in the review queue.`
+          : `Application for "${submission.name}" submitted, but the confirmation email failed. The application is still in the review queue.`);
       setStoreName('');
       setStoreTagline('');
       setStoreDesc('');
@@ -702,35 +681,6 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{storeError}</span>
             </div>
-          )}
-
-          {activeTab === 'store' && currentUser && (
-            <section className="rounded border border-slate-200 bg-slate-50 p-3" aria-label="Your store applications">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <h3 className="text-xs font-extrabold text-slate-900">Your store applications</h3>
-                <button type="button" onClick={() => void loadStoreApplications()} disabled={isLoadingApplications} className="text-[11px] font-bold text-emerald-800 hover:underline disabled:opacity-50">
-                  {isLoadingApplications ? 'Refreshing…' : 'Refresh'}
-                </button>
-              </div>
-              {applicationLoadError && <p role="alert" className="text-[11px] text-rose-700">{applicationLoadError}</p>}
-              {!isLoadingApplications && !applicationLoadError && storeApplications.length === 0 && (
-                <p className="text-[11px] text-slate-600">No applications yet. Submit a storefront below to start review.</p>
-              )}
-              <div className="space-y-2">
-                {storeApplications.slice(0, 3).map((application) => (
-                  <div key={application.id} className="flex items-start justify-between gap-3 border-t border-slate-200 pt-2 text-[11px]">
-                    <div className="min-w-0">
-                      <p className="truncate font-bold text-slate-900">{application.name}</p>
-                      <p className="text-slate-500">Submitted {new Date(application.created_at).toLocaleDateString()}</p>
-                      {application.review_note && <p className="mt-1 break-words text-slate-600">{application.review_note}</p>}
-                    </div>
-                    <span className={`shrink-0 rounded-full px-2 py-1 font-bold capitalize ${application.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : application.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>
-                      {application.status === 'pending' ? 'In review' : application.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
           )}
 
           {activeTab === 'store' && !currentUser && (

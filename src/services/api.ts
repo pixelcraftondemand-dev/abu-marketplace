@@ -1,15 +1,38 @@
 import { Product, LocationNode, Order, MobileMoneyProvider, CartItem, VendorStore, BlueCollarService, ServiceBooking } from '../types';
 
-let clerkTokenProvider: (() => Promise<string | null>) | null = null;
+type ClerkTokenOptions = { skipCache?: boolean };
 
-export function setClerkTokenProvider(provider: (() => Promise<string | null>) | null) {
+let clerkTokenProvider: ((options?: ClerkTokenOptions) => Promise<string | null>) | null = null;
+
+export function setClerkTokenProvider(provider: ((options?: ClerkTokenOptions) => Promise<string | null>) | null) {
   clerkTokenProvider = provider;
 }
 
-async function authHeaders(required = false): Promise<Record<string, string>> {
-  const token = await clerkTokenProvider?.();
+async function authHeaders(required = false, options?: ClerkTokenOptions): Promise<Record<string, string>> {
+  const token = await clerkTokenProvider?.(options);
   if (required && !token) throw new Error('Please sign in to continue');
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/**
+ * Calls an authenticated endpoint and retries once with a freshly minted Clerk token
+ * when the server rejects the cached one. A session refreshed in another tab, or a token
+ * that was still being minted when the call started, lands here as a 401 that the retry
+ * fixes instead of surfacing "please sign in again" to a signed-in visitor.
+ */
+async function authFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const headers = { ...(init.headers as Record<string, string> | undefined), ...await authHeaders(true) };
+  const res = await fetch(path, { ...init, headers });
+  if (res.status !== 401) return res;
+
+  let freshToken: string | null = null;
+  try {
+    freshToken = (await clerkTokenProvider?.({ skipCache: true })) ?? null;
+  } catch {
+    freshToken = null;
+  }
+  if (!freshToken) return res;
+  return fetch(path, { ...init, headers: { ...headers, Authorization: `Bearer ${freshToken}` } });
 }
 
 /** An API failure that keeps the HTTP status, so callers can tell auth problems apart from outages. */
@@ -65,7 +88,7 @@ export interface StoreSubmission {
 
 export const api = {
   async getCurrentUser() {
-    const res = await fetch('/api/custom-auth/me', { headers: await authHeaders(true) });
+    const res = await authFetch('/api/custom-auth/me');
     if (!res.ok) return throwApiError(res, 'Could not load your account');
     const data = await res.json();
     return { user: data.user, isAdmin: data.isAdmin === true };
@@ -259,10 +282,9 @@ export const api = {
 
   /** Merchant: submit a store for review. Returns the pending application — the store only becomes public once an admin approves it. */
   async submitStoreApplication(storeData: Partial<VendorStore>): Promise<{ submission: StoreSubmission; emailStatus: 'sent' | 'logged' | 'failed' }> {
-    const headers = await authHeaders(true);
-    const res = await fetch('/api/stores/submissions', {
+    const res = await authFetch('/api/stores/submissions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(storeData),
     });
     // Handle non-JSON error responses from the server
@@ -274,10 +296,7 @@ export const api = {
 
   /** Merchant: my own applications, for showing pending/rejected status. */
   async getMyStoreApplications(): Promise<StoreSubmission[]> {
-    const headers = await authHeaders(true);
-    const res = await fetch('/api/stores/submissions/mine', {
-      headers,
-    });
+    const res = await authFetch('/api/stores/submissions/mine');
     // Handle non-JSON error responses from the server
     if (!res.ok) return throwApiError(res, 'Could not load your applications');
     const data = await res.json();
@@ -287,11 +306,8 @@ export const api = {
 
   /** Admin: the review queue. */
   async getStoreSubmissions(status?: ReviewStatus): Promise<StoreSubmission[]> {
-    const headers = await authHeaders(true);
     const query = status ? `?status=${status}` : '';
-    const res = await fetch(`/api/admin/store-submissions${query}`, {
-      headers,
-    });
+    const res = await authFetch(`/api/admin/store-submissions${query}`);
     // Handle non-JSON error responses from the server
     if (!res.ok) return throwApiError(res, 'Could not load the review queue');
     const data = await res.json();
@@ -301,10 +317,9 @@ export const api = {
 
   /** Admin: approve a pending application, publishing the store and emailing the merchant. */
   async approveStoreSubmission(id: string, note?: string): Promise<{ submission: StoreSubmission; emailStatus: string }> {
-    const headers = await authHeaders(true);
-    const res = await fetch(`/api/admin/store-submissions/${id}/approve`, {
+    const res = await authFetch(`/api/admin/store-submissions/${id}/approve`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ note }),
     });
     // Handle non-JSON error responses from the server
@@ -316,10 +331,9 @@ export const api = {
 
   /** Admin: reject a pending application with a reason that is emailed to the merchant. */
   async rejectStoreSubmission(id: string, reason: string): Promise<{ submission: StoreSubmission; emailStatus: string }> {
-    const headers = await authHeaders(true);
-    const res = await fetch(`/api/admin/store-submissions/${id}/reject`, {
+    const res = await authFetch(`/api/admin/store-submissions/${id}/reject`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reason }),
     });
     // Handle non-JSON error responses from the server
