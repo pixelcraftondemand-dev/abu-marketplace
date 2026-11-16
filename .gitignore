@@ -23,3 +23,6 @@ skills-lock.json
 *.sqlite
 prisma/*.db
 .aistudio/
+
+# Vercel installs with the committed bun.lock; npm writes its own lock locally.
+package-lock.json
