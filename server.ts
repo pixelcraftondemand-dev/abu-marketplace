@@ -45,6 +45,24 @@ async function currentActor(req: Request) {
   return { id: user.id, email: user.email, name: user.name, role: user.role };
 }
 
+/**
+ * Admin-only routes distinguish a missing session (401) from a signed-in account without
+ * the role (403). Reporting both as 403 made an expired session look like a credentials
+ * problem to the admin screens.
+ */
+function allowAdmin(actor: Awaited<ReturnType<typeof currentActor>>, res: Response): boolean {
+  if (!actor) {
+    res.status(401).json({ success: false, error: 'Please sign in to continue' });
+    return false;
+  }
+  if (!isAdmin(actor)) {
+    console.warn('[auth] admin access denied for', actor.email || actor.id);
+    res.status(403).json({ success: false, error: 'Admin access required' });
+    return false;
+  }
+  return true;
+}
+
 function submissionErrorResponse(res: Response, err: unknown) {
   if (err instanceof SupabaseConfigurationError) {
     return res.status(err.status).json({
@@ -400,9 +418,7 @@ app.put('/api/products/:id', requireSupabaseForBearer, async (req: Request, res:
 // Delete a product
 app.delete('/api/products/:id', requireSupabaseForBearer, async (req: Request, res: Response) => {
   const actor = await currentActor(req);
-  if (!isAdmin(actor)) {
-    return res.status(403).json({ success: false, error: 'Admin access required' });
-  }
+  if (!allowAdmin(actor, res)) return;
   const index = products.findIndex((p) => p.id === req.params.id);
   if (index === -1) {
     return res.status(404).json({ success: false, error: 'Product not found' });
@@ -440,9 +456,7 @@ app.post('/api/products/:id/duplicate', requireSupabaseForBearer, async (req: Re
 app.post('/api/cms/reset', requireSupabaseForBearer, async (req: Request, res: Response) => {
   if (!rateLimit(req, res, 'cms', 10, 10 * 60 * 1000)) return;
   const actor = await currentActor(req);
-  if (!isAdmin(actor)) {
-    return res.status(403).json({ success: false, error: 'Admin access required' });
-  }
+  if (!allowAdmin(actor, res)) return;
   products = [...INITIAL_PRODUCTS];
   res.json({ success: true, count: products.length, message: 'Catalog reset to standard verified inventory' });
 });
@@ -450,9 +464,7 @@ app.post('/api/cms/reset', requireSupabaseForBearer, async (req: Request, res: R
 // CMS Media Assets: List verified local product assets
 app.get('/api/cms/media', requireSupabaseForBearer, async (req: Request, res: Response) => {
   const actor = await currentActor(req);
-  if (!isAdmin(actor)) {
-    return res.status(403).json({ success: false, error: 'Admin access required' });
-  }
+  if (!allowAdmin(actor, res)) return;
   try {
     const productsDir = path.resolve(__dirname, 'public', 'products');
     if (!fs.existsSync(productsDir)) {
@@ -846,9 +858,7 @@ app.get('/api/stores/submissions/mine', requireSupabase, async (req: Request, re
 app.get('/api/admin/store-submissions', requireSupabase, async (req: Request, res: Response) => {
   try {
     const actor = await currentActor(req);
-    if (!isAdmin(actor)) {
-      return res.status(403).json({ success: false, error: 'Admin access required' });
-    }
+    if (!allowAdmin(actor, res)) return;
     const status = (req.query.status as string | undefined)?.toLowerCase();
     const allowed: SubmissionStatus[] = ['pending', 'approved', 'rejected'];
     const filter = status && allowed.includes(status as SubmissionStatus) ? (status as SubmissionStatus) : undefined;
@@ -863,9 +873,7 @@ app.get('/api/admin/store-submissions', requireSupabase, async (req: Request, re
 app.post('/api/admin/store-submissions/:id/approve', requireSupabase, async (req: Request, res: Response) => {
   try {
     const actor = await currentActor(req);
-    if (!isAdmin(actor)) {
-      return res.status(403).json({ success: false, error: 'Admin access required' });
-    }
+    if (!allowAdmin(actor, res)) return;
     const { submission, mail } = await approveSubmission(req.params.id, actor!, req.body?.note);
     res.json({ success: true, message: 'Store approved and published', data: submission, emailStatus: mail.status });
   } catch (err) {
@@ -877,9 +885,7 @@ app.post('/api/admin/store-submissions/:id/approve', requireSupabase, async (req
 app.post('/api/admin/store-submissions/:id/reject', requireSupabase, async (req: Request, res: Response) => {
   try {
     const actor = await currentActor(req);
-    if (!isAdmin(actor)) {
-      return res.status(403).json({ success: false, error: 'Admin access required' });
-    }
+    if (!allowAdmin(actor, res)) return;
     const { submission, mail } = await rejectSubmission(req.params.id, actor!, req.body?.reason || req.body?.note);
     res.json({ success: true, message: 'Application rejected and merchant notified', data: submission, emailStatus: mail.status });
   } catch (err) {
@@ -890,9 +896,7 @@ app.post('/api/admin/store-submissions/:id/reject', requireSupabase, async (req:
 // Admin: recent outbound mail, so the notification flow is inspectable in dev.
 app.get('/api/admin/mail', requireSupabaseForBearer, async (req: Request, res: Response) => {
   const actor = await currentActor(req);
-  if (!isAdmin(actor)) {
-    return res.status(403).json({ success: false, error: 'Admin access required' });
-  }
+  if (!allowAdmin(actor, res)) return;
   res.json({ success: true, data: recentMail() });
 });
 

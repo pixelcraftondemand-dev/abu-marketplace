@@ -70,7 +70,10 @@ type ProfileLoader = (clerkId: string, secretKey: string) => Promise<SessionUser
 async function loadClerkProfile(clerkId: string, secretKey: string): Promise<SessionUser> {
   clerkClient ??= createClerkClient({ secretKey });
   const clerkUser = await clerkClient.users.getUser(clerkId);
-  const email = clerkUser.emailAddresses.find((address) => address.id === clerkUser.primaryEmailAddressId)?.emailAddress ?? null;
+  // The admin allow-list matches on this address, so fall back to the first address
+  // when the primary id is missing rather than treating the account as emailless.
+  const primaryEmail = clerkUser.emailAddresses.find((address) => address.id === clerkUser.primaryEmailAddressId);
+  const email = primaryEmail?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress ?? null;
   const name = clerkUser.fullName || email?.split('@')[0] || 'Verified Customer';
 
   // What the session looks like when no profile row can be used.
