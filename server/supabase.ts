@@ -59,38 +59,83 @@ export interface SessionUser {
 type TokenVerifier = typeof verifyToken;
 type ProfileLoader = (clerkId: string, secretKey: string) => Promise<SessionUser>;
 
-/** Loads the Clerk account and the matching marketplace profile for a verified session. */
+/**
+ * Loads the Clerk account and the matching marketplace profile for a verified session.
+ *
+ * The Clerk identity is what makes the visitor signed in; the profile row only stores
+ * marketplace preferences. A missing table, a stale PostgREST schema cache or a failed
+ * insert must therefore not turn a verified session into a 401 — that is what made the
+ * store form tell signed-in merchants to "sign in again".
+ */
 async function loadClerkProfile(clerkId: string, secretKey: string): Promise<SessionUser> {
   clerkClient ??= createClerkClient({ secretKey });
   const clerkUser = await clerkClient.users.getUser(clerkId);
   const email = clerkUser.emailAddresses.find((address) => address.id === clerkUser.primaryEmailAddressId)?.emailAddress ?? null;
   const name = clerkUser.fullName || email?.split('@')[0] || 'Verified Customer';
-  const { data: existingProfile } = await supabaseAdmin
-    .from('clerk_profiles')
-    .select('*')
-    .eq('clerk_id', clerkId)
-    .maybeSingle();
-  let profile = existingProfile;
-  if (!profile) {
-    const { data: createdProfile, error } = await supabaseAdmin
-      .from('clerk_profiles')
-      .insert({ clerk_id: clerkId, email, name, image: clerkUser.imageUrl })
-      .select('*')
-      .single();
-    if (error) throw error;
-    profile = createdProfile;
-  }
 
-  return {
+  // What the session looks like when no profile row can be used.
+  const identity: SessionUser = {
     id: clerkId,
     email,
+    name,
+    image: clerkUser.imageUrl,
+    phoneNumber: clerkUser.phoneNumbers[0]?.phoneNumber ?? null,
+    role: 'buyer',
+    preferredCity: null,
+    provider: 'clerk',
+    createdAt: new Date(clerkUser.createdAt).toISOString(),
+  };
+
+  let profile: any = null;
+  try {
+    const { data: existingProfile, error: readError } = await supabaseAdmin
+      .from('clerk_profiles')
+      .select('*')
+      .eq('clerk_id', clerkId)
+      .maybeSingle();
+    if (readError) throw readError;
+    profile = existingProfile;
+
+    if (!profile) {
+      const { data: createdProfile, error: insertError } = await supabaseAdmin
+        .from('clerk_profiles')
+        .insert({ clerk_id: clerkId, email, name, image: clerkUser.imageUrl })
+        .select('*')
+        .single();
+      if (insertError) {
+        // The profile fetch and the first store call fire together, so another request
+        // may have inserted the row between this read and this insert.
+        const { data: racedProfile } = await supabaseAdmin
+          .from('clerk_profiles')
+          .select('*')
+          .eq('clerk_id', clerkId)
+          .maybeSingle();
+        if (racedProfile) {
+          profile = racedProfile;
+        } else {
+          console.error('[auth] could not create clerk profile:', insertError.message);
+        }
+      } else {
+        profile = createdProfile;
+      }
+    }
+  } catch (error) {
+    console.error(
+      '[auth] clerk profile lookup failed; using the verified Clerk identity:',
+      error instanceof Error ? error.message : error,
+    );
+  }
+
+  if (!profile) return identity;
+
+  return {
+    ...identity,
     name: profile.name || name,
     image: profile.image || clerkUser.imageUrl,
-    phoneNumber: profile.phone ?? clerkUser.phoneNumbers[0]?.phoneNumber ?? null,
+    phoneNumber: profile.phone ?? identity.phoneNumber,
     role: profile.role || 'buyer',
     preferredCity: profile.preferred_city ?? null,
-    provider: 'clerk',
-    createdAt: profile.created_at,
+    createdAt: profile.created_at || identity.createdAt,
   };
 }
 
@@ -120,6 +165,33 @@ export function expandAuthorizedParties(raw?: string): string[] | undefined {
 }
 
 /**
+ * The origin this request was actually served from. Vercel forwards the public host in
+ * `x-forwarded-host`, while a direct Express run only sends `host`.
+ */
+function requestOrigin(req: Request): string | null {
+  const forwardedHost = (req.headers['x-forwarded-host'] as string | undefined)?.split(',')[0]?.trim();
+  const host = forwardedHost || (req.headers.host as string | undefined);
+  if (!host) return null;
+  const proto = ((req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0] || '').trim()
+    || (host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https');
+  if (proto !== 'http' && proto !== 'https') return null;
+  return `${proto}://${host}`;
+}
+
+/**
+ * Authorized parties are the origins whose sessions this server accepts. Besides the
+ * configured list, the host serving this request is trusted: a token minted on that
+ * same origin is exactly the session the browser is presenting. This keeps apex, www
+ * and preview spellings of the deployment working without pinning every one in config.
+ */
+function acceptedParties(req: Request): string[] | undefined {
+  const parties = new Set(expandAuthorizedParties(process.env.CLERK_AUTHORIZED_PARTIES) || []);
+  const origin = requestOrigin(req);
+  if (origin) parties.add(origin);
+  return parties.size > 0 ? [...parties] : undefined;
+}
+
+/**
  * Verifies a Clerk bearer token and loads the user's marketplace profile.
  * The optional seams exist so tests can drive the payload handling without Clerk
  * or Supabase; production callers always use the real implementations.
@@ -134,13 +206,16 @@ export async function getSessionUser(
   if (!token) return null;
   // Must match the instance the browser signed in against, or every token is rejected.
   const secretKey = resolveClerkKeys(process.env).secretKey;
-  if (!secretKey) return null;
+  if (!secretKey) {
+    console.error('[auth] CLERK_SECRET_KEY is not set, so signed-in requests cannot be verified.');
+    return null;
+  }
 
   try {
     const verify = seams.verify ?? verifyToken;
     const verified = await verify(token, {
       secretKey,
-      authorizedParties: expandAuthorizedParties(process.env.CLERK_AUTHORIZED_PARTIES),
+      authorizedParties: acceptedParties(req),
     });
     // verifyToken resolves to the decoded session payload itself (it unwraps the
     // { data } envelope), so the Clerk user id lives on `sub` directly.

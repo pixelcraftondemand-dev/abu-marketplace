@@ -34,9 +34,10 @@ test('an expired session is the only failure that asks for sign-in', () => {
     describeMerchantFailure(new ApiError('Please sign in to apply for a store', 401), action),
     `Please sign in again to ${action}.`,
   );
+  // 403 is "signed in but not permitted", so it must not claim the session is gone.
   assert.equal(
     describeMerchantFailure(new ApiError('Admin access required', 403), action),
-    `Please sign in again to ${action}.`,
+    'Admin access required',
   );
 });
 

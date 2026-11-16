@@ -54,7 +54,9 @@ import { AbuLogo } from './AbuLogo';
 export const describeMerchantFailure = (error: unknown, action: string): string => {
   const status = error instanceof ApiError ? error.status : null;
   const message = error instanceof Error ? error.message : '';
-  if (status === 401 || status === 403 || /sign in/i.test(message)) {
+  // 403 means "signed in but not allowed" — only 401 (or an explicit sign-in message)
+  // describes a session that needs to be renewed.
+  if (status === 401 || /sign in/i.test(message)) {
     return `Please sign in again to ${action}.`;
   }
   if (status === null || status >= 500) {
