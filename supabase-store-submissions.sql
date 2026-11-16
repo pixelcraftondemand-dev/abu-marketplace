@@ -2,6 +2,10 @@
 -- Safe to run more than once.
 create table if not exists public.store_submissions (
   id uuid primary key default gen_random_uuid(),
+  -- 'store' applications, 'product' single listings and 'service' artisan registrations.
+  kind text not null default 'store' check (kind in ('store', 'product', 'service')),
+  -- The normalised Product/BlueCollarService for a listing submission.
+  payload jsonb,
   owner_id text,
   owner_email text not null,
   owner_name text,

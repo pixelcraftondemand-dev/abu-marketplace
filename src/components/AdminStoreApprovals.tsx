@@ -260,6 +260,9 @@ export const AdminStoreApprovals: React.FC<AdminStoreApprovalsProps> = ({ isOpen
                       <h3 className="text-sm font-black text-slate-900 dark:text-white truncate">
                         {submission.name}
                       </h3>
+                      <span className="inline-flex items-center rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-700 dark:border-[#1E2E3D] dark:bg-[#15222E] dark:text-slate-200">
+                        {submission.kind === 'product' ? 'Single item' : submission.kind === 'service' ? 'Artisan' : 'Store'}
+                      </span>
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold ${style.className}`}>
                         {style.icon}
                         {style.label}
@@ -294,6 +297,26 @@ export const AdminStoreApprovals: React.FC<AdminStoreApprovalsProps> = ({ isOpen
                     <span className="truncate">/{submission.slug}</span>
                   </span>
                 </div>
+
+                {submission.kind === 'product' && submission.payload && (
+                  <p className="mt-2 text-[11px] text-slate-600 dark:text-slate-300">
+                    {'category' in submission.payload ? String(submission.payload.category) : ''}
+                    {' · SLE '}
+                    {'priceSLE' in submission.payload ? Number(submission.payload.priceSLE).toLocaleString() : ''}
+                    {' · '}
+                    {'stockCount' in submission.payload ? `${submission.payload.stockCount} in stock` : ''}
+                  </p>
+                )}
+                {submission.kind === 'service' && submission.payload && (
+                  <p className="mt-2 text-[11px] text-slate-600 dark:text-slate-300">
+                    {'tradeCategory' in submission.payload ? String(submission.payload.tradeCategory) : ''}
+                    {' · '}
+                    {'experienceYears' in submission.payload ? `${submission.payload.experienceYears} yrs experience` : ''}
+                    {' · SLE '}
+                    {'calloutFeeSLE' in submission.payload ? Number(submission.payload.calloutFeeSLE).toLocaleString() : ''}
+                    {' callout'}
+                  </p>
+                )}
 
                 {submission.description && (
                   <p className="mt-2 text-[11px] leading-relaxed text-slate-600 dark:text-slate-300 line-clamp-3">

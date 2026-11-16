@@ -156,9 +156,7 @@ interface MerchantHubModalProps {
 export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   isOpen,
   onClose,
-  onAddProduct,
   onAddStore,
-  onAddService,
   onOpenCMS,
   onOpenAuth,
   currentUser,
@@ -543,9 +541,8 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     };
 
     try {
-      const createdProduct = await api.createProduct(productPayload);
-      onAddProduct(createdProduct);
-      setSuccessMessage(`Single item "${createdProduct.title}" is now listed live on ABU Marketplace!`);
+      const { submission } = await api.submitListing('product', productPayload);
+      setSuccessMessage(`"${submission.name}" was submitted for review. It goes live once an admin approves it.`);
       setSingleTitle('');
       setSinglePrice('');
       setSingleDesc('');
@@ -582,9 +579,8 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     };
 
     try {
-      const createdService = await api.createService(servicePayload);
-      if (onAddService) onAddService(createdService);
-      setSuccessMessage(`Artisan "${createdService.providerName}" registered under ${createdService.tradeCategory}!`);
+      const { submission } = await api.submitListing('service', servicePayload);
+      setSuccessMessage(`"${submission.name}" was submitted for review. The artisan goes live once an admin approves it.`);
       setServiceTitle('');
       setProviderName('');
     } catch (err) {
@@ -709,7 +705,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
           {activeTab === 'store' && currentUser && (
             <section className="rounded border border-slate-200 bg-slate-50 p-3" aria-label="Your store applications">
               <div className="mb-2 flex items-center justify-between gap-3">
-                <h3 className="text-xs font-extrabold text-slate-900">Your store applications</h3>
+                <h3 className="text-xs font-extrabold text-slate-900">Your applications</h3>
                 <button type="button" onClick={() => void loadStoreApplications()} disabled={isLoadingApplications} className="text-[11px] font-bold text-emerald-800 hover:underline disabled:opacity-50">
                   {isLoadingApplications ? 'Refreshing…' : 'Refresh'}
                 </button>
@@ -728,7 +724,12 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                     <div key={application.id} className="border-t border-slate-200 pt-2 text-[11px]">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate font-bold text-slate-900">{application.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <p className="truncate font-bold text-slate-900">{application.name}</p>
+                            <span className="shrink-0 rounded bg-slate-200 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-700">
+                              {application.kind === 'product' ? 'Item' : application.kind === 'service' ? 'Artisan' : 'Store'}
+                            </span>
+                          </div>
                           <p className="text-slate-500">Submitted {new Date(application.created_at).toLocaleDateString()}</p>
                         </div>
                         <span className={`shrink-0 rounded-full px-2 py-1 font-bold capitalize ${application.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : application.status === 'rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>

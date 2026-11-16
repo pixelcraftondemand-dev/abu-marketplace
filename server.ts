@@ -17,7 +17,9 @@ import {
 } from './server/supabase.ts';
 import {
   approveSubmission,
+  approvedListings,
   approvedStores,
+  createListingSubmission,
   createSubmission,
   isAdmin,
   listSubmissions,
@@ -296,9 +298,11 @@ app.post('/api/custom-auth/update-profile', requireSupabase, async (req: Request
 });
 
 // 2. Products API
-app.get('/api/products', (req: Request, res: Response) => {
+app.get('/api/products', async (req: Request, res: Response) => {
   const { category, search, flashDeals } = req.query;
-  let result = [...products];
+  // Approved merchant listings live in the review table, not in the seeded array.
+  const approved = await approvedListings<Product>('product');
+  let result = [...approved, ...products];
 
   if (category && category !== 'All') {
     result = result.filter((p) => p.category === category);
@@ -321,8 +325,9 @@ app.get('/api/products', (req: Request, res: Response) => {
   res.json({ success: true, count: result.length, data: result });
 });
 
-app.get('/api/products/:id', (req: Request, res: Response) => {
-  const product = products.find((p) => p.id === req.params.id);
+app.get('/api/products/:id', async (req: Request, res: Response) => {
+  const approved = await approvedListings<Product>('product');
+  const product = [...approved, ...products].find((p) => p.id === req.params.id);
   if (!product) {
     return res.status(404).json({ success: false, error: 'Product not found' });
   }
@@ -373,8 +378,18 @@ app.post('/api/products', requireSupabaseForBearer, async (req: Request, res: Re
     ],
   };
 
-  products.unshift(newProduct);
-  res.status(201).json({ success: true, data: newProduct });
+  try {
+    // Nothing reaches the catalog until an admin approves the listing.
+    const { submission, mail } = await createListingSubmission('product', newProduct, actor);
+    res.status(202).json({
+      success: true,
+      message: 'Listing submitted. An admin will review it before it goes live.',
+      data: submission,
+      emailStatus: mail.status,
+    });
+  } catch (err) {
+    submissionErrorResponse(res, err);
+  }
 });
 
 // ----------------------------------------------------
@@ -901,9 +916,10 @@ app.get('/api/admin/mail', requireSupabaseForBearer, async (req: Request, res: R
 });
 
 // 7. Blue-Collar Services API
-app.get('/api/services', (req: Request, res: Response) => {
+app.get('/api/services', async (req: Request, res: Response) => {
   const { tradeCategory, location } = req.query;
-  let result = [...services];
+  const approved = await approvedListings<BlueCollarService>('service');
+  let result = [...approved, ...services];
 
   if (tradeCategory && tradeCategory !== 'All') {
     result = result.filter((s) => s.tradeCategory === tradeCategory);
@@ -963,8 +979,17 @@ app.post('/api/services', requireSupabaseForBearer, async (req: Request, res: Re
     certification: certification || 'Verified Guild Trade Artisan SL',
   };
 
-  services.unshift(newService);
-  res.status(201).json({ success: true, data: newService });
+  try {
+    const { submission, mail } = await createListingSubmission('service', newService, actor);
+    res.status(202).json({
+      success: true,
+      message: 'Registration submitted. An admin will review it before it goes live.',
+      data: submission,
+      emailStatus: mail.status,
+    });
+  } catch (err) {
+    submissionErrorResponse(res, err);
+  }
 });
 
 app.post('/api/services/book', async (req: Request, res: Response) => {

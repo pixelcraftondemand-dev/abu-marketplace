@@ -63,6 +63,9 @@ export type ReviewStatus = 'pending' | 'approved' | 'rejected';
 
 export interface StoreSubmission {
   id: string;
+  kind: 'store' | 'product' | 'service';
+  /** The full Product/BlueCollarService saved for a listing submission. */
+  payload: Product | BlueCollarService | null;
   owner_id: string | null;
   owner_email: string;
   owner_name: string | null;
@@ -278,6 +281,25 @@ export const api = {
     const data = await res.json();
     if (!data.success || typeof data.url !== 'string') throw new Error('The image service returned an invalid logo URL');
     return data.url;
+  },
+
+  /** Merchant: submit a single item or artisan registration for review. */
+  async submitListing(
+    kind: 'product' | 'service',
+    payload: Partial<Product> | Partial<BlueCollarService>,
+  ): Promise<{ submission: StoreSubmission; emailStatus: string }> {
+    const endpoint = kind === 'product' ? '/api/products' : '/api/services';
+    const res = await authFetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      return throwApiError(res, kind === 'product' ? 'Could not submit the listing' : 'Could not submit the registration');
+    }
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Could not submit for review');
+    return { submission: data.data as StoreSubmission, emailStatus: data.emailStatus };
   },
 
   /** Merchant: submit a store for review. Returns the pending application — the store only becomes public once an admin approves it. */

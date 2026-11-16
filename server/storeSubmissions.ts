@@ -1,11 +1,16 @@
 import { isSupabaseConfigured, supabaseAdmin } from './supabase.ts';
 import { sendStoreSubmitted, sendStoreApproved, sendStoreRejected, type MailResult } from './mailer.ts';
-import type { VendorStore } from '../src/types/index.ts';
+import type { VendorStore, Product, BlueCollarService } from '../src/types/index.ts';
 
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
+/** Store applications, single-item listings and artisan registrations share one queue. */
+export type SubmissionKind = 'store' | 'product' | 'service';
 
 export interface SubmissionRow {
   id: string;
+  kind: SubmissionKind;
+  /** The normalised Product/BlueCollarService saved for a listing submission. */
+  payload: Product | BlueCollarService | null;
   owner_id: string | null;
   owner_email: string;
   owner_name: string | null;
@@ -93,6 +98,59 @@ export class SubmissionError extends Error {
 }
 
 /**
+ * Submits a single-item listing or an artisan registration for review. The item is
+ * normalised by the caller and stored whole in `payload`, so approval only has to flip
+ * the status; the catalog reads approved payloads back on every request.
+ */
+export async function createListingSubmission(
+  kind: 'product' | 'service',
+  item: Product | BlueCollarService,
+  owner: Actor,
+): Promise<{ submission: SubmissionRow; mail: MailResult }> {
+  const ownerEmail = owner.email?.trim();
+  if (!ownerEmail) {
+    throw new SubmissionError('Your account has no email address, so we cannot record the submission', 400, 'NO_OWNER_EMAIL');
+  }
+
+  const name = clean(item.title, 120);
+  if (!name) throw new SubmissionError('A title is required', 400, 'MISSING_NAME');
+  const phone = clean('phone' in item ? item.phone : '', 40) || 'N/A';
+  const image = clean('image' in item ? item.image : item.avatar, 400);
+  const logo = image;
+  const now = new Date().toISOString();
+
+  const { data, error } = await supabaseAdmin
+    .from('store_submissions')
+    .insert({
+      kind,
+      payload: item,
+      owner_id: owner.id,
+      owner_email: ownerEmail,
+      owner_name: clean(owner.name, 120),
+      name,
+      slug: slugify(name),
+      tagline: kind === 'product' ? (item as Product).category : (item as BlueCollarService).tradeCategory,
+      description: clean(item.description, 2000),
+      location_hub: clean('locationHub' in item ? item.locationHub : (item as Product).sellerLocation, 120),
+      phone,
+      logo,
+      status: 'pending',
+      created_at: now,
+      updated_at: now,
+    })
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    throw new SubmissionError(`Could not save the listing: ${error?.message || 'unknown error'}`, 500, 'DB_ERROR');
+  }
+
+  // Listing decisions are reviewed in the same queue but no listing email template
+  // exists yet, so the merchant sees the outcome in their applications panel.
+  return { submission: data as SubmissionRow, mail: { status: 'logged' } };
+}
+
+/**
  * Creates a pending submission and emails the merchant a receipt. The store does
  * not exist yet — it only becomes visible once an admin approves it.
  */
@@ -141,6 +199,8 @@ export async function createSubmission(
   const { data, error } = await supabaseAdmin
     .from('store_submissions')
     .insert({
+      kind: 'store',
+      payload: null,
       owner_id: owner.id,
       owner_email: ownerEmail,
       owner_name: clean(owner.name, 120),
@@ -203,7 +263,9 @@ export async function approveSubmission(
   note?: string,
 ): Promise<{ submission: SubmissionRow; mail: MailResult }> {
   const row = await loadPending(id);
-  const storeId = `store-${row.id.slice(0, 8)}`;
+  const storeId = row.kind === 'store'
+    ? `store-${row.id.slice(0, 8)}`
+    : (row.payload && 'id' in row.payload ? String(row.payload.id) : `listing-${row.id.slice(0, 8)}`);
   const now = new Date().toISOString();
 
   const { data, error } = await supabaseAdmin
@@ -226,12 +288,14 @@ export async function approveSubmission(
   }
 
   const submission = data as SubmissionRow;
-  const mail = await sendStoreApproved({
-    to: submission.owner_email,
-    ownerName: submission.owner_name,
-    storeName: submission.name,
-    storeId,
-  });
+  const mail: MailResult = submission.kind === 'store'
+    ? await sendStoreApproved({
+        to: submission.owner_email,
+        ownerName: submission.owner_name,
+        storeName: submission.name,
+        storeId,
+      })
+    : { status: 'logged' };
 
   return { submission, mail };
 }
@@ -269,13 +333,15 @@ export async function rejectSubmission(
   }
 
   const submission = data as SubmissionRow;
-  const mail = await sendStoreRejected({
-    to: submission.owner_email,
-    ownerName: submission.owner_name,
-    storeName: submission.name,
-    storeId: row.id,
-    note: reason,
-  });
+  const mail: MailResult = submission.kind === 'store'
+    ? await sendStoreRejected({
+        to: submission.owner_email,
+        ownerName: submission.owner_name,
+        storeName: submission.name,
+        storeId: row.id,
+        note: reason,
+      })
+    : { status: 'logged' };
 
   return { submission, mail };
 }
@@ -304,6 +370,32 @@ export function submissionToStore(row: SubmissionRow): VendorStore {
   };
 }
 
+/** Every approved listing of one kind, newest first — these are live catalog items. */
+export async function approvedListings<T extends Product | BlueCollarService>(
+  kind: 'product' | 'service',
+): Promise<T[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('store_submissions')
+      .select('payload')
+      .eq('kind', kind)
+      .eq('status', 'approved')
+      .order('reviewed_at', { ascending: false });
+    if (error) {
+      console.error(`[listings] could not load approved ${kind}s:`, error.message);
+      return [];
+    }
+    return (data || [])
+      .map((row) => row.payload as T | null)
+      .filter((payload): payload is T => Boolean(payload && typeof payload === 'object'));
+  } catch (error) {
+    console.error(`[listings] could not load approved ${kind}s:`, error);
+    return [];
+  }
+}
+
 /** Every approved submission, newest first — these are live stores. */
 export async function approvedStores(): Promise<VendorStore[]> {
   if (!isSupabaseConfigured()) return [];
@@ -312,6 +404,7 @@ export async function approvedStores(): Promise<VendorStore[]> {
     const { data, error } = await supabaseAdmin
       .from('store_submissions')
       .select('*')
+      .eq('kind', 'store')
       .eq('status', 'approved')
       .order('reviewed_at', { ascending: false });
     if (error) {
