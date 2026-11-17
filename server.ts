@@ -10,6 +10,7 @@ import type { Product, VendorStore, BlueCollarService, ServiceBooking } from './
 import { INITIAL_PRODUCTS, INITIAL_STORES, INITIAL_SERVICES } from './src/data/mockData.ts';
 
 import {
+  clerkKeyMode,
   getSessionUser,
   isSupabaseConfigured,
   SupabaseConfigurationError,
@@ -234,6 +235,12 @@ app.get('/api/health', (req: Request, res: Response) => {
     status: 'healthy',
     currency: 'SLE',
     timestamp: new Date().toISOString(),
+    // Readiness only, no key material: a deployment whose Clerk key family does not
+    // match the browser's publishable key rejects every signed-in API call.
+    auth: {
+      clerkKeyMode: clerkKeyMode(),
+      supabaseConfigured: isSupabaseConfigured(),
+    },
   });
 });
 

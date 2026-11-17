@@ -182,16 +182,52 @@ function requestOrigin(req: Request): string | null {
 }
 
 /**
+ * The apex/www sibling of an origin. Clerk compares the token's `azp` claim to the
+ * authorized parties with an exact string match, and the live site is reachable as both
+ * spellings: a session minted on https://abumarketplace.shop is the same deployment as
+ * one minted on https://www.abumarketplace.shop. Without the sibling, a merchant who
+ * signed in through the apex host is answered 401 by every API call from the www host.
+ */
+function siblingOrigin(origin: string): string | null {
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== 'https:' || url.port) return null;
+    const host = url.host.toLowerCase();
+    const sibling = host.startsWith('www.') ? host.slice(4) : `www.${host}`;
+    return `${url.protocol}//${sibling}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Authorized parties are the origins whose sessions this server accepts. Besides the
- * configured list, the host serving this request is trusted: a token minted on that
- * same origin is exactly the session the browser is presenting. This keeps apex, www
- * and preview spellings of the deployment working without pinning every one in config.
+ * configured list, the host serving this request—and its apex/www sibling—is trusted: a
+ * token minted on either spelling is exactly the session the browser is presenting.
+ * This keeps apex, www and preview spellings of the deployment working without pinning
+ * every one in config.
  */
 function acceptedParties(req: Request): string[] | undefined {
   const parties = new Set(expandAuthorizedParties(process.env.CLERK_AUTHORIZED_PARTIES) || []);
   const origin = requestOrigin(req);
-  if (origin) parties.add(origin);
+  if (origin) {
+    parties.add(origin);
+    const sibling = siblingOrigin(origin);
+    if (sibling) parties.add(sibling);
+  }
   return parties.size > 0 ? [...parties] : undefined;
+}
+
+/**
+ * Which Clerk key family this server can verify with, without revealing key material.
+ * A missing secret, or a test-instance secret behind a live publishable key, is the
+ * difference between "the merchant's session is bad" and "this deployment cannot check
+ * any session" — which is otherwise invisible from the browser.
+ */
+export function clerkKeyMode(): 'live' | 'test' | 'missing' {
+  const secretKey = resolveClerkKeys(process.env).secretKey;
+  if (!secretKey) return 'missing';
+  return secretKey.startsWith('sk_live_') ? 'live' : 'test';
 }
 
 /**

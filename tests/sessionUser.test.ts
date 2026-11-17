@@ -97,6 +97,32 @@ test('ignores requests without a bearer token', async () => {
   assert.equal(verifications, 0);
 });
 
+test('accepts a token minted on the apex host when the request is served from www', async () => {
+  // Clerk compares the token's azp claim with an exact string match, so the www host
+  // must also trust its apex sibling or every API call from the live site is a 401.
+  let authorizedParties: string[] | undefined;
+
+  await getSessionUser(
+    {
+      headers: {
+        authorization: 'Bearer session-token',
+        host: 'www.abumarketplace.shop',
+        'x-forwarded-proto': 'https',
+      },
+    } as never,
+    {
+      verify: (async (_token: string, options: { authorizedParties?: string[] }) => {
+        authorizedParties = options.authorizedParties;
+        return sessionPayload('user_session_regression') as never;
+      }) as never,
+      loadProfile: async () => sessionUser,
+    },
+  );
+
+  assert.ok(authorizedParties?.includes('https://www.abumarketplace.shop'));
+  assert.ok(authorizedParties?.includes('https://abumarketplace.shop'));
+});
+
 test('treats a failing verification as signed out', async () => {
   const user = await getSessionUser(request('Bearer tampered-token'), {
     verify: (async () => {

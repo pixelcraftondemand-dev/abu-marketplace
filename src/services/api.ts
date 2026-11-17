@@ -121,9 +121,9 @@ export const api = {
 
   // 2. Add product (Merchant Hub: Store or Single Item)
   async createProduct(productData: Partial<Product>): Promise<Product> {
-    const res = await fetch('/api/products', {
+    const res = await authFetch('/api/products', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...await authHeaders(true) },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(productData),
     });
     if (!res.ok) return throwApiError(res, 'Failed to create product');
@@ -257,9 +257,9 @@ export const api = {
   },
 
   async createStore(storeData: Partial<VendorStore>): Promise<VendorStore> {
-    const res = await fetch('/api/stores', {
+    const res = await authFetch('/api/stores', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...await authHeaders(true) },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(storeData),
     });
     if (!res.ok) return throwApiError(res, 'Failed to create store');
@@ -388,9 +388,9 @@ export const api = {
   },
 
   async createService(serviceData: Partial<BlueCollarService>): Promise<BlueCollarService> {
-    const res = await fetch('/api/services', {
+    const res = await authFetch('/api/services', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...await authHeaders(true) },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(serviceData),
     });
     if (!res.ok) return throwApiError(res, 'Failed to create service');
@@ -481,9 +481,9 @@ export const api = {
   // 10. Standard CMS Operations
   async updateProduct(id: string, updates: Partial<Product>): Promise<Product | null> {
     try {
-      const res = await fetch(`/api/products/${encodeURIComponent(id)}`, {
+      const res = await authFetch(`/api/products/${encodeURIComponent(id)}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...await authHeaders(true) },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       });
       // Handle non-JSON error responses from the server
@@ -501,9 +501,8 @@ export const api = {
 
   async deleteProduct(id: string): Promise<boolean> {
     try {
-      const res = await fetch(`/api/products/${encodeURIComponent(id)}`, {
+      const res = await authFetch(`/api/products/${encodeURIComponent(id)}`, {
         method: 'DELETE',
-        headers: await authHeaders(true),
       });
       // Handle non-JSON error responses from the server
       if (!res.ok) {
@@ -519,9 +518,8 @@ export const api = {
 
   async duplicateProduct(id: string): Promise<Product | null> {
     try {
-      const res = await fetch(`/api/products/${encodeURIComponent(id)}/duplicate`, {
+      const res = await authFetch(`/api/products/${encodeURIComponent(id)}/duplicate`, {
         method: 'POST',
-        headers: await authHeaders(true),
       });
       // Handle non-JSON error responses from the server
       if (!res.ok) {
@@ -538,9 +536,8 @@ export const api = {
 
   async resetCatalog(): Promise<boolean> {
     try {
-      const res = await fetch('/api/cms/reset', {
+      const res = await authFetch('/api/cms/reset', {
         method: 'POST',
-        headers: await authHeaders(true),
       });
       // Handle non-JSON error responses from the server
       if (!res.ok) {
@@ -556,7 +553,7 @@ export const api = {
 
   async getMediaAssets(): Promise<Array<{ fileName: string; url: string; usedBy: any }>> {
     try {
-      const res = await fetch('/api/cms/media', { headers: await authHeaders(true) });
+      const res = await authFetch('/api/cms/media');
       // Handle non-JSON error responses from the server
       if (!res.ok) {
         const text = await res.text();

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { describeMerchantFailure } from '../src/components/MerchantHubModal.tsx';
+import { describeMerchantFailure, isSessionRejected } from '../src/components/MerchantHubModal.tsx';
 import { ApiError } from '../src/services/api.ts';
 
 const action = 'submit your store application';
@@ -39,6 +39,17 @@ test('an expired session is the only failure that asks for sign-in', () => {
     describeMerchantFailure(new ApiError('Admin access required', 403), action),
     'Admin access required',
   );
+});
+
+test('only a rejected session offers the re-sign-in action', () => {
+  assert.equal(isSessionRejected(new ApiError('Please sign in to upload a store logo', 401)), true);
+  // The client raises this when no token can be minted at all, with no HTTP status.
+  assert.equal(isSessionRejected(new Error('Please sign in to continue')), true);
+  // Signed in but not allowed, outages, and local validation must not offer re-sign-in.
+  assert.equal(isSessionRejected(new ApiError('Admin access required', 403)), false);
+  assert.equal(isSessionRejected(new ApiError('Could not upload the logo. Please try again.', 502)), false);
+  assert.equal(isSessionRejected(new TypeError('Failed to fetch')), false);
+  assert.equal(isSessionRejected(new Error('Store logos must be 5 MB or smaller.')), false);
 });
 
 test('validation and duplicate-application messages reach the merchant unchanged', () => {

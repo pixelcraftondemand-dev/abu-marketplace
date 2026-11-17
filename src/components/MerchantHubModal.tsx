@@ -51,12 +51,27 @@ import { AbuLogo } from './AbuLogo';
  * Merchant submission failures must not tell a signed-in person to sign in. An expired
  * session asks for sign-in, while outages and network errors are reported as temporary.
  */
+/**
+ * True only when the request was rejected for lack of a session: 401, or the client-side
+ * "please sign in" raised when no token can be minted at all. A 403 is "signed in but
+ * not allowed" and must not be treated as a session that needs renewing.
+ */
+/** Shown in the store form when the session, not the image, is what stopped the upload. */
+const SIGN_IN_LOGO_MESSAGE =
+  'Your session ended before the logo was uploaded. Sign in again, then choose the image once more — your other store details are kept.';
+
+export const isSessionRejected = (error: unknown): boolean => {
+  const status = error instanceof ApiError ? error.status : null;
+  const message = error instanceof Error ? error.message : '';
+  return status === 401 || /sign in/i.test(message);
+};
+
 export const describeMerchantFailure = (error: unknown, action: string): string => {
   const status = error instanceof ApiError ? error.status : null;
   const message = error instanceof Error ? error.message : '';
   // 403 means "signed in but not allowed" — only 401 (or an explicit sign-in message)
   // describes a session that needs to be renewed.
-  if (status === 401 || /sign in/i.test(message)) {
+  if (isSessionRejected(error)) {
     return `Please sign in again to ${action}.`;
   }
   if (status === null || status >= 500) {
@@ -191,8 +206,17 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   const [storePhone, setStorePhone] = useState('');
   const [storeLogoUrl, setStoreLogoUrl] = useState('');
   const [storeLogoError, setStoreLogoError] = useState('');
+  /** Set when the upload was refused because the session ended, so the form can offer a re-sign-in. */
+  const [storeLogoNeedsSignIn, setStoreLogoNeedsSignIn] = useState(false);
   const [isUploadingStoreLogo, setIsUploadingStoreLogo] = useState(false);
   const storeLogoInputRef = useRef<HTMLInputElement | null>(null);
+
+  // A successful sign-in clears the stale refusal; the merchant only has to pick the file again.
+  useEffect(() => {
+    if (!currentUser) return;
+    setStoreLogoNeedsSignIn(false);
+    setStoreLogoError((previous) => (previous === SIGN_IN_LOGO_MESSAGE ? '' : previous));
+  }, [currentUser?.id]);
 
   const handleStoreLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
@@ -202,26 +226,39 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
 
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
+      setStoreLogoNeedsSignIn(false);
       setStoreLogoError('Choose a JPEG, PNG, or WebP image.');
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
+      setStoreLogoNeedsSignIn(false);
       setStoreLogoError('Store logos must be 5 MB or smaller.');
       return;
     }
     if (!currentUser) {
-      setStoreLogoError('Sign in before uploading a store logo.');
+      setStoreLogoNeedsSignIn(true);
+      setStoreLogoError(SIGN_IN_LOGO_MESSAGE);
       onOpenAuth?.();
       return;
     }
 
     setStoreLogoError('');
+    setStoreLogoNeedsSignIn(false);
     setIsUploadingStoreLogo(true);
     try {
       setStoreLogoUrl(await api.uploadStoreLogo(file));
+      setStoreLogoError('');
     } catch (error) {
       setStoreLogoUrl('');
-      setStoreLogoError(describeMerchantFailure(error, 'upload the store logo'));
+      // A 401 here survived the fresh-token retry, so the session really is gone: say so
+      // plainly and give the merchant a way to sign back in without losing the form.
+      if (isSessionRejected(error)) {
+        setStoreLogoNeedsSignIn(true);
+        setStoreLogoError(SIGN_IN_LOGO_MESSAGE);
+      } else {
+        setStoreLogoNeedsSignIn(false);
+        setStoreLogoError(describeMerchantFailure(error, 'upload the store logo'));
+      }
     } finally {
       setIsUploadingStoreLogo(false);
     }
@@ -730,7 +767,19 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                     {isUploadingStoreLogo ? 'Uploading…' : storeLogoUrl ? 'Change logo' : 'Upload logo'}
                   </button>
                   <p id="store-logo-help" className="mt-1 text-[10px] text-slate-600">JPEG, PNG, or WebP. Maximum 5 MB.</p>
-                  <p id="store-logo-error" role="alert" className="mt-1 text-[11px] font-semibold text-rose-700">{storeLogoError}</p>
+                  <div id="store-logo-error" role="alert" className="mt-1 space-y-1 text-[11px] font-semibold text-rose-700">
+                    {storeLogoError && <p>{storeLogoError}</p>}
+                    {storeLogoNeedsSignIn && onOpenAuth && (
+                      <button
+                        type="button"
+                        onClick={onOpenAuth}
+                        className="inline-flex h-8 items-center gap-1.5 rounded border border-rose-300 bg-white px-2.5 text-[11px] font-bold text-rose-700 hover:bg-rose-50"
+                      >
+                        <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
+                        Sign in again
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
