@@ -268,10 +268,12 @@ export const api = {
   },
 
   async uploadStoreLogo(file: File): Promise<string> {
-    const res = await fetch('/api/stores/logo', {
+    // Go through authFetch like every other authenticated call: a cached token the
+    // server rejects is retried once with a fresh one, so a signed-in merchant is not
+    // told to sign in again on the one merchant request that uploads a logo.
+    const res = await authFetch('/api/stores/logo', {
       method: 'POST',
       headers: {
-        ...await authHeaders(true),
         'Content-Type': file.type,
         'X-File-Name': encodeURIComponent(file.name),
       },

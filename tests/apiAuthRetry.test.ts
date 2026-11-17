@@ -78,6 +78,44 @@ test('gives up after one retry when the session is really rejected', async () =>
   assert.equal(tokenRequests, 1);
 });
 
+test('a rejected store logo upload retries with a fresh token instead of asking for sign-in', async () => {
+  const seen: { authorization: string | null; contentType: string | null; fileName: string | null }[] = [];
+  let tokenRequests = 0;
+
+  setClerkTokenProvider(async () => {
+    tokenRequests += 1;
+    return tokenRequests === 1 ? 'stale-token' : 'fresh-token';
+  });
+
+  await withFetch(
+    async (_url, init) => {
+      const headers = new Headers(init?.headers);
+      seen.push({
+        authorization: headers.get('authorization'),
+        contentType: headers.get('content-type'),
+        fileName: headers.get('x-file-name'),
+      });
+      if (seen.length === 1) return json({ success: false, error: 'Please sign in to upload a store logo' }, 401);
+      return json({ success: true, url: 'https://ik.imagekit.io/abu/store-logos/logo.png' }, 201);
+    },
+    async () => {
+      const file = new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47])], 'my logo.png', { type: 'image/png' });
+      assert.equal(await api.uploadStoreLogo(file), 'https://ik.imagekit.io/abu/store-logos/logo.png');
+    },
+  );
+
+  assert.deepEqual(
+    seen.map((request) => request.authorization),
+    ['Bearer stale-token', 'Bearer fresh-token'],
+  );
+  // The retry must still carry the image type and original file name the server validates.
+  assert.deepEqual(seen[1], {
+    authorization: 'Bearer fresh-token',
+    contentType: 'image/png',
+    fileName: encodeURIComponent('my logo.png'),
+  });
+});
+
 test('does not loop when the refreshed token is also rejected', async () => {
   let fetchCalls = 0;
 
