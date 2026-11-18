@@ -229,6 +229,10 @@ let bookings: ServiceBooking[] = [];
 // ----------------------------------------------------
 
 // 1. Health check
+/** True when the logo route has the ImageKit credentials it needs to store a file. */
+const imageKitConfigured = () =>
+  Boolean(process.env.IMAGEKIT_PRIVATE_KEY?.trim() && process.env.IMAGEKIT_URL_ENDPOINT?.trim());
+
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({
     // Deliberately minimal: infrastructure details stay internal
@@ -240,6 +244,10 @@ app.get('/api/health', (req: Request, res: Response) => {
     auth: {
       clerkKeyMode: clerkKeyMode(),
       supabaseConfigured: isSupabaseConfigured(),
+    },
+    // Readiness only, no key material: without ImageKit the logo route answers 503.
+    uploads: {
+      storeLogo: imageKitConfigured() ? 'configured' : 'missing',
     },
   });
 });
@@ -767,7 +775,7 @@ app.post('/api/stores', requireSupabase, async (req: Request, res: Response) => 
 app.post(
   '/api/stores/logo',
   requireSupabase,
-  express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '5mb' }),
+  express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '4.5mb' }),
   async (req: Request, res: Response) => {
     const actor = await currentActor(req);
     if (!actor) return res.status(401).json({ success: false, error: 'Please sign in to upload a store logo' });
@@ -785,7 +793,7 @@ app.post(
       return res.status(400).json({ success: false, error: 'Choose a JPEG, PNG, or WebP logo to upload.' });
     }
     if (imageBytes.length > MAX_STORE_LOGO_BYTES) {
-      return res.status(413).json({ success: false, error: 'Store logos must be 5 MB or smaller.' });
+      return res.status(413).json({ success: false, error: 'Store logos must be 4 MB or smaller.' });
     }
 
     const extension = getStoreLogoExtension(contentType, imageBytes);

@@ -50,13 +50,15 @@ import { AbuLogo } from './AbuLogo';
 
 /** Mirrors the limits enforced by the server logo route. */
 const STORE_LOGO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const STORE_LOGO_MAX_BYTES = 5 * 1024 * 1024;
+// 4 MB keeps the request under the deployed function's 4.5 MB body cap, so an oversized
+// logo is refused here with a clear reason instead of failing at the platform edge.
+const STORE_LOGO_MAX_BYTES = 4 * 1024 * 1024;
 
 /** Why a chosen file cannot be used as a store logo, or null when it can. */
 export const describeLogoFileProblem = (file: File): string | null => {
   if (!STORE_LOGO_TYPES.includes(file.type)) return 'Choose a JPEG, PNG, or WebP image.';
   if (!file.size) return 'That image is empty. Choose a different file.';
-  if (file.size > STORE_LOGO_MAX_BYTES) return 'Store logos must be 5 MB or smaller.';
+  if (file.size > STORE_LOGO_MAX_BYTES) return 'Store logos must be 4 MB or smaller.';
   return null;
 };
 
@@ -69,7 +71,7 @@ export const describeLogoUploadFailure = (error: unknown): string => {
   if (status === null) {
     return 'Could not reach the marketplace to upload the logo. Check your connection, then choose the image again.';
   }
-  if (status === 413) return 'That image is too large. Choose a JPEG, PNG, or WebP under 5 MB.';
+  if (status === 413) return 'That image is too large. Choose a JPEG, PNG, or WebP under 4 MB.';
   if (status === 415) return 'That file is not a readable image. Choose a JPEG, PNG, or WebP instead.';
   if (status >= 500) return 'The image service could not store the logo just now. Choose the image again in a moment.';
   return 'The logo could not be uploaded. Choose the image again.';
@@ -757,7 +759,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                     <Upload className="h-3.5 w-3.5" />
                     {isUploadingStoreLogo ? 'Uploading…' : storeLogoUrl ? 'Change logo' : 'Upload logo'}
                   </button>
-                  <p id="store-logo-help" className="mt-1 text-[10px] text-slate-600">JPEG, PNG, or WebP. Maximum 5 MB.</p>
+                  <p id="store-logo-help" className="mt-1 text-[10px] text-slate-600">JPEG, PNG, or WebP. Maximum 4 MB.</p>
                   <div id="store-logo-error" role="alert" className="mt-1 text-[11px] font-semibold text-rose-700">
                     {storeLogoError && <p>{storeLogoError}</p>}
                   </div>

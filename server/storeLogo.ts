@@ -1,4 +1,8 @@
-export const MAX_STORE_LOGO_BYTES = 5 * 1024 * 1024;
+/**
+ * 4 MB, not 5: the deployed API runs as a serverless function whose request body cap is
+ * 4.5 MB, so a larger logo would be cut off by the platform before this route sees it.
+ */
+export const MAX_STORE_LOGO_BYTES = 4 * 1024 * 1024;
 
 const LOGO_SIGNATURES = {
   'image/jpeg': { extension: 'jpg', bytes: [0xff, 0xd8, 0xff] },

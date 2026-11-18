@@ -36,6 +36,6 @@ test('Store form renders the authenticated logo upload control and preview', () 
 
   assert.match(markup, /id="store-logo-upload"/);
   assert.match(markup, /accept="image\/jpeg,image\/png,image\/webp"/);
-  assert.match(markup, /Maximum 5 MB/);
+  assert.match(markup, /Maximum 4 MB/);
   assert.match(markup, /Upload logo/);
 });
