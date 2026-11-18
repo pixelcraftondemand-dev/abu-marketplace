@@ -10,6 +10,7 @@ import {
   Wrench, 
   Tag, 
   MapPin, 
+  Loader2,
   Phone,
   Sliders,
   BarChart3,
@@ -217,7 +218,24 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   const [storeLogoUrl, setStoreLogoUrl] = useState('');
   const [storeLogoError, setStoreLogoError] = useState('');
   const [isUploadingStoreLogo, setIsUploadingStoreLogo] = useState(false);
+  /** Object URL of the chosen file, shown while the upload runs and dropped once it lands. */
+  const [storeLogoPreview, setStoreLogoPreview] = useState('');
   const storeLogoInputRef = useRef<HTMLInputElement | null>(null);
+  const storeLogoPreviewUrlRef = useRef<string | null>(null);
+
+  /** Swaps the local preview for a new file, releasing the previous object URL's memory. */
+  const showStoreLogoPreview = (file: File | null) => {
+    if (storeLogoPreviewUrlRef.current) URL.revokeObjectURL(storeLogoPreviewUrlRef.current);
+    const url = file ? URL.createObjectURL(file) : '';
+    storeLogoPreviewUrlRef.current = url || null;
+    setStoreLogoPreview(url);
+  };
+
+  // Unmounting with an upload in flight must not leak the preview's object URL.
+  useEffect(() => () => {
+    if (storeLogoPreviewUrlRef.current) URL.revokeObjectURL(storeLogoPreviewUrlRef.current);
+    storeLogoPreviewUrlRef.current = null;
+  }, []);
 
   /** Chooses, checks, and uploads one logo file. Sign-in is not this handler's business. */
   const handleStoreLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -233,11 +251,16 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     }
 
     setStoreLogoError('');
+    // Show the picked image immediately so the merchant sees what is uploading, not an empty box.
+    showStoreLogoPreview(file);
     setIsUploadingStoreLogo(true);
     try {
-      setStoreLogoUrl(await api.uploadStoreLogo(file));
+      const hostedUrl = await api.uploadStoreLogo(file);
+      setStoreLogoUrl(hostedUrl);
+      showStoreLogoPreview(null);
     } catch (error) {
       setStoreLogoUrl('');
+      showStoreLogoPreview(null);
       setStoreLogoError(describeLogoUploadFailure(error));
     } finally {
       setIsUploadingStoreLogo(false);
@@ -700,14 +723,18 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                 <p className="text-[11px] text-[#334155]">
                   For shop owners and wholesale distributors. Get your dedicated branded storefront with product collections and verified merchant badge.
                 </p>
-              </div>
-
-              <div className="flex items-center gap-3 rounded border border-[#DCE1E5] bg-white p-3">
-                <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded border border-slate-200 bg-slate-50">
-                  {storeLogoUrl ? (
-                    <img src={storeLogoUrl} alt="Store logo preview" className="h-full w-full object-cover" />
+              </div>                <div className="flex items-center gap-3 rounded border border-[#DCE1E5] bg-white p-3">
+                <div className="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded border border-slate-200 bg-slate-50">
+                  {storeLogoPreview || storeLogoUrl ? (
+                    <img src={storeLogoPreview || storeLogoUrl} alt="Store logo preview" className="h-full w-full object-cover" />
                   ) : (
                     <Store className="h-6 w-6 text-slate-400" aria-hidden="true" />
+                  )}
+                  {isUploadingStoreLogo && storeLogoPreview && (
+                    <div className="absolute inset-0 grid place-items-center bg-[#002541]/45">
+                      <Loader2 className="h-4 w-4 animate-spin text-white" aria-hidden="true" />
+                      <span className="sr-only">Uploading logo…</span>
+                    </div>
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
