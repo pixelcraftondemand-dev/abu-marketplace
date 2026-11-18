@@ -11,6 +11,7 @@ import {
   Tag, 
   MapPin, 
   Loader2,
+  RefreshCw,
   Phone,
   Sliders,
   BarChart3,
@@ -225,6 +226,8 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   const [isUploadingStoreLogo, setIsUploadingStoreLogo] = useState(false);
   /** Object URL of the chosen file, shown while the upload runs and dropped once it lands. */
   const [storeLogoPreview, setStoreLogoPreview] = useState('');
+  /** The file from a failed attempt, kept so retrying needs one click, not the file picker. */
+  const [failedLogoFile, setFailedLogoFile] = useState<File | null>(null);
   const storeLogoInputRef = useRef<HTMLInputElement | null>(null);
   const storeLogoPreviewUrlRef = useRef<string | null>(null);
 
@@ -242,7 +245,31 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     storeLogoPreviewUrlRef.current = null;
   }, []);
 
-  /** Chooses, checks, and uploads one logo file. Sign-in is not this handler's business. */
+  /**
+   * Uploads one logo file. A failure leaves every other store field alone and keeps the file
+   * and its preview, so the merchant can retry the same image instead of filling in the form
+   * or reaching for the file picker again.
+   */
+  const uploadStoreLogo = async (file: File) => {
+    setStoreLogoError('');
+    setFailedLogoFile(null);
+    // Show the picked image immediately so the merchant sees what is uploading, not an empty box.
+    if (!storeLogoPreviewUrlRef.current) showStoreLogoPreview(file);
+    setIsUploadingStoreLogo(true);
+    try {
+      const hostedUrl = await api.uploadStoreLogo(file);
+      setStoreLogoUrl(hostedUrl);
+      showStoreLogoPreview(null);
+    } catch (error) {
+      setStoreLogoUrl('');
+      setStoreLogoError(describeLogoUploadFailure(error));
+      setFailedLogoFile(file);
+    } finally {
+      setIsUploadingStoreLogo(false);
+    }
+  };
+
+  /** Chooses and checks one logo file, then hands it to the uploader. */
   const handleStoreLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const input = event.currentTarget;
     const file = input.files?.[0];
@@ -251,25 +278,17 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
 
     const fileProblem = describeLogoFileProblem(file);
     if (fileProblem) {
+      setFailedLogoFile(null);
       setStoreLogoError(fileProblem);
       return;
     }
 
-    setStoreLogoError('');
-    // Show the picked image immediately so the merchant sees what is uploading, not an empty box.
-    showStoreLogoPreview(file);
-    setIsUploadingStoreLogo(true);
-    try {
-      const hostedUrl = await api.uploadStoreLogo(file);
-      setStoreLogoUrl(hostedUrl);
-      showStoreLogoPreview(null);
-    } catch (error) {
-      setStoreLogoUrl('');
-      showStoreLogoPreview(null);
-      setStoreLogoError(describeLogoUploadFailure(error));
-    } finally {
-      setIsUploadingStoreLogo(false);
-    }
+    await uploadStoreLogo(file);
+  };
+
+  const handleStoreLogoRetry = () => {
+    if (!failedLogoFile || isUploadingStoreLogo) return;
+    void uploadStoreLogo(failedLogoFile);
   };
 
   // 2. Single Product Form State
@@ -511,6 +530,10 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       setStoreStreet('');
       setStorePhone('');
       setStoreLogoUrl('');
+      // A submitted application starts clean, so no leftover preview or retry offer.
+      setFailedLogoFile(null);
+      setStoreLogoError('');
+      showStoreLogoPreview(null);
     } catch (err) {
       setSuccessMessage('');
       setStoreError(describeMerchantFailure(err, 'submit your store application'));
@@ -763,8 +786,19 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                     {isUploadingStoreLogo ? 'Uploading…' : storeLogoUrl ? 'Change logo' : 'Upload logo'}
                   </button>
                   <p id="store-logo-help" className="mt-1 text-[10px] text-slate-600">JPEG, PNG, or WebP. Maximum 4 MB.</p>
-                  <div id="store-logo-error" role="alert" className="mt-1 text-[11px] font-semibold text-rose-700">
+                  <div id="store-logo-error" role="alert" className="mt-1 space-y-1.5 text-[11px] font-semibold text-rose-700">
                     {storeLogoError && <p>{storeLogoError}</p>}
+                    {failedLogoFile && (
+                      <button
+                        type="button"
+                        onClick={handleStoreLogoRetry}
+                        disabled={isUploadingStoreLogo}
+                        className="inline-flex h-8 items-center gap-1.5 rounded border border-rose-300 bg-white px-2.5 text-[11px] font-bold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                        Try upload again
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
