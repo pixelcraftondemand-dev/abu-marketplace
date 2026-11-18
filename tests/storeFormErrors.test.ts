@@ -72,7 +72,12 @@ test('the logo upload names the reason a chosen file is refused', () => {
   assert.equal(describeLogoFileProblem(file('image/webp', 4 * 1024 * 1024)), null);
   assert.equal(describeLogoFileProblem(file('image/gif', 1024)), 'Choose a JPEG, PNG, or WebP image.');
   assert.equal(describeLogoFileProblem(file('image/png', 0)), 'That image is empty. Choose a different file.');
-  assert.equal(describeLogoFileProblem(file('image/jpeg', 4 * 1024 * 1024 + 1)), 'Store logos must be 4 MB or smaller.');
+  // A photo over the upload limit is accepted here because it is resized before sending.
+  assert.equal(describeLogoFileProblem(file('image/jpeg', 8 * 1024 * 1024)), null);
+  assert.equal(
+    describeLogoFileProblem(file('image/jpeg', 26 * 1024 * 1024)),
+    'That image is too large to process. Choose a photo under 25 MB.',
+  );
 });
 
 test('validation and duplicate-application messages reach the merchant unchanged', () => {

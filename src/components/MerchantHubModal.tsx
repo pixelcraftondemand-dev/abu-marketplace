@@ -48,18 +48,22 @@ import { Category, Product, VendorStore, BlueCollarService, TradeCategory, ItemC
 import { detectCarrier, INITIAL_PRODUCTS, INITIAL_STORES } from '../data/mockData';
 import { api, ApiError } from '../services/api';
 import { AbuLogo } from './AbuLogo';
+import {
+  STORE_LOGO_MAX_BYTES,
+  STORE_LOGO_MAX_SOURCE_BYTES,
+  STORE_LOGO_TYPES,
+  prepareStoreLogo,
+} from '../lib/logoImage';
 
-/** Mirrors the limits enforced by the server logo route. */
-const STORE_LOGO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-// 4 MB keeps the request under the deployed function's 4.5 MB body cap, so an oversized
-// logo is refused here with a clear reason instead of failing at the platform edge.
-const STORE_LOGO_MAX_BYTES = 4 * 1024 * 1024;
-
-/** Why a chosen file cannot be used as a store logo, or null when it can. */
+/** Why a chosen file cannot be used as a store logo, or null when it can be. */
 export const describeLogoFileProblem = (file: File): string | null => {
   if (!STORE_LOGO_TYPES.includes(file.type)) return 'Choose a JPEG, PNG, or WebP image.';
   if (!file.size) return 'That image is empty. Choose a different file.';
-  if (file.size > STORE_LOGO_MAX_BYTES) return 'Store logos must be 4 MB or smaller.';
+  // Anything under the source ceiling is accepted here and shrunk before it is sent, so a
+  // full-resolution phone photo is not turned away over a limit we can compress past.
+  if (file.size > STORE_LOGO_MAX_SOURCE_BYTES) {
+    return 'That image is too large to process. Choose a photo under 25 MB.';
+  }
   return null;
 };
 
@@ -257,7 +261,13 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     if (!storeLogoPreviewUrlRef.current) showStoreLogoPreview(file);
     setIsUploadingStoreLogo(true);
     try {
-      const hostedUrl = await api.uploadStoreLogo(file);
+      // Phone photos are often far bigger than the API accepts, so shrink them here first.
+      const prepared = await prepareStoreLogo(file);
+      if (prepared.size > STORE_LOGO_MAX_BYTES) {
+        setStoreLogoError('That image is still over 4 MB after resizing. Choose a smaller image.');
+        return;
+      }
+      const hostedUrl = await api.uploadStoreLogo(prepared);
       setStoreLogoUrl(hostedUrl);
       showStoreLogoPreview(null);
     } catch (error) {
@@ -785,7 +795,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                     <Upload className="h-3.5 w-3.5" />
                     {isUploadingStoreLogo ? 'Uploading…' : storeLogoUrl ? 'Change logo' : 'Upload logo'}
                   </button>
-                  <p id="store-logo-help" className="mt-1 text-[10px] text-slate-600">JPEG, PNG, or WebP. Maximum 4 MB.</p>
+                  <p id="store-logo-help" className="mt-1 text-[10px] text-slate-600">JPEG, PNG, or WebP. Large photos are resized automatically.</p>
                   <div id="store-logo-error" role="alert" className="mt-1 space-y-1.5 text-[11px] font-semibold text-rose-700">
                     {storeLogoError && <p>{storeLogoError}</p>}
                     {failedLogoFile && (
