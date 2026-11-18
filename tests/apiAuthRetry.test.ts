@@ -116,6 +116,50 @@ test('a rejected store logo upload retries with a fresh token instead of asking 
   });
 });
 
+test('retries a dropped logo transfer once with the same file', async () => {
+  const bodies: unknown[] = [];
+
+  setClerkTokenProvider(async () => 'token');
+
+  await withFetch(
+    async (_url, init) => {
+      bodies.push(init?.body);
+      if (bodies.length === 1) throw new TypeError('Failed to fetch');
+      return json({ success: true, url: 'https://ik.imagekit.io/abu/store-logos/logo.png' }, 201);
+    },
+    async () => {
+      const file = new File([Uint8Array.from([0xff, 0xd8, 0xff])], 'logo.jpg', { type: 'image/jpeg' });
+      assert.equal(await api.uploadStoreLogo(file), 'https://ik.imagekit.io/abu/store-logos/logo.png');
+      assert.equal(bodies.length, 2);
+      // The retry must resend the bytes rather than drop the logo body.
+      assert.equal(bodies[1], file);
+    },
+  );
+});
+
+test('a second dropped transfer surfaces as an upload error, not a sign-in prompt', async () => {
+  let fetchCalls = 0;
+
+  setClerkTokenProvider(async () => 'token');
+
+  await withFetch(
+    async () => {
+      fetchCalls += 1;
+      throw new TypeError('Failed to fetch');
+    },
+    async () => {
+      const file = new File([Uint8Array.from([0xff, 0xd8, 0xff])], 'logo.jpg', { type: 'image/jpeg' });
+      await assert.rejects(() => api.uploadStoreLogo(file), (error: unknown) => {
+        assert.ok(error instanceof TypeError);
+        assert.doesNotMatch((error as Error).message, /sign in/i);
+        return true;
+      });
+    },
+  );
+
+  assert.equal(fetchCalls, 2);
+});
+
 test('does not loop when the refreshed token is also rejected', async () => {
   let fetchCalls = 0;
 

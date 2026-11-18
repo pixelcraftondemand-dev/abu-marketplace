@@ -35,6 +35,9 @@ async function authFetch(path: string, init: RequestInit = {}): Promise<Response
   return fetch(path, { ...init, headers: { ...headers, Authorization: `Bearer ${freshToken}` } });
 }
 
+/** A logo upload that stalls for this long is treated as a dropped connection and retried once. */
+const STORE_LOGO_UPLOAD_TIMEOUT_MS = 45_000;
+
 /** An API failure that keeps the HTTP status, so callers can tell auth problems apart from outages. */
 export class ApiError extends Error {
   status: number;
@@ -267,21 +270,45 @@ export const api = {
     return data.data;
   },
 
+  /**
+   * Uploads a store logo and returns its hosted URL. The store form only opens for a
+   * signed-in merchant, so this reports on the image and the transfer: the file body is
+   * sent with the session token, a dropped or stalled transfer is retried once instead of
+   * asking for the file again, and every failure comes back as an upload problem.
+   */
   async uploadStoreLogo(file: File): Promise<string> {
-    // Go through authFetch like every other authenticated call: a cached token the
-    // server rejects is retried once with a fresh one, so a signed-in merchant is not
-    // told to sign in again on the one merchant request that uploads a logo.
-    const res = await authFetch('/api/stores/logo', {
-      method: 'POST',
-      headers: {
-        'Content-Type': file.type,
-        'X-File-Name': encodeURIComponent(file.name),
-      },
-      body: file,
-    });
+    const post = async (): Promise<Response> => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), STORE_LOGO_UPLOAD_TIMEOUT_MS);
+      try {
+        return await authFetch('/api/stores/logo', {
+          method: 'POST',
+          headers: {
+            'Content-Type': file.type || 'application/octet-stream',
+            'X-File-Name': encodeURIComponent(file.name),
+          },
+          body: file,
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
+
+    let res: Response;
+    try {
+      res = await post();
+    } catch {
+      // The bytes are still in hand, so a stalled or dropped transfer costs one retry
+      // rather than making the merchant pick the image again.
+      res = await post();
+    }
+
     if (!res.ok) return throwApiError(res, 'Could not upload the store logo');
-    const data = await res.json();
-    if (!data.success || typeof data.url !== 'string') throw new Error('The image service returned an invalid logo URL');
+    const data = await res.json().catch(() => null);
+    if (!data?.success || typeof data.url !== 'string' || !data.url) {
+      throw new ApiError('The image service returned an invalid logo URL', 502);
+    }
     return data.url;
   },
 
