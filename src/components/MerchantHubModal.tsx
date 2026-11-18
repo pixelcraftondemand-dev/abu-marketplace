@@ -48,6 +48,7 @@ import { Category, Product, VendorStore, BlueCollarService, TradeCategory, ItemC
 import { detectCarrier, INITIAL_PRODUCTS, INITIAL_STORES } from '../data/mockData';
 import { api, ApiError } from '../services/api';
 import { AbuLogo } from './AbuLogo';
+import { recordStoreLogoOutcome } from '../lib/uploadDiagnostics';
 import {
   STORE_LOGO_MAX_BYTES,
   STORE_LOGO_MAX_SOURCE_BYTES,
@@ -260,20 +261,47 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     // Show the picked image immediately so the merchant sees what is uploading, not an empty box.
     if (!storeLogoPreviewUrlRef.current) showStoreLogoPreview(file);
     setIsUploadingStoreLogo(true);
+    let sentBytes: number | null = null;
+    const base = {
+      fileName: file.name,
+      fileType: file.type,
+      sourceBytes: file.size,
+      at: new Date().toISOString(),
+    };
     try {
       // Phone photos are often far bigger than the API accepts, so shrink them here first.
       const prepared = await prepareStoreLogo(file);
       if (prepared.size > STORE_LOGO_MAX_BYTES) {
-        setStoreLogoError('That image is still over 4 MB after resizing. Choose a smaller image.');
+        const message = 'That image is still over 4 MB after resizing. Choose a smaller image.';
+        setStoreLogoError(message);
+        recordStoreLogoOutcome({ ...base, outcome: 'failed', kind: 'file', message, status: null, sentBytes: null });
         return;
       }
+      sentBytes = prepared.size;
       const hostedUrl = await api.uploadStoreLogo(prepared);
       setStoreLogoUrl(hostedUrl);
       showStoreLogoPreview(null);
+      recordStoreLogoOutcome({
+        ...base,
+        outcome: 'uploaded',
+        kind: 'upload',
+        message: `Uploaded ${prepared.name} to image storage.`,
+        status: 200,
+        sentBytes,
+      });
     } catch (error) {
+      const message = describeLogoUploadFailure(error);
       setStoreLogoUrl('');
-      setStoreLogoError(describeLogoUploadFailure(error));
+      setStoreLogoError(message);
       setFailedLogoFile(file);
+      recordStoreLogoOutcome({
+        ...base,
+        outcome: 'failed',
+        kind: 'upload',
+        message,
+        status: error instanceof ApiError ? error.status : null,
+        sentBytes,
+      });
     } finally {
       setIsUploadingStoreLogo(false);
     }
@@ -290,6 +318,17 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     if (fileProblem) {
       setFailedLogoFile(null);
       setStoreLogoError(fileProblem);
+      recordStoreLogoOutcome({
+        outcome: 'failed',
+        kind: 'file',
+        message: fileProblem,
+        status: null,
+        fileName: file.name,
+        fileType: file.type,
+        sourceBytes: file.size,
+        sentBytes: null,
+        at: new Date().toISOString(),
+      });
       return;
     }
 

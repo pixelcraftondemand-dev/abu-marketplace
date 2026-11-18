@@ -26,10 +26,12 @@ import {
   ExternalLink,
   Save,
   Tag,
-  RefreshCw
+  RefreshCw,
+  Activity
 } from 'lucide-react';
 import { Product, Category, VendorStore, BlueCollarService } from '../types';
 import { api } from '../services/api';
+import { UploadDiagnosticsPanel } from './UploadDiagnosticsPanel';
 
 interface AdminCMSModalProps {
   isOpen: boolean;
@@ -45,7 +47,7 @@ interface AdminCMSModalProps {
   onOpenStoreApprovals?: () => void;
 }
 
-type CMSTab = 'overview' | 'analytics' | 'products' | 'media' | 'stores' | 'services' | 'backup';
+type CMSTab = 'overview' | 'analytics' | 'products' | 'media' | 'stores' | 'services' | 'backup' | 'diagnostics';
 
 const ALL_CATEGORIES: Category[] = [
   'Solar & Power',
@@ -486,6 +488,18 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Backup & Reset</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('diagnostics')}
+            className={`px-3 py-2 text-xs font-bold rounded-t-md transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+              activeTab === 'diagnostics'
+                ? 'bg-white dark:bg-[#0B1520] text-[#0B3B60] dark:text-[#38BDF8] border-t-2 border-t-[#FF6600] border-x border-[#E7ECF0] dark:border-[#1E2E3D]'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5" />
+            <span>Diagnostics</span>
           </button>
         </div>
 
@@ -1174,6 +1188,9 @@ export const AdminCMSModal: React.FC<AdminCMSModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* 7. UPLOAD DIAGNOSTICS TAB — admin-only, since this modal only opens for admins */}
+          {activeTab === 'diagnostics' && <UploadDiagnosticsPanel />}
 
         </div>
 
