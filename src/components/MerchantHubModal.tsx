@@ -71,6 +71,9 @@ export const describeLogoUploadFailure = (error: unknown): string => {
   if (status === null) {
     return 'Could not reach the marketplace to upload the logo. Check your connection, then choose the image again.';
   }
+  if (status === 401 || status === 403) {
+    return 'The marketplace could not confirm this request, so the logo was not uploaded. Refresh the page and try again.';
+  }
   if (status === 413) return 'That image is too large. Choose a JPEG, PNG, or WebP under 4 MB.';
   if (status === 415) return 'That file is not a readable image. Choose a JPEG, PNG, or WebP instead.';
   if (status >= 500) return 'The image service could not store the logo just now. Choose the image again in a moment.';
