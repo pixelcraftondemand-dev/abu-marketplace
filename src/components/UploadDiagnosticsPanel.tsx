@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import {
   clearStoreLogoOutcome,
+  failureHint,
   readStoreLogoOutcome,
   type StoreLogoOutcome,
 } from '../lib/uploadDiagnostics';
@@ -49,29 +50,6 @@ const formatBytes = (bytes: number | null): string => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
-/** What the admin should check for a given failure, keyed by HTTP status. */
-const failureHint = (status: number | null): string => {
-  if (status === null) {
-    return 'No HTTP response: the transfer failed or was blocked. Check the network, a proxy, or an ad blocker, then retry the upload.';
-  }
-  if (status === 401 || status === 403) {
-    return 'The API refused the session token. Compare CLERK_SECRET_KEY in Vercel with the publishable key the site loads: they must belong to the same Clerk instance.';
-  }
-  if (status === 413) {
-    return 'The request body was too large for the platform limit. Browser resizing should keep this well under 4 MB; a logo this large means resizing did not run.';
-  }
-  if (status === 429) {
-    return 'The per-IP limit (8 uploads per 10 minutes) was hit. Wait for the window to pass before retrying.';
-  }
-  if (status === 503) {
-    return 'The logo route reports ImageKit is not configured. Set IMAGEKIT_PRIVATE_KEY and IMAGEKIT_URL_ENDPOINT in Vercel.';
-  }
-  if (status >= 500) {
-    return 'The server or ImageKit failed after the token was accepted. Check the deployment logs for the ImageKit status code.';
-  }
-  return 'The API rejected the request itself; the message above is the server reason.';
 };
 
 export const UploadDiagnosticsPanel: React.FC = () => {
@@ -251,12 +229,18 @@ export const UploadDiagnosticsPanel: React.FC = () => {
                 <dt className="font-bold text-slate-500 dark:text-slate-400">Sent after resizing</dt>
                 <dd className="text-[#1A242D] dark:text-white">{formatBytes(lastOutcome.sentBytes)}</dd>
               </div>
+              {lastOutcome.authCode && (
+                <div>
+                  <dt className="font-bold text-slate-500 dark:text-slate-400">Session reason</dt>
+                  <dd className="font-mono text-[#1A242D] dark:text-white">{lastOutcome.authCode}</dd>
+                </div>
+              )}
             </dl>
 
             {lastOutcome.outcome === 'failed' && (
               <p className="rounded bg-slate-50 p-2 text-[11px] leading-relaxed text-slate-700 dark:bg-[#0F1B26] dark:text-slate-300">
                 <span className="font-extrabold">What to check: </span>
-                {failureHint(lastOutcome.status)}
+                {failureHint(lastOutcome.status, lastOutcome.authCode)}
               </p>
             )}
           </div>

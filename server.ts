@@ -15,6 +15,7 @@ import {
   isSupabaseConfigured,
   SupabaseConfigurationError,
   supabaseAdmin,
+  withAuthCode,
 } from './server/supabase.ts';
 import {
   approveSubmission,
@@ -354,7 +355,7 @@ app.post('/api/products', requireSupabaseForBearer, async (req: Request, res: Re
   if (!rateLimit(req, res, 'products-write', 30, 10 * 60 * 1000)) return;
   const actor = await currentActor(req);
   if (!actor) {
-    return res.status(401).json({ success: false, error: 'Please sign in to list a product' });
+    return res.status(401).json(withAuthCode(req, { success: false, error: 'Please sign in to list a product' }));
   }
   const { title, category, priceSLE, stockCount, description, sellerName, sellerLocation } = req.body;
 
@@ -729,7 +730,7 @@ app.post('/api/stores', requireSupabase, async (req: Request, res: Response) => 
   if (!rateLimit(req, res, 'stores-write', 10, 10 * 60 * 1000)) return;
   const actor = await currentActor(req);
   if (!actor) {
-    return res.status(401).json({ success: false, error: 'Please sign in to open a store' });
+    return res.status(401).json(withAuthCode(req, { success: false, error: 'Please sign in to open a store' }));
   }
   const body = pickAllowed(req.body, [
     'name', 'tagline', 'description', 'locationHub', 'province',
@@ -778,7 +779,9 @@ app.post(
   express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '4.5mb' }),
   async (req: Request, res: Response) => {
     const actor = await currentActor(req);
-    if (!actor) return res.status(401).json({ success: false, error: 'Please sign in to upload a store logo' });
+    if (!actor) {
+      return res.status(401).json(withAuthCode(req, { success: false, error: 'Please sign in to upload a store logo' }));
+    }
     if (!rateLimit(req, res, 'store-logo', 8, 10 * 60 * 1000)) return;
 
     const privateKey = process.env.IMAGEKIT_PRIVATE_KEY?.trim();
@@ -856,7 +859,7 @@ app.post('/api/stores/submissions', requireSupabase, async (req: Request, res: R
   try {
     const actor = await currentActor(req);
     if (!actor) {
-      return res.status(401).json({ success: false, error: 'Please sign in to apply for a store' });
+      return res.status(401).json(withAuthCode(req, { success: false, error: 'Please sign in to apply for a store' }));
     }
     if (!rateLimit(req, res, 'submissions', 8, 10 * 60 * 1000)) return;
     const { submission, mail } = await createSubmission(req.body || {}, actor);
@@ -875,7 +878,7 @@ app.post('/api/stores/submissions', requireSupabase, async (req: Request, res: R
 app.get('/api/stores/submissions/mine', requireSupabase, async (req: Request, res: Response) => {
   try {
     const actor = await currentActor(req);
-    if (!actor) return res.status(401).json({ success: false, error: 'Please sign in' });
+    if (!actor) return res.status(401).json(withAuthCode(req, { success: false, error: 'Please sign in' }));
     const all = await listSubmissions();
     const mine = all.filter((row) => row.owner_id === actor.id || row.owner_email === actor.email);
     res.json({ success: true, count: mine.length, data: mine });
@@ -956,7 +959,7 @@ app.post('/api/services', requireSupabaseForBearer, async (req: Request, res: Re
   if (!rateLimit(req, res, 'services-write', 15, 10 * 60 * 1000)) return;
   const actor = await currentActor(req);
   if (!actor) {
-    return res.status(401).json({ success: false, error: 'Please sign in to register a service' });
+    return res.status(401).json(withAuthCode(req, { success: false, error: 'Please sign in to register a service' }));
   }
   const {
     title, tradeCategory, providerName, phone, experienceYears, locationHub,

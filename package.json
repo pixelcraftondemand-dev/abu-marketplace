@@ -12,11 +12,11 @@
     "lint": "tsc --noEmit",
     "test:store-logo": "tsx --test tests/storeLogo.test.ts",
     "test:logo-image": "tsx --test tests/logoImage.test.ts",
-    "test:upload-diagnostics": "tsx --test tests/uploadDiagnostics.test.ts",
     "test:session-user": "tsx --test tests/sessionUser.test.ts",
     "test:clerk-keys": "tsx --test tests/clerkKeys.test.ts",
     "test:store-form-errors": "tsx --test tests/storeFormErrors.test.ts",
     "test:auth-retry": "tsx --test tests/apiAuthRetry.test.ts",
+    "test:auth-rejection-codes": "tsx --test tests/authRejectionCodes.test.ts",
     "sync:github": "git fetch origin main && git merge origin/main --no-edit"
   },
   "dependencies": {
@@ -24,6 +24,7 @@
     "@clerk/backend": "^3.27.0",
     "@clerk/react": "^6.18.6",
     "@google/genai": "^2.4.0",
+    "@imagekit/react": "^5.0.3",
     "@supabase/supabase-js": "^2.118.0",
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^6.1.1",
@@ -48,7 +49,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",
-    "esbuild": "^0.25.0",
+    "esbuild": "^0.28.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2"

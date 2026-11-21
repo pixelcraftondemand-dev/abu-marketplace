@@ -231,6 +231,56 @@ export function clerkKeyMode(): 'live' | 'test' | 'missing' {
 }
 
 /**
+ * Why the session check for this request failed, kept per request so a route can answer
+ * with a short, non-secret code. Without it a merchant's 401 is indistinguishable from a
+ * missing token, a stale secret, or an origin mismatch without reading server logs.
+ */
+const rejections = new WeakMap<Request, string>();
+
+/** The reason `getSessionUser` rejected this request, or null when it accepted it. */
+export function authRejectionReason(req: Request): string | null {
+  return rejections.get(req) ?? null;
+}
+
+/** Every reason `getSessionUser` can record, so callers and tests can enumerate them. */
+export const AUTH_REJECTION_CODES = [
+  'missing-token',
+  'secret-missing',
+  'missing-subject',
+  'token-expired',
+  'azp-mismatch',
+  'signature-mismatch',
+  'malformed-token',
+  'invalid-token',
+] as const;
+
+export type AuthRejectionCode = (typeof AUTH_REJECTION_CODES)[number];
+
+/**
+ * Adds the session-rejection code to a 401 body. The code names why the token was
+ * refused (no token, wrong Clerk instance, expired) without revealing key material, so
+ * the merchant and the admin Diagnostics panel can tell "signed out" from "this
+ * deployment cannot verify any session" instead of guessing from a generic 401.
+ * An accepted request leaves the body untouched, so 200s never gain a `code`.
+ */
+export function withAuthCode(req: Request, body: Record<string, unknown>): Record<string, unknown> {
+  const code = authRejectionReason(req);
+  return code ? { ...body, code } : body;
+}
+
+/** Maps a Clerk verification error onto a short code that reveals no key material. */
+export function rejectionCode(error: unknown): string {
+  const reason = (error as { reason?: unknown } | null)?.reason;
+  const text = `${typeof reason === 'string' ? reason : ''} ${error instanceof Error ? error.message : ''}`.toLowerCase();
+  if (text.includes('expired')) return 'token-expired';
+  if (text.includes('azp') || text.includes('authorized part')) return 'azp-mismatch';
+  if (text.includes('signature')) return 'signature-mismatch';
+  if (text.includes('subject') || text.includes('sub claim')) return 'missing-subject';
+  if (text.includes('malformed') || text.includes('jwt')) return 'malformed-token';
+  return 'invalid-token';
+}
+
+/**
  * Verifies a Clerk bearer token and loads the user's marketplace profile.
  * The optional seams exist so tests can drive the payload handling without Clerk
  * or Supabase; production callers always use the real implementations.
@@ -239,14 +289,22 @@ export async function getSessionUser(
   req: Request,
   seams: { verify?: TokenVerifier; loadProfile?: ProfileLoader } = {},
 ): Promise<SessionUser | null> {
+  rejections.delete(req);
   const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) return null;
+  if (!header || !header.startsWith('Bearer ')) {
+    rejections.set(req, 'missing-token');
+    return null;
+  }
   const token = header.slice(7).trim();
-  if (!token) return null;
+  if (!token) {
+    rejections.set(req, 'missing-token');
+    return null;
+  }
   // Must match the instance the browser signed in against, or every token is rejected.
   const secretKey = resolveClerkKeys(process.env).secretKey;
   if (!secretKey) {
     console.error('[auth] CLERK_SECRET_KEY is not set, so signed-in requests cannot be verified.');
+    rejections.set(req, 'secret-missing');
     return null;
   }
 
@@ -259,11 +317,15 @@ export async function getSessionUser(
     // verifyToken resolves to the decoded session payload itself (it unwraps the
     // { data } envelope), so the Clerk user id lives on `sub` directly.
     const clerkId = (verified as { sub?: string } | null)?.sub;
-    if (!clerkId) return null;
+    if (!clerkId) {
+      rejections.set(req, 'missing-subject');
+      return null;
+    }
 
     const loadProfile = seams.loadProfile ?? loadClerkProfile;
     return await loadProfile(clerkId, secretKey);
   } catch (error) {
+    rejections.set(req, rejectionCode(error));
     console.warn('[auth] Clerk token verification failed:', error);
     return null;
   }

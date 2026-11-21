@@ -38,28 +38,36 @@ async function authFetch(path: string, init: RequestInit = {}): Promise<Response
 /** A logo upload that stalls for this long is treated as a dropped connection and retried once. */
 const STORE_LOGO_UPLOAD_TIMEOUT_MS = 45_000;
 
-/** An API failure that keeps the HTTP status, so callers can tell auth problems apart from outages. */
+/**
+ * An API failure that keeps the HTTP status, so callers can tell auth problems apart from
+ * outages. `code` is the server's short reason when it supplies one (`token-expired`,
+ * `secret-missing`, `azp-mismatch`, …); it never contains key material.
+ */
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  code: string | null;
+  constructor(message: string, status: number, code: string | null = null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
 async function throwApiError(res: Response, fallback: string): Promise<never> {
   const text = await res.text();
   let message = fallback;
+  let code: string | null = null;
   if (text) {
     try {
       const payload = JSON.parse(text);
       if (typeof payload.error === 'string') message = payload.error;
+      if (typeof payload.code === 'string') code = payload.code;
     } catch {
       message = text;
     }
   }
-  throw new ApiError(message, res.status);
+  throw new ApiError(message, res.status, code);
 }
 
 export type ReviewStatus = 'pending' | 'approved' | 'rejected';

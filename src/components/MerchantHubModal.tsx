@@ -300,6 +300,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
         kind: 'upload',
         message,
         status: error instanceof ApiError ? error.status : null,
+        ...(error instanceof ApiError && error.code ? { authCode: error.code } : {}),
         sentBytes,
       });
     } finally {
