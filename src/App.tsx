@@ -751,7 +751,6 @@ export default function App() {
         activeView={activeView}
         onSelectView={setActiveView}
         currentUser={activeUser}
-        onOpenWhatsAppAuth={handleOpenAuthModal}
         isShopApproved={isShopApproved}
         theme={theme}
         onToggleTheme={handleToggleTheme}

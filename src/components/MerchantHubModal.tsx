@@ -797,6 +797,12 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
             <div className="bg-[#eaf5ff] border border-[#00875A] p-3 rounded flex items-center gap-2 text-xs text-[#00875A] font-bold">
               <Check className="w-4 h-4 shrink-0" />
               <span>{successMessage}</span>
+              <button
+                type="button"
+                onClick={() => setSuccessMessage('')}
+                className="ml-2 text-[9px] underline underline-offset-1 hover:text-[#00875A] transition-colors"
+                aria-label="Dismiss success message"
+              >Close</button>
             </div>
           )}
 

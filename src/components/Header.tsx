@@ -32,7 +32,6 @@ interface HeaderProps {
   activeView: ViewMode;
   onSelectView: (view: ViewMode) => void;
   currentUser?: UserProfile | null;
-  onOpenWhatsAppAuth?: (mode?: 'signin' | 'signup') => void;
   isShopApproved?: boolean;
   theme?: ThemeMode;
   onToggleTheme?: () => void;
@@ -52,7 +51,6 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectCategory,
   onSelectView,
   currentUser,
-  onOpenWhatsAppAuth,
   isShopApproved = false,
   theme = 'light',
   onToggleTheme,
@@ -218,10 +216,9 @@ export const Header: React.FC<HeaderProps> = ({
             )}
 
             {/* 4. Sign In / User Account */}
-            {currentUser ? (
-              <button
+            {currentUser ? (              <button
                 type="button"
-                onClick={() => onOpenWhatsAppAuth?.()}
+                onClick={() => onOpenLocationPicker?.()}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#8df7c1]/50 bg-[#0b3b60] px-0 text-white transition-all hover:bg-[#144b77] sm:h-auto sm:w-auto sm:gap-2 sm:px-3 sm:py-1.5"
                 title="View Account Profile"
               >
@@ -230,7 +227,7 @@ export const Header: React.FC<HeaderProps> = ({
                     src={currentUser.avatar}
                     alt={currentUser.name}
                     className="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover border border-[#8df7c1]"
-                  />
+                    />
                   <span className="w-2 h-2 rounded-full bg-[#16A34A] absolute -bottom-0.5 -right-0.5 ring-1 ring-[#002541]"></span>
                 </div>
                 <div className="hidden flex-col text-left leading-none sm:flex">
@@ -239,25 +236,17 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </button>
             ) : (
+
               <div className="hidden items-center gap-1.5 sm:flex">
                 <button
                   type="button"
-                  onClick={() => onOpenWhatsAppAuth?.('signin')}
+                  onClick={() => onOpenLocationPicker?.()}
                   className="flex h-9 shrink-0 items-center justify-center rounded-full bg-white px-3 text-[#002541] shadow-xs transition-all hover:bg-[#F4F6F8]"
-                  title="Sign in"
-                  aria-label="Sign in"
+                  title="Change delivery location"
+                  aria-label="Change delivery location"
                 >
-                  <User className="h-4 w-4 text-[#00875A]" />
-                  <span className="ml-1.5 whitespace-nowrap text-xs font-bold">Sign In</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onOpenWhatsAppAuth?.('signup')}
-                  className="flex h-9 shrink-0 items-center justify-center rounded-full bg-[#00875A] px-3 text-white shadow-xs transition-all hover:bg-[#00704A]"
-                  title="Create an account"
-                  aria-label="Create an account"
-                >
-                  <span className="whitespace-nowrap text-xs font-bold">Sign Up</span>
+                  <MapPin className="h-4 w-4 text-[#00875A]" />
+                  <span className="ml-1.5 whitespace-nowrap text-xs font-bold">Location</span>
                 </button>
               </div>
             )}
