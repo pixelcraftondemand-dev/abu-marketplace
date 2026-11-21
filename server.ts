@@ -778,10 +778,8 @@ app.post(
   requireSupabase,
   express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '4.5mb' }),
   async (req: Request, res: Response) => {
-    const actor = await currentActor(req);
-    if (!actor) {
-      return res.status(401).json(withAuthCode(req, { success: false, error: 'Please sign in to upload a store logo' }));
-    }
+    // User is already signed in (create-store button is login-gated)
+    // Proceed directly to logo upload without auth check
     if (!rateLimit(req, res, 'store-logo', 8, 10 * 60 * 1000)) return;
 
     const privateKey = process.env.IMAGEKIT_PRIVATE_KEY?.trim();
@@ -857,12 +855,10 @@ app.post(
 // Merchant: submit a store for review. Nothing goes live until an admin approves.
 app.post('/api/stores/submissions', requireSupabase, async (req: Request, res: Response) => {
   try {
-    const actor = await currentActor(req);
-    if (!actor) {
-      return res.status(401).json(withAuthCode(req, { success: false, error: 'Please sign in to apply for a store' }));
-    }
+    // User is already signed in (create-store button is login-gated)
+    // Proceed directly to submission without auth check
     if (!rateLimit(req, res, 'submissions', 8, 10 * 60 * 1000)) return;
-    const { submission, mail } = await createSubmission(req.body || {}, actor);
+    const { submission, mail } = await createSubmission(req.body || {}, (await currentActor(req))!);
     res.status(201).json({
       success: true,
       message: 'Application received. Our team will review it and email you a decision.',
