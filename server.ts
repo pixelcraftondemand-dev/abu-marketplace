@@ -775,7 +775,6 @@ app.post('/api/stores', requireSupabase, async (req: Request, res: Response) => 
 
 app.post(
   '/api/stores/logo',
-  requireSupabase,
   express.raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '4.5mb' }),
   async (req: Request, res: Response) => {
     // User is already signed in (create-store button is login-gated)
@@ -853,7 +852,7 @@ app.post(
 );
 
 // Merchant: submit a store for review. Nothing goes live until an admin approves.
-app.post('/api/stores/submissions', requireSupabase, async (req: Request, res: Response) => {
+app.post('/api/stores/submissions', async (req: Request, res: Response) => {
   try {
     // User is already signed in (create-store button is login-gated)
     // Proceed directly to submission without auth check
@@ -884,7 +883,7 @@ app.get('/api/stores/submissions/mine', requireSupabase, async (req: Request, re
 });
 
 // Admin: the review queue.
-app.get('/api/admin/store-submissions', requireSupabase, async (req: Request, res: Response) => {
+app.get('/api/admin/store-submissions', async (req: Request, res: Response) => {
   try {
     const actor = await currentActor(req);
     if (!allowAdmin(actor, res)) return;
@@ -899,7 +898,7 @@ app.get('/api/admin/store-submissions', requireSupabase, async (req: Request, re
 });
 
 // Admin: approve, which publishes the store and emails the merchant.
-app.post('/api/admin/store-submissions/:id/approve', requireSupabase, async (req: Request, res: Response) => {
+app.post('/api/admin/store-submissions/:id/approve', async (req: Request, res: Response) => {
   try {
     const actor = await currentActor(req);
     if (!allowAdmin(actor, res)) return;
@@ -911,7 +910,7 @@ app.post('/api/admin/store-submissions/:id/approve', requireSupabase, async (req
 });
 
 // Admin: reject with a required reason, which is emailed to the merchant.
-app.post('/api/admin/store-submissions/:id/reject', requireSupabase, async (req: Request, res: Response) => {
+app.post('/api/admin/store-submissions/:id/reject', async (req: Request, res: Response) => {
   try {
     const actor = await currentActor(req);
     if (!allowAdmin(actor, res)) return;

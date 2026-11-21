@@ -220,7 +220,12 @@ export default function App() {
       handleOpenAuth('login');
       return;
     }
+    const goToMyProducts = Boolean(userStore || activeUser?.role === 'merchant');
     setIsMerchantHubOpen(true);
+    if (goToMyProducts) {
+      // Set initial tab to my_products when store is already approved
+      // This will be picked up by the MerchantHubModal's initialTab handling
+    }
   };
 
   const handleCloseAuth = () => {
@@ -751,6 +756,7 @@ export default function App() {
         theme={theme}
         onToggleTheme={handleToggleTheme}
         onOpenCMS={isAdmin ? handleOpenCMS : undefined}
+        isAdmin={isAdmin}
       />
 
       {/* Primary Semantic H1 for SEO Ranking (#1 for ABU, abu, Marketplace) */}
@@ -1550,6 +1556,7 @@ export default function App() {
         onOpenCMS={isAdmin ? handleOpenCMS : undefined}
         currentUser={activeUser}
         onOpenAuth={() => handleOpenAuth('login')}
+        initialTab={isShopApproved ? 'my_products' : undefined}
       />
 
       {/* Location Picker Modal */}

@@ -37,8 +37,8 @@ interface HeaderProps {
   theme?: ThemeMode;
   onToggleTheme?: () => void;
   onOpenCMS?: () => void;
+  isAdmin?: boolean;
 }
-
 export const Header: React.FC<HeaderProps> = ({
   currentLocation,
   onOpenLocationPicker,
@@ -57,7 +57,9 @@ export const Header: React.FC<HeaderProps> = ({
   theme = 'light',
   onToggleTheme,
   onOpenCMS,
+  isAdmin,
 }) => {
+
   // The catalog filters live as the visitor types, so the search button only has
   // to take them to the results rather than looking like a dead control.
   const scrollToResults = () => {
@@ -201,9 +203,8 @@ export const Header: React.FC<HeaderProps> = ({
               <ThemeToggle theme={theme} onToggle={onToggleTheme} className="shrink-0" />
             )}
 
-            {/* Administrative entry. App only passes onOpenCMS for a session it has
-                verified as admin, so this control does not exist for anyone else. */}
-            {onOpenCMS && (
+            {/* Administrative entry - only visible to admins */}
+            {isAdmin && (
               <button
                 type="button"
                 onClick={onOpenCMS}

@@ -188,7 +188,7 @@ interface MerchantHubModalProps {
   currentUser?: UserProfile | null;
   products?: Product[];
   stores?: VendorStore[];
-  initialTab?: 'store' | 'single_product' | 'service';
+  initialTab?: 'store' | 'single_product' | 'service' | 'my_products';
 }
 
 export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
@@ -201,7 +201,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   stores = [],
   initialTab,
 }) => {
-  const [activeTab, setActiveTab] = useState<'store' | 'single_product' | 'service' | 'analytics'>(initialTab || 'store');
+  const [activeTab, setActiveTab] = useState<'store' | 'single_product' | 'service' | 'analytics' | 'my_products' | undefined>(initialTab || 'store');
   const [successMessage, setSuccessMessage] = useState('');
   const [storeError, setStoreError] = useState('');
   const [exportToast, setExportToast] = useState('');
@@ -755,6 +755,22 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
           >
             <Tag className="w-4 h-4 shrink-0" />
             <span className="block max-w-full whitespace-normal text-center text-[10px] leading-tight sm:text-xs">List Product</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('my_products');
+              setSuccessMessage('');
+            }}
+            className={`min-h-12 px-1 py-1 sm:px-1.5 rounded font-bold flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer ${
+              activeTab === 'my_products'
+                ? 'bg-[#0B3B60] dark:bg-[#00875A] text-white shadow-xs'
+                : 'bg-white dark:bg-[#0E1720] text-[#1A242D] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 shrink-0" />
+            <span className="block max-w-full whitespace-normal text-center text-[10px] leading-tight sm:text-xs">My Products</span>
           </button>
 
           <button

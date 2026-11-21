@@ -83,7 +83,7 @@ async function loadClerkProfile(clerkId: string, secretKey: string): Promise<Ses
     name,
     image: clerkUser.imageUrl,
     phoneNumber: clerkUser.phoneNumbers[0]?.phoneNumber ?? null,
-    role: 'buyer',
+    role: ((clerkUser as any)?.publicMetadata?.role ?? 'buyer'),
     preferredCity: null,
     provider: 'clerk',
     createdAt: new Date(clerkUser.createdAt).toISOString(),
