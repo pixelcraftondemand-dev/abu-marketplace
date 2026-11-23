@@ -19,6 +19,7 @@ import { ThemeMode } from '../lib/theme';
 interface HeaderProps {
   currentLocation: LocationNode;
   onOpenLocationPicker: () => void;
+  onOpenAuth?: (mode?: 'signin' | 'signup') => void;
   cartCount: number;
   wishlistCount: number;
   onOpenCart: () => void;
@@ -41,6 +42,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   currentLocation,
   onOpenLocationPicker,
+  onOpenAuth,
   cartCount,
   wishlistCount,
   onOpenCart,
@@ -200,7 +202,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="flex items-center gap-2 sm:gap-3">
                 <button
                   type="button"
-                  onClick={() => onOpenLocationPicker?.()}
+                  onClick={() => onOpenAuth?.()}
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#8df7c1]/50 bg-[#0b3b60] px-0 text-white transition-all hover:bg-[#144b77] sm:h-auto sm:w-auto sm:gap-2 sm:px-3 sm:py-1.5"
                   title="View Account Profile"
                 >
@@ -231,7 +233,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="flex items-center gap-1.5 sm:flex">
                 <button
                   type="button"
-                  onClick={() => onOpenLocationPicker?.()}
+                  onClick={() => onOpenAuth?.('signin')}
                   className="flex h-9 shrink-0 items-center justify-center rounded-full bg-white px-3 text-[#002541] shadow-xs transition-all hover:bg-[#F4F6F8]"
                   title="Sign In"
                   aria-label="Sign In"
@@ -240,7 +242,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onOpenLocationPicker?.()}
+                  onClick={() => onOpenAuth?.('signup')}
                   className="flex h-9 shrink-0 items-center justify-center rounded-full bg-[#0B3B60] px-3 text-white shadow-xs transition-all hover:bg-[#144b77]"
                   title="Create Account"
                   aria-label="Create Account"

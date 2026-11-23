@@ -214,18 +214,15 @@ export default function App() {
     handleOpenAuth(mode === 'signup' ? 'register' : 'login');
   };
 
-  const handleOpenMerchantHub = () => {
+  const handleOpenMerchantHub = (tab: 'store' | 'single_product' | 'service' = 'store') => {
+    // Remember the requested tab so the hub opens on it after a pending sign-in lands.
+    setMerchantHubTab(tab);
     if (!activeUser) {
       setPendingMerchantHub(true);
       handleOpenAuth('login');
       return;
     }
-    const goToMyProducts = Boolean(userStore || activeUser?.role === 'merchant');
     setIsMerchantHubOpen(true);
-    if (goToMyProducts) {
-      // Set initial tab to my_products when store is already approved
-      // This will be picked up by the MerchantHubModal's initialTab handling
-    }
   };
 
   const handleCloseAuth = () => {
@@ -378,6 +375,7 @@ export default function App() {
   const [checkoutInitialMethod, setCheckoutInitialMethod] = useState<MobileMoneyProvider>('orange');
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const [isMerchantHubOpen, setIsMerchantHubOpen] = useState(false);
+  const [merchantHubTab, setMerchantHubTab] = useState<'store' | 'single_product' | 'service'>('store');
 
   // Continue into the merchant hub once the sign-in that "Create Shop" triggered lands.
   useEffect(() => {
@@ -738,6 +736,7 @@ export default function App() {
       <Header
         currentLocation={currentLocation}
         onOpenLocationPicker={() => setIsLocationPickerOpen(true)}
+        onOpenAuth={handleOpenAuthModal}
         cartCount={totalCartCount}
         wishlistCount={wishlist.length}
         onOpenCart={() => setIsCartOpen(true)}
@@ -1555,7 +1554,7 @@ export default function App() {
         onOpenCMS={isAdmin ? handleOpenCMS : undefined}
         currentUser={activeUser}
         onOpenAuth={() => handleOpenAuth('login')}
-        initialTab={isShopApproved ? 'my_products' : undefined}
+        initialTab={merchantHubTab}
       />
 
       {/* Location Picker Modal */}
