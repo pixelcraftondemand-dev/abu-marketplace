@@ -196,25 +196,36 @@ export const Header: React.FC<HeaderProps> = ({
             )}
 
             {/* 4. Sign In / User Account */}
-            {currentUser ? (              <button
-                type="button"
-                onClick={() => onOpenLocationPicker?.()}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#8df7c1]/50 bg-[#0b3b60] px-0 text-white transition-all hover:bg-[#144b77] sm:h-auto sm:w-auto sm:gap-2 sm:px-3 sm:py-1.5"
-                title="View Account Profile"
-              >
-                <div className="relative shrink-0">
-                  <img
-                    src={currentUser.avatar}
-                    alt={currentUser.name}
-                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover border border-[#8df7c1]"
+            {currentUser ? (
+              <div className="flex items-center gap-2 sm:gap-3">
+                <button
+                  type="button"
+                  onClick={() => onOpenLocationPicker?.()}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#8df7c1]/50 bg-[#0b3b60] px-0 text-white transition-all hover:bg-[#144b77] sm:h-auto sm:w-auto sm:gap-2 sm:px-3 sm:py-1.5"
+                  title="View Account Profile"
+                >
+                  <div className="relative shrink-0">
+                    <img
+                      src={currentUser.avatar}
+                      alt={currentUser.name}
+                      className="w-5 h-5 sm:w-6 sm:h-6 rounded-full object-cover border border-[#8df7c1]"
                     />
-                  <span className="w-2 h-2 rounded-full bg-[#16A34A] absolute -bottom-0.5 -right-0.5 ring-1 ring-[#002541]"></span>
-                </div>
-                <div className="hidden flex-col text-left leading-none sm:flex">
-                  <span className="text-[10px] sm:text-[11px] text-[#8df7c1] font-bold">Hi, {currentUser.name.split(' ')[0]}</span>
-                  <span className="text-[9px] text-white/80 font-medium hidden sm:inline mt-0.5">Account</span>
-                </div>
-              </button>
+                    <span className="w-2 h-2 rounded-full bg-[#16A34A] absolute -bottom-0.5 -right-0.5 ring-1 ring-[#002541]"></span>
+                  </div>
+                  <div className="hidden flex-col text-left leading-none sm:flex">
+                    <span className="text-[10px] sm:text-[11px] text-[#8df7c1] font-bold">Hi, {currentUser.name.split(' ')[0]}</span>
+                    <span className="text-[9px] text-white/80 font-medium hidden sm:inline mt-0.5">Account</span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenMerchantHub('store')}
+                  className="flex h-9 shrink-0 items-center justify-center rounded-full bg-[#00875A] px-3 text-white text-xs font-bold shadow-sm transition-all hover:bg-[#006b4a]"
+                  title="Create Store"
+                >
+                  Create Store
+                </button>
+              </div>
             ) : (
 
               <div className="hidden items-center gap-1.5 sm:flex">
