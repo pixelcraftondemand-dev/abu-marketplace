@@ -1,5 +1,5 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ClerkLoaded, SignIn, SignUp } from '@clerk/react';
+import React, { useEffect, useState } from 'react';
+import { SignIn, SignUp } from '@clerk/react';
 import { LogOut, ShieldCheck, X } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { AbuLogo } from './AbuLogo';
@@ -40,43 +40,6 @@ const clerkAppearance = {
   },
 };
 
-/**
- * Shown from the moment the modal opens until Clerk's form has painted, so an empty
- * half-rendered auth card never flashes up. clerk-js and its UI chunks are fetched
- * from the instance's frontend API at runtime, which can take seconds on a cold cache.
- */
-const AuthFormSkeleton: React.FC<{ slow?: boolean }> = ({ slow = false }) => (
-  <div
-    role="status"
-    aria-live="polite"
-    className="flex min-h-[340px] flex-col items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white p-6 dark:border-[#144b77] dark:bg-[#04263F]"
-  >
-    <span
-      aria-hidden="true"
-      className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-700/25 border-t-emerald-700 dark:border-[#8df7c1]/25 dark:border-t-[#8df7c1]"
-    />
-    <p className="text-xs font-bold text-slate-600 dark:text-slate-300">Loading secure sign-in…</p>
-    <div className="mt-2 w-full space-y-2" aria-hidden="true">
-      <div className="h-9 w-full animate-pulse rounded-lg bg-slate-100 dark:bg-white/10" />
-      <div className="h-9 w-3/4 animate-pulse rounded-lg bg-slate-100 dark:bg-white/10" />
-    </div>
-    {slow && (
-      <div className="mt-3 flex flex-col items-center gap-2 text-center">
-        <p className="text-[11px] text-slate-600 dark:text-slate-300">
-          This is taking longer than usual. Check your connection.
-        </p>
-        <button
-          type="button"
-          onClick={() => window.location.reload()}
-          className="rounded-lg border border-slate-300 px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-100 dark:border-white/20 dark:text-slate-200 dark:hover:bg-white/10"
-        >
-          Try again
-        </button>
-      </div>
-    )}
-  </div>
-);
-
 export interface WhatsAppAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -105,38 +68,6 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
   useEffect(() => {
     setMode(initialEmailMode === 'signup' ? 'signup' : 'signin');
   }, [initialEmailMode, isOpen]);
-
-  // Clerk stays blank while it boots, so the modal renders its own skeleton on open
-  // and reveals Clerk's form only after the form has actually painted.
-  const [formReady, setFormReady] = useState(false);
-  const [slowLoad, setSlowLoad] = useState(false);
-  const formHostRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    if (!isOpen) {
-      setFormReady(false);
-      setSlowLoad(false);
-      return;
-    }
-
-    const host = formHostRef.current;
-    if (!host) return;
-
-    // A tab switch remounts the form, so it has to be revealed again.
-    const hasForm = () => host.childElementCount > 0;
-    setFormReady(hasForm());
-
-    const observer = new MutationObserver(() => {
-      if (hasForm()) setFormReady(true);
-    });
-    observer.observe(host, { childList: true, subtree: true });
-    const slowTimer = window.setTimeout(() => setSlowLoad(true), 20000);
-
-    return () => {
-      observer.disconnect();
-      window.clearTimeout(slowTimer);
-    };
-  }, [isOpen, mode]);
 
   if (!isOpen) return null;
 
@@ -282,25 +213,15 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                 </div>
 
                 <div id="abu-auth-panel" role="tabpanel" aria-live="polite" className="relative mx-auto w-full max-w-sm">
-                  {!formReady && <AuthFormSkeleton slow={slowLoad} />}
-                  {/* Rendered but hidden until painted, so the switch to the real form
-                      costs no extra round trip. `invisible` also keeps it unfocusable. */}
-                  <div
-                    ref={formHostRef}
-                    aria-hidden={formReady ? undefined : true}
-                    // The card is a white surface in both themes, so the form is pinned
-                    // to a light colour scheme; otherwise Clerk follows the page's dark
-                    // scheme and paints white labels and inputs onto the white card.
-                    style={{ colorScheme: 'light' }}
-                    className={`abu-auth-form ${formReady ? '' : 'pointer-events-none invisible absolute inset-0'}`}
-                  >
-                    <ClerkLoaded>
-                      <div className="auth-form-enter">
-                        {mode === 'signup'
-                          ? <SignUp key="signup" routing="hash" appearance={clerkAppearance} fallbackRedirectUrl={redirectUrl} />
-                          : <SignIn key="signin" routing="hash" appearance={clerkAppearance} fallbackRedirectUrl={redirectUrl} />}
-                      </div>
-                    </ClerkLoaded>
+                  {/* The card is a white surface in both themes, so the form is pinned
+                      to a light colour scheme; otherwise Clerk follows the page's dark
+                      scheme and paints white labels and inputs onto the white card. */}
+                  <div className="abu-auth-form" style={{ colorScheme: 'light' }}>
+                    <div className="auth-form-enter">
+                      {mode === 'signup'
+                        ? <SignUp key="signup" routing="hash" appearance={clerkAppearance} fallbackRedirectUrl={redirectUrl} />
+                        : <SignIn key="signin" routing="hash" appearance={clerkAppearance} fallbackRedirectUrl={redirectUrl} />}
+                    </div>
                   </div>
                 </div>
                 <p className="mx-auto mt-4 w-fit rounded-lg bg-white/85 px-2 py-1 text-center text-[11px] text-slate-600 dark:bg-[#07243B]/90 dark:text-slate-200">
