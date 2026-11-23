@@ -228,16 +228,24 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             ) : (
 
-              <div className="hidden items-center gap-1.5 sm:flex">
+              <div className="flex items-center gap-1.5 sm:flex">
                 <button
                   type="button"
                   onClick={() => onOpenLocationPicker?.()}
                   className="flex h-9 shrink-0 items-center justify-center rounded-full bg-white px-3 text-[#002541] shadow-xs transition-all hover:bg-[#F4F6F8]"
-                  title="Change delivery location"
-                  aria-label="Change delivery location"
+                  title="Sign In"
+                  aria-label="Sign In"
                 >
-                  <MapPin className="h-4 w-4 text-[#00875A]" />
-                  <span className="ml-1.5 whitespace-nowrap text-xs font-bold">Location</span>
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenLocationPicker?.()}
+                  className="flex h-9 shrink-0 items-center justify-center rounded-full bg-[#0B3B60] px-3 text-white shadow-xs transition-all hover:bg-[#144b77]"
+                  title="Create Account"
+                  aria-label="Create Account"
+                >
+                  Create Account
                 </button>
               </div>
             )}
