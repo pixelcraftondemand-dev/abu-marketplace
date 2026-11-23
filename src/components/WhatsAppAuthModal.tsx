@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { SignIn, SignUp } from '@clerk/react';
+import { ClerkFailed, ClerkLoaded, ClerkLoading, SignIn, SignUp } from '@clerk/react';
 import { LogOut, ShieldCheck, X } from 'lucide-react';
 import type { UserProfile } from '../types';
 import { AbuLogo } from './AbuLogo';
@@ -28,8 +28,6 @@ const clerkAppearance = {
     card: 'w-full rounded-xl border border-slate-200 bg-white p-4 shadow-none text-slate-900',
     headerTitle: 'text-xl font-black text-slate-900',
     headerSubtitle: 'text-sm text-slate-600',
-    socialButtonsBlock: 'hidden',
-    socialButtonsBlockButton: 'hidden',
     formFieldLabel: 'text-xs font-bold text-slate-800',
     formFieldInput: 'h-10 border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-500 focus:border-emerald-700 focus:ring-emerald-700',
     formButtonPrimary: 'h-10 bg-emerald-700 text-sm font-bold text-white shadow-sm hover:bg-emerald-800',
@@ -213,16 +211,55 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                 </div>
 
                 <div id="abu-auth-panel" role="tabpanel" aria-live="polite" className="relative mx-auto w-full max-w-sm">
+                  {/* Clerk's components render nothing until clerk-js has loaded, so a
+                      quiet spinner keeps the card from sitting blank on a cold cache. */}
+                  <ClerkLoading>
+                    <div className="flex min-h-[340px] items-center justify-center rounded-xl border border-slate-200 bg-white dark:border-[#144b77] dark:bg-[#04263F]">
+                      <span
+                        role="status"
+                        aria-label="Loading sign in"
+                        className="h-6 w-6 animate-spin rounded-full border-2 border-emerald-700/25 border-t-emerald-700 dark:border-[#8df7c1]/25 dark:border-t-[#8df7c1]"
+                      />
+                    </div>
+                  </ClerkLoading>
+                  {/* Clerk errors out instead of rendering a form, e.g. when the production
+                      keys are used on a domain they are not registered for. Without this
+                      the panel would simply be blank. */}
+                  <ClerkFailed>
+                    <div className="flex min-h-[340px] flex-col items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white p-6 text-center dark:border-[#144b77] dark:bg-[#04263F]">
+                      <p role="alert" className="text-sm font-black text-slate-900 dark:text-white">
+                        Sign-in could not start
+                      </p>
+                      <p className="max-w-xs text-xs text-slate-600 dark:text-slate-300">
+                        The sign-in service rejected this page. Check your connection and try again.
+                      </p>
+                      {import.meta.env.DEV && (
+                        <p className="max-w-xs rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">
+                          Local previews need the development Clerk keys (CLERK_DEV_PUBLISHABLE_KEY and
+                          CLERK_DEV_SECRET_KEY); the live keys only work on abumarketplace.shop.
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => window.location.reload()}
+                        className="mt-1 rounded-lg border border-slate-300 px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-100 dark:border-white/20 dark:text-slate-200 dark:hover:bg-white/10"
+                      >
+                        Try again
+                      </button>
+                    </div>
+                  </ClerkFailed>
                   {/* The card is a white surface in both themes, so the form is pinned
                       to a light colour scheme; otherwise Clerk follows the page's dark
                       scheme and paints white labels and inputs onto the white card. */}
-                  <div className="abu-auth-form" style={{ colorScheme: 'light' }}>
-                    <div className="auth-form-enter">
-                      {mode === 'signup'
-                        ? <SignUp key="signup" routing="hash" appearance={clerkAppearance} fallbackRedirectUrl={redirectUrl} />
-                        : <SignIn key="signin" routing="hash" appearance={clerkAppearance} fallbackRedirectUrl={redirectUrl} />}
+                  <ClerkLoaded>
+                    <div className="abu-auth-form" style={{ colorScheme: 'light' }}>
+                      <div className="auth-form-enter">
+                        {mode === 'signup'
+                          ? <SignUp key="signup" routing="hash" appearance={clerkAppearance} fallbackRedirectUrl={redirectUrl} />
+                          : <SignIn key="signin" routing="hash" appearance={clerkAppearance} fallbackRedirectUrl={redirectUrl} />}
+                      </div>
                     </div>
-                  </div>
+                  </ClerkLoaded>
                 </div>
                 <p className="mx-auto mt-4 w-fit rounded-lg bg-white/85 px-2 py-1 text-center text-[11px] text-slate-600 dark:bg-[#07243B]/90 dark:text-slate-200">
                   By continuing, you agree to our{' '}
