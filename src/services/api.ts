@@ -31,7 +31,9 @@ async function authFetch(path: string, init: RequestInit = {}): Promise<Response
   } catch {
     freshToken = null;
   }
-  if (!freshToken) return res;
+  if (!freshToken) {
+    // If we can't get a fresh token, return the original response    // but let the caller handle it rather than surfacing sign-in immediately.    // The caller (e.g., getCurrentUser) can check res.ok and provide a better UX.    return res;
+  }
   return fetch(path, { ...init, headers: { ...headers, Authorization: `Bearer ${freshToken}` } });
 }
 
