@@ -230,11 +230,11 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             ) : (
 
-              <div className="flex items-center gap-1.5 sm:flex">
+              <div className="hidden items-center gap-1.5 sm:flex">
                 <button
                   type="button"
                   onClick={() => onOpenAuth?.('signin')}
-                  className="flex h-9 shrink-0 items-center justify-center rounded-full bg-white px-3 text-[#002541] shadow-xs transition-all hover:bg-[#F4F6F8]"
+                  className="flex h-9 shrink-0 items-center justify-center rounded-full border border-[#8df7c1]/60 bg-transparent px-3.5 text-xs font-bold text-[#8df7c1] transition-colors hover:border-[#8df7c1] hover:bg-[#8df7c1]/10"
                   title="Sign In"
                   aria-label="Sign In"
                 >
@@ -243,7 +243,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenAuth?.('signup')}
-                  className="flex h-9 shrink-0 items-center justify-center rounded-full bg-[#0B3B60] px-3 text-white shadow-xs transition-all hover:bg-[#144b77]"
+                  className="flex h-9 shrink-0 items-center justify-center rounded-full bg-[#00875A] px-3.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-[#00704A]"
                   title="Create Account"
                   aria-label="Create Account"
                 >
@@ -304,6 +304,28 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Full-width auth actions on small screens, where the inline pair is hidden */}
+        {!currentUser && (
+          <div className="flex w-full items-center gap-2 pt-2 sm:hidden">
+            <button
+              type="button"
+              onClick={() => onOpenAuth?.('signin')}
+              className="flex h-10 flex-1 items-center justify-center rounded-full border border-[#8df7c1]/60 bg-transparent text-sm font-bold text-[#8df7c1] transition-colors hover:border-[#8df7c1] hover:bg-[#8df7c1]/10"
+              aria-label="Sign In"
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenAuth?.('signup')}
+              className="flex h-10 flex-1 items-center justify-center rounded-full bg-[#00875A] text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#00704A]"
+              aria-label="Create Account"
+            >
+              Create Account
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );
