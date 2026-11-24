@@ -91,7 +91,9 @@ export const UploadDiagnosticsPanel: React.FC = () => {
       ? 'The API can verify sessions minted by the live Clerk instance.'
       : clerkMode === 'test'
         ? 'The API holds a test-instance secret. Sessions from the live site will be rejected.'
-        : 'No Clerk secret is set on the server, so every signed-in upload is refused.';
+        : clerkMode === 'invalid'
+          ? 'The Clerk secret on the server is a redacted placeholder (for example "sk_live_…"), so no signed-in request can be verified. Paste the real secret key from the Clerk dashboard.'
+          : 'No Clerk secret is set on the server, so every signed-in upload is refused.';
   const logoStore = health?.uploads?.storeLogo;
 
   return (

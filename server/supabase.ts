@@ -3,7 +3,7 @@ import 'dotenv/config';
 import { createClerkClient, verifyToken } from '@clerk/backend';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Request } from 'express';
-import { resolveClerkKeys } from './clerkKeys.ts';
+import { isRedactedClerkKey, resolveClerkKeys } from './clerkKeys.ts';
 
 export class SupabaseConfigurationError extends Error {
   readonly code = 'SUPABASE_NOT_CONFIGURED';
@@ -224,9 +224,11 @@ function acceptedParties(req: Request): string[] | undefined {
  * difference between "the merchant's session is bad" and "this deployment cannot check
  * any session" — which is otherwise invisible from the browser.
  */
-export function clerkKeyMode(): 'live' | 'test' | 'missing' {
+export function clerkKeyMode(): 'live' | 'test' | 'missing' | 'invalid' {
   const secretKey = resolveClerkKeys(process.env).secretKey;
   if (!secretKey) return 'missing';
+  // A redacted placeholder starts with `sk_live_`, so the prefix alone cannot be trusted.
+  if (isRedactedClerkKey(secretKey)) return 'invalid';
   return secretKey.startsWith('sk_live_') ? 'live' : 'test';
 }
 
@@ -302,8 +304,14 @@ export async function getSessionUser(
   }
   // Must match the instance the browser signed in against, or every token is rejected.
   const secretKey = resolveClerkKeys(process.env).secretKey;
-  if (!secretKey) {
-    console.error('[auth] CLERK_SECRET_KEY is not set, so signed-in requests cannot be verified.');
+  if (!secretKey || isRedactedClerkKey(secretKey)) {
+    // A placeholder such as `sk_live_…` fails every verification, so say so once, loudly,
+    // instead of reporting each merchant's perfectly good token as invalid.
+    console.error(
+      secretKey
+        ? '[auth] CLERK_SECRET_KEY is a redacted placeholder (e.g. "sk_live_…"), so no session can be verified. Paste the real secret from the Clerk dashboard.'
+        : '[auth] CLERK_SECRET_KEY is not set, so signed-in requests cannot be verified.',
+    );
     rejections.set(req, 'secret-missing');
     return null;
   }

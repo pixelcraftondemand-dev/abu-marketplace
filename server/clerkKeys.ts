@@ -26,6 +26,18 @@ const trimmed = (value: string | undefined): string | undefined => {
   return v ? v : undefined;
 };
 
+/**
+ * True when a value that starts like a Clerk key is really a redacted placeholder, such
+ * as `sk_live_…` copied out of the documentation. Such a value passes a prefix test but
+ * cannot verify a single token, which is how a deployment reported a healthy live key
+ * while refusing every signed-in request.
+ */
+export function isRedactedClerkKey(key: string | null | undefined): boolean {
+  if (!key) return false;
+  if ([...key].some((character) => character.charCodeAt(0) > 0x7f)) return true;
+  return key.includes('...');
+}
+
 export function resolveClerkKeys(env: Env = process.env, options: { mode?: string } = {}): ClerkKeys {
   const livePublishableKey =
     trimmed(env.VITE_CLERK_PUBLISHABLE_KEY) ?? trimmed(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) ?? '';
