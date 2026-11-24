@@ -26,9 +26,11 @@ import {
   isAdmin,
   listSubmissions,
   rejectSubmission,
-  SubmissionError,
+  warmApprovedCache,
   type SubmissionStatus,
 } from './server/storeSubmissions.ts';
+import { merchantApplicationsHandler } from './server/merchantApplications.ts';
+import { submissionErrorResponse } from './server/submissionErrors.ts';
 import { recentMail } from './server/mailer.ts';
 import { getStoreLogoExtension, MAX_STORE_LOGO_BYTES } from './server/storeLogo.ts';
 import {
@@ -65,21 +67,6 @@ function allowAdmin(actor: Awaited<ReturnType<typeof currentActor>>, res: Respon
     return false;
   }
   return true;
-}
-
-function submissionErrorResponse(res: Response, err: unknown) {
-  if (err instanceof SupabaseConfigurationError) {
-    return res.status(err.status).json({
-      success: false,
-      error: err.message,
-      code: err.code,
-    });
-  }
-  if (err instanceof SubmissionError) {
-    return res.status(err.status).json({ success: false, error: err.message, code: err.code });
-  }
-  console.error('[stores] unexpected submission error:', err);
-  return res.status(500).json({ success: false, error: 'Something went wrong. Please try again.' });
 }
 
 function supabaseUnavailable(res: Response) {
@@ -875,17 +862,14 @@ app.post('/api/stores/submissions', async (req: Request, res: Response) => {
 });
 
 // Merchant: the signed-in user's own applications, so the UI can show status.
-app.get('/api/stores/submissions/mine', requireSupabase, async (req: Request, res: Response) => {
-  try {
-    const actor = await currentActor(req);
-    if (!actor) return res.status(401).json(withAuthCode(req, { success: false, error: 'Please sign in' }));
-    const all = await listSubmissions();
-    const mine = all.filter((row) => row.owner_id === actor.id || row.owner_email === actor.email);
-    res.json({ success: true, count: mine.length, data: mine });
-  } catch (err) {
-    submissionErrorResponse(res, err);
-  }
-});
+app.get(
+  '/api/stores/submissions/mine',
+  ...merchantApplicationsHandler({
+    actorFor: currentActor,
+    listSubmissions: () => listSubmissions(),
+    requireSupabase,
+  }),
+);
 
 // Admin: the review queue.
 app.get('/api/admin/store-submissions', async (req: Request, res: Response) => {
@@ -1239,6 +1223,14 @@ What would you like assistance with today?`;
 // Production Static Serving or Dev Mode
 // ----------------------------------------------------
 async function startServer() {
+  // Pay the first Supabase round-trip before accepting traffic, so the catalog's first
+  // request is not a multi-second wait. A slow or unreachable database must not delay
+  // boot indefinitely, so the wait is capped.
+  await Promise.race([
+    warmApprovedCache(),
+    new Promise<void>((resolve) => setTimeout(resolve, 8000)),
+  ]);
+
   if (process.env.NODE_ENV === 'production') {
     // Vite emits content-hashed filenames under /assets, so those files can be cached
     // permanently — a new build produces new names. index.html and other unhashed

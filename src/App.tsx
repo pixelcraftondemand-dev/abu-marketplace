@@ -59,6 +59,7 @@ import { LegalModal } from './components/LegalModal';
 import { MobileBottomBar } from './components/MobileBottomBar';
 import { AdminCMSModal } from './components/AdminCMSModal';
 import { AdminStoreApprovals } from './components/AdminStoreApprovals';
+import { AuthHealthBanner } from './components/AuthHealthBanner';
 import { getInitialTheme, applyTheme, ThemeMode } from './lib/theme';
 
 import { 
@@ -756,6 +757,10 @@ export default function App() {
         onOpenCMS={isAdmin ? handleOpenCMS : undefined}
         isAdmin={isAdmin}
       />
+
+      {/* Admins need to know when the API cannot verify sessions; the banner also uses
+          Clerk public metadata so the warning survives a failed profile load. */}
+      <AuthHealthBanner isAdmin={isAdmin || user?.publicMetadata?.role === 'admin'} />
 
       {/* Primary Semantic H1 for SEO Ranking (#1 for ABU, abu, Marketplace) */}
       <h1 className="sr-only">ABU Marketplace (abu) — Sierra Leone&apos;s #1 Online Marketplace</h1>

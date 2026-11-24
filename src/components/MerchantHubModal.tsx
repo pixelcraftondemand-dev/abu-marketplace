@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { 
   X, 
   Store, 
@@ -31,7 +31,8 @@ import {
   FileSpreadsheet,
   Award,
   AlertCircle,
-  Clock
+  Clock,
+  ClipboardList
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -46,7 +47,7 @@ import {
 } from 'recharts';
 import { Category, Product, VendorStore, BlueCollarService, TradeCategory, ItemCondition, UserProfile } from '../types';
 import { detectCarrier, INITIAL_PRODUCTS, INITIAL_STORES } from '../data/mockData';
-import { api, ApiError } from '../services/api';
+import { api, ApiError, StoreSubmission } from '../services/api';
 import { AbuLogo } from './AbuLogo';
 import { recordStoreLogoOutcome } from '../lib/uploadDiagnostics';
 import {
@@ -179,6 +180,46 @@ const CustomProductTooltip: React.FC<any> = ({ active, payload }) => {
   return null;
 };
 
+/** How each review state is labelled and coloured in the merchant's own list. */
+const APPLICATION_STATUS_META: Record<
+  StoreSubmission['status'],
+  { label: string; className: string; icon: React.ReactNode }
+> = {
+  pending: {
+    label: 'Pending review',
+    className: 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200',
+    icon: <Clock className="h-3 w-3" aria-hidden="true" />,
+  },
+  approved: {
+    label: 'Approved',
+    className: 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200',
+    icon: <Check className="h-3 w-3" aria-hidden="true" />,
+  },
+  rejected: {
+    label: 'Rejected',
+    className: 'border-rose-300 bg-rose-50 text-rose-900 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200',
+    icon: <AlertCircle className="h-3 w-3" aria-hidden="true" />,
+  },
+};
+
+const APPLICATION_KIND_META: Record<
+  StoreSubmission['kind'],
+  { label: string; icon: React.ReactNode }
+> = {
+  store: { label: 'Store', icon: <Store className="h-3.5 w-3.5" aria-hidden="true" /> },
+  product: { label: 'Product', icon: <Tag className="h-3.5 w-3.5" aria-hidden="true" /> },
+  service: { label: 'Service', icon: <Wrench className="h-3.5 w-3.5" aria-hidden="true" /> },
+};
+
+/** A short, local-time date for an application timeline entry. */
+const formatApplicationDate = (value: string | null): string => {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? ''
+    : date.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
 interface MerchantHubModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -198,12 +239,13 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   onClose,
   onAddStore,
   onOpenCMS,
+  onOpenAuth,
   currentUser,
   products = [],
   stores = [],
   initialTab,
 }) => {
-  const [activeTab, setActiveTab] = useState<'store' | 'single_product' | 'service' | 'analytics' | undefined>(initialTab || 'store');
+  const [activeTab, setActiveTab] = useState<'store' | 'single_product' | 'service' | 'applications' | 'analytics' | undefined>(initialTab || 'store');
   const [successMessage, setSuccessMessage] = useState('');
   const [storeError, setStoreError] = useState('');
   const [exportToast, setExportToast] = useState('');
@@ -215,6 +257,35 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       setActiveTab(initialTab);
     }
   }, [initialTab, isOpen]);
+
+  // Merchant's own applications: which of their submissions are awaiting a decision.
+  const [applications, setApplications] = useState<StoreSubmission[]>([]);
+  const [applicationsState, setApplicationsState] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [applicationsError, setApplicationsError] = useState('');
+
+  const loadApplications = useCallback(async () => {
+    if (!currentUser) {
+      setApplications([]);
+      setApplicationsState('idle');
+      return;
+    }
+    setApplicationsState('loading');
+    setApplicationsError('');
+    try {
+      setApplications(await api.getMyStoreApplications());
+      setApplicationsState('ready');
+    } catch (err) {
+      setApplicationsError(describeMerchantFailure(err, 'load your applications'));
+      setApplicationsState('error');
+    }
+  }, [currentUser?.id]);
+
+  // Loaded when the tab is opened rather than on mount, so the hub costs nothing extra
+  // for merchants who only came to create a listing.
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'applications') return;
+    void loadApplications();
+  }, [isOpen, activeTab, loadApplications]);
 
   // Analytics Dashboard State
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7d' | '30d' | '90d'>('7d');
@@ -696,7 +767,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                 ABU Merchant & Trade Hub
               </h2>
               <p className="text-[11px] text-[#8df7c1]">
-                Stores · Single Product Listings · Artisan Services
+                Stores · Listings · Artisan Services · Application Status
               </p>
             </div>
           </div>
@@ -726,7 +797,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
         </div>
 
         {/* 3-Track Selector Bar */}
-        <div className="grid grid-cols-3 bg-[#eaf5ff] dark:bg-[#152738] border-b border-[#DCE1E5] dark:border-[#1E2E3D] p-1.5 gap-1.5 text-xs shrink-0">
+        <div className="grid grid-cols-2 sm:grid-cols-4 bg-[#eaf5ff] dark:bg-[#152738] border-b border-[#DCE1E5] dark:border-[#1E2E3D] p-1.5 gap-1.5 text-xs shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -775,6 +846,23 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
           >
             <Wrench className="w-4 h-4 shrink-0" />
             <span className="block max-w-full whitespace-normal text-center text-[10px] leading-tight sm:text-xs">Offer Service</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('applications');
+              setSuccessMessage('');
+              setStoreError('');
+            }}
+            className={`min-h-12 px-1 py-1 sm:px-1.5 rounded font-bold flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer ${
+              activeTab === 'applications'
+                ? 'bg-[#0B3B60] dark:bg-[#00875A] text-white shadow-xs'
+                : 'bg-white dark:bg-[#0E1720] text-[#1A242D] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+            }`}
+          >
+            <ClipboardList className="w-4 h-4 shrink-0" />
+            <span className="block max-w-full whitespace-normal text-center text-[10px] leading-tight sm:text-xs">My Applications</span>
           </button>
 
         </div>
@@ -1264,7 +1352,162 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
             </form>
           )}
 
-          {/* TRACK 4: STORE OWNER ANALYTICS DASHBOARD */}
+          {/* TRACK 4: THE MERCHANT'S OWN APPLICATIONS AND THEIR REVIEW STATUS */}
+          {activeTab === 'applications' && (
+            <div className="space-y-3.5 text-xs">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h3 className="flex items-center gap-1.5 text-sm font-bold text-[#0B3B60] dark:text-[#8df7c1]">
+                    <ClipboardList className="h-4 w-4" aria-hidden="true" />
+                    My Applications
+                  </h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-[#334155] dark:text-slate-400">
+                    Everything you have submitted for review, with the decision and any reason an admin gave.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void loadApplications()}
+                  disabled={applicationsState === 'loading'}
+                  className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded border border-[#DCE1E5] bg-white px-2.5 text-[11px] font-bold text-[#0B3B60] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#1E2E3D] dark:bg-[#0E1720] dark:text-[#8df7c1] dark:hover:bg-[#152738]"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${applicationsState === 'loading' ? 'animate-spin' : ''}`} aria-hidden="true" />
+                  {applicationsState === 'loading' ? 'Refreshing…' : 'Refresh'}
+                </button>
+              </div>
+
+              {!currentUser ? (
+                <div className="rounded border border-[#DCE1E5] bg-[#f5faff] p-4 text-center dark:border-[#1E2E3D] dark:bg-[#0E1720]">
+                  <ClipboardList className="mx-auto h-6 w-6 text-[#0B3B60] dark:text-[#8df7c1]" aria-hidden="true" />
+                  <p className="mt-2 text-[11px] font-semibold text-[#334155] dark:text-slate-300">
+                    Sign in to see the applications tied to your account.
+                  </p>
+                  {onOpenAuth && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onOpenAuth();
+                      }}
+                      className="mt-2 h-8 rounded bg-[#0B3B60] px-3 text-[11px] font-bold text-white hover:bg-[#002541]"
+                    >
+                      Sign in
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {applicationsState === 'error' && (
+                    <div role="alert" className="flex items-start gap-2 rounded border border-rose-300 bg-rose-50 p-2.5 text-[11px] font-semibold text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span className="min-w-0 flex-1">{applicationsError}</span>
+                      <button type="button" onClick={() => void loadApplications()} className="shrink-0 underline underline-offset-2">
+                        Try again
+                      </button>
+                    </div>
+                  )}
+
+                  {applicationsState === 'loading' && applications.length === 0 && (
+                    <div className="flex items-center justify-center gap-2 rounded border border-[#DCE1E5] bg-white p-6 text-[11px] font-semibold text-slate-600 dark:border-[#1E2E3D] dark:bg-[#0E1720] dark:text-slate-300">
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      Loading your applications…
+                    </div>
+                  )}
+
+                  {applicationsState !== 'loading' && applicationsState !== 'error' && applications.length === 0 && (
+                    <div className="rounded border border-dashed border-[#DCE1E5] bg-white p-5 text-center dark:border-[#1E2E3D] dark:bg-[#0E1720]">
+                      <ClipboardList className="mx-auto h-7 w-7 text-slate-400" aria-hidden="true" />
+                      <p className="mt-2 text-[11px] font-bold text-[#1A242D] dark:text-white">No applications yet</p>
+                      <p className="mt-0.5 text-[11px] text-slate-600 dark:text-slate-400">
+                        Submit a store, product, or service and its review status will appear here.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('store')}
+                        className="mt-3 h-8 rounded bg-[#0B3B60] px-3 text-[11px] font-bold text-white hover:bg-[#002541]"
+                      >
+                        Create a store application
+                      </button>
+                    </div>
+                  )}
+
+                  {applications.length > 0 && (
+                    <>
+                      <div className="flex flex-wrap gap-1.5 text-[10px] font-bold">
+                        {(['pending', 'approved', 'rejected'] as const).map((status) => {
+                          const count = applications.filter((app) => app.status === status).length;
+                          if (!count) return null;
+                          const meta = APPLICATION_STATUS_META[status];
+                          return (
+                            <span key={status} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${meta.className}`}>
+                              {meta.icon}
+                              {count} {meta.label.toLowerCase()}
+                            </span>
+                          );
+                        })}
+                      </div>
+
+                      <ul className="space-y-2">
+                        {applications.map((app) => {
+                          const status = APPLICATION_STATUS_META[app.status];
+                          const kind = APPLICATION_KIND_META[app.kind];
+                          return (
+                            <li key={app.id} className="rounded border border-[#DCE1E5] bg-white p-3 dark:border-[#1E2E3D] dark:bg-[#0E1720]">
+                              <div className="flex items-start gap-2.5">
+                                <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#eaf5ff] text-[#0B3B60] dark:bg-[#152738] dark:text-[#8df7c1]">
+                                  {kind.icon}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <p className="min-w-0 break-words text-xs font-extrabold text-[#1A242D] dark:text-white">
+                                      {app.name}
+                                    </p>
+                                    <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${status.className}`}>
+                                      {status.icon}
+                                      {status.label}
+                                    </span>
+                                  </div>
+                                  <p className="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
+                                    {kind.label} · Submitted {formatApplicationDate(app.created_at)}
+                                    {app.reviewed_at ? ` · Reviewed ${formatApplicationDate(app.reviewed_at)}` : ''}
+                                  </p>
+
+                                  {app.status === 'pending' && (
+                                    <p className="mt-1 text-[11px] leading-relaxed text-[#334155] dark:text-slate-300">
+                                      Waiting for an admin to review this application. You will get an email when a decision is made.
+                                    </p>
+                                  )}
+
+                                  {app.status === 'approved' && (
+                                    <p className="mt-1 text-[11px] leading-relaxed font-semibold text-emerald-700 dark:text-emerald-300">
+                                      Approved and live in the marketplace.
+                                      {app.review_note ? ` Admin note: ${app.review_note}` : ''}
+                                    </p>
+                                  )}
+
+                                  {app.status === 'rejected' && (
+                                    <div className="mt-1 rounded border border-rose-200 bg-rose-50 p-2 text-[11px] leading-relaxed text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200">
+                                      <p className="font-bold">Why it was rejected</p>
+                                      <p className="mt-0.5 break-words">{app.review_note || 'No reason was recorded.'}</p>
+                                      <p className="mt-1 text-[10px] opacity-80">
+                                        Fix the issue, then submit a new application from the relevant tab.
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {/* TRACK 5: STORE OWNER ANALYTICS DASHBOARD */}
           {activeTab === 'analytics' && (
             <div className="space-y-4 text-xs">
               {/* Export Toast Banner */}

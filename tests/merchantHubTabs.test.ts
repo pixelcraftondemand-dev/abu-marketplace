@@ -43,11 +43,11 @@ test('component accepts valid initialTab values: store, single_product, service'
 });
 
 test('tab selector renders correct tab configuration', () => {
-  // Verify the component renders with the correct tab configuration
-  // After removing My Products, the selector should have 3 buttons:
+  // The selector has the three submission tracks plus the merchant's application list:
   // - Create Store
   // - List Product
   // - Offer Service
+  // - My Applications
   // (no My Products button)
 
   assert.ok(MerchantHubModal !== undefined);

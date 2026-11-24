@@ -60,6 +60,26 @@ type TokenVerifier = typeof verifyToken;
 type ProfileLoader = (clerkId: string, secretKey: string) => Promise<SessionUser>;
 
 /**
+ * Roles that grant privileged access. They can be set in Clerk's public metadata or in
+ * the marketplace profile, and neither source may downgrade the other: the profile row
+ * defaults to `buyer`, so reading it alone silently removed admin access from an account
+ * that had been granted `admin` in the Clerk dashboard.
+ */
+const PRIVILEGED_ROLES = ['admin', 'logistics_agent'];
+
+/** Picks the effective role from the two places it can be granted. */
+export function resolveSessionRole(
+  metadataRole: unknown,
+  profileRole: unknown,
+): string {
+  const metadata = typeof metadataRole === 'string' ? metadataRole.trim() : '';
+  const profile = typeof profileRole === 'string' ? profileRole.trim() : '';
+  if (PRIVILEGED_ROLES.includes(metadata)) return metadata;
+  if (PRIVILEGED_ROLES.includes(profile)) return profile;
+  return profile || metadata || 'buyer';
+}
+
+/**
  * Loads the Clerk account and the matching marketplace profile for a verified session.
  *
  * The Clerk identity is what makes the visitor signed in; the profile row only stores
@@ -76,6 +96,8 @@ async function loadClerkProfile(clerkId: string, secretKey: string): Promise<Ses
   const email = primaryEmail?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress ?? null;
   const name = clerkUser.fullName || email?.split('@')[0] || 'Verified Customer';
 
+  const metadataRole = (clerkUser.publicMetadata as Record<string, unknown> | undefined)?.role;
+
   // What the session looks like when no profile row can be used.
   const identity: SessionUser = {
     id: clerkId,
@@ -83,7 +105,7 @@ async function loadClerkProfile(clerkId: string, secretKey: string): Promise<Ses
     name,
     image: clerkUser.imageUrl,
     phoneNumber: clerkUser.phoneNumbers[0]?.phoneNumber ?? null,
-    role: ((clerkUser as any)?.publicMetadata?.role ?? 'buyer'),
+    role: resolveSessionRole(metadataRole, null),
     preferredCity: null,
     provider: 'clerk',
     createdAt: new Date(clerkUser.createdAt).toISOString(),
@@ -136,7 +158,8 @@ async function loadClerkProfile(clerkId: string, secretKey: string): Promise<Ses
     name: profile.name || name,
     image: profile.image || clerkUser.imageUrl,
     phoneNumber: profile.phone ?? identity.phoneNumber,
-    role: profile.role || 'buyer',
+    // The Clerk dashboard grant must survive the profile row created on first load.
+    role: resolveSessionRole(metadataRole, profile.role),
     preferredCity: profile.preferred_city ?? null,
     createdAt: profile.created_at || identity.createdAt,
   };

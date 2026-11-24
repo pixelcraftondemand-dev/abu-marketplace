@@ -233,11 +233,18 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                       <p className="max-w-xs text-xs text-slate-600 dark:text-slate-300">
                         The sign-in service rejected this page. Check your connection and try again.
                       </p>
-                      {import.meta.env.DEV && (
-                        <p className="max-w-xs rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">
-                          Local previews need the development Clerk keys (CLERK_DEV_PUBLISHABLE_KEY and
-                          CLERK_DEV_SECRET_KEY); the live keys only work on abumarketplace.shop.
-                        </p>
+                      <p className="max-w-xs rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">
+                        Live Clerk keys only work on the production domain. For local development, copy the
+                        development instance keys from the Clerk dashboard into CLERK_DEV_PUBLISHABLE_KEY and
+                        CLERK_DEV_SECRET_KEY.
+                      </p>
+                      {typeof window !== 'undefined' && window.location.hostname === 'localhost' && (
+                        <a
+                          href="https://www.abumarketplace.shop/login"
+                          className="max-w-xs text-[11px] font-bold text-emerald-800 underline dark:text-[#8df7c1]"
+                        >
+                          Sign in on the live site instead
+                        </a>
                       )}
                       <button
                         type="button"

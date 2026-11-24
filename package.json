@@ -10,6 +10,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
+    "doctor": "node scripts/doctor.mjs",
+    "doctor:serve": "node scripts/doctor.mjs --serve",
     "test:store-logo": "tsx --test tests/storeLogo.test.ts",
     "test:logo-image": "tsx --test tests/logoImage.test.ts",
     "test:session-user": "tsx --test tests/sessionUser.test.ts",
@@ -17,6 +19,9 @@
     "test:store-form-errors": "tsx --test tests/storeFormErrors.test.ts",
     "test:auth-retry": "tsx --test tests/apiAuthRetry.test.ts",
     "test:auth-rejection-codes": "tsx --test tests/authRejectionCodes.test.ts",
+    "test:admin-access": "tsx --test tests/adminAccess.test.ts",
+    "test:store-lifecycle": "tsx --test tests/storeLifecycle.test.ts",
+    "test:merchant-applications-http": "tsx --test tests/merchantApplicationsHttp.test.ts",
     "sync:github": "git fetch origin main && git merge origin/main --no-edit"
   },
   "dependencies": {

@@ -137,6 +137,16 @@ const clerkOrigin = (() => {
 const CLERK_PROTECT_ORIGIN = 'https://*.protect.clerk.com';
 const CLOUDFLARE_TURNSTILE_ORIGIN = 'https://challenges.cloudflare.com';
 
+/**
+ * Vite's dev client opens its HMR socket straight from the page. In development that
+ * socket is not covered by 'self' (it may use ws:// or a different port), so without
+ * these entries the browser blocks it and hot reload silently stops working.
+ * Production builds never load the dev client, so the extra origins stay out of it.
+ */
+const devConnectOrigins = process.env.NODE_ENV === 'production'
+  ? ''
+  : ' http://localhost:* ws://localhost:* wss://localhost:* http://127.0.0.1:* ws://127.0.0.1:* wss://127.0.0.1:*';
+
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
   // Vite injects inline bootstraps; Clerk, fonts, and Google endpoints are documented needs.
@@ -146,7 +156,7 @@ const CONTENT_SECURITY_POLICY = [
   "img-src 'self' data: blob: https://api.dicebear.com https:",
   "worker-src 'self' blob:",
   // protect.clerk.com is served on non-443 ports, so the trailing ':*' is required.
-  `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.googleapis.com https://fonts.googleapis.com https://api.dicebear.com https://api.abumarketplace.shop wss://*.loca.lt https://*.run.app ${CLERK_PROTECT_ORIGIN}:* ${CLOUDFLARE_TURNSTILE_ORIGIN}${clerkOrigin}`,
+  `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.googleapis.com https://fonts.googleapis.com https://api.dicebear.com https://api.abumarketplace.shop wss://*.loca.lt https://*.run.app ${CLERK_PROTECT_ORIGIN}:* ${CLOUDFLARE_TURNSTILE_ORIGIN}${clerkOrigin}${devConnectOrigins}`,
   `frame-src 'self' https://accounts.google.com ${CLERK_PROTECT_ORIGIN} ${CLOUDFLARE_TURNSTILE_ORIGIN}${clerkOrigin}`,
   `form-action 'self'${clerkOrigin}`,
   "frame-ancestors 'self'",
