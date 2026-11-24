@@ -170,8 +170,12 @@ export async function createListingSubmission(
  */
 export async function createSubmission(
   input: SubmissionInput,
-  owner: Actor,
+  owner: Actor | null,
 ): Promise<{ submission: SubmissionRow; mail: MailResult }> {
+  // The queue belongs to an account, so a submission without one can never be reviewed.
+  if (!owner?.id) {
+    throw new SubmissionError('Please sign in to apply for a store', 401, 'UNAUTHENTICATED');
+  }
   const name = clean(input.name, 120);
   const phone = clean(input.phone, 40);
 

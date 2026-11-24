@@ -37,6 +37,8 @@ test('a refused submission never asks an already signed-in merchant to sign in',
   const refused = `The marketplace could not verify this request, so we could not ${action}. Refresh the page and try again.`;
 
   assert.equal(describeMerchantFailure(new ApiError('Please sign in to apply for a store', 401), action), refused);
+  // A missing token is thrown before any request is sent, so it has no status at all.
+  assert.equal(describeMerchantFailure(new Error('Please sign in to continue'), action), refused);
   // A server message that happens to mention sign-in must not leak through either.
   const leaked = describeMerchantFailure(new ApiError('Please sign in to continue', 400), action);
   assert.doesNotMatch(leaked, /sign in/i);

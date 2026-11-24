@@ -9,8 +9,14 @@ export function setClerkTokenProvider(provider: ((options?: ClerkTokenOptions) =
 }
 
 async function authHeaders(required = false, options?: ClerkTokenOptions): Promise<Record<string, string>> {
-  const token = await clerkTokenProvider?.(options);
-  if (required && !token) throw new Error('Please sign in to continue');
+  let token = await clerkTokenProvider?.(options);
+  // A session that is still being established hands back no token at all. Asking once more,
+  // bypassing the cache, lets the submission go through instead of failing unauthenticated.
+  if (!token && required && !options?.skipCache) {
+    token = (await clerkTokenProvider?.({ skipCache: true })) ?? null;
+  }
+  // Carries the 401 so callers report a session problem instead of an outage.
+  if (required && !token) throw new ApiError('Please sign in to continue', 401);
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

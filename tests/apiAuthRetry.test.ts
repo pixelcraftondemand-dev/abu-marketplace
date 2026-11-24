@@ -160,6 +160,29 @@ test('a second dropped transfer surfaces as an upload error, not a sign-in promp
   assert.equal(fetchCalls, 2);
 });
 
+test('asks for a fresh token instead of failing when the session hands back none', async () => {
+  let tokenRequests = 0;
+  const authorizations: (string | null)[] = [];
+
+  setClerkTokenProvider(async () => {
+    tokenRequests += 1;
+    return tokenRequests === 1 ? null : 'fresh-token';
+  });
+
+  await withFetch(
+    async (_url, init) => {
+      authorizations.push(new Headers(init?.headers).get('authorization'));
+      return json({ success: true, data: [] }, 200);
+    },
+    async () => {
+      assert.deepEqual(await api.getMyStoreApplications(), []);
+    },
+  );
+
+  assert.equal(tokenRequests, 2);
+  assert.deepEqual(authorizations, ['Bearer fresh-token']);
+});
+
 test('does not loop when the refreshed token is also rejected', async () => {
   let fetchCalls = 0;
 

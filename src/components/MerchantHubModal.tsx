@@ -94,11 +94,13 @@ export const describeLogoUploadFailure = (error: unknown): string => {
 export const describeMerchantFailure = (error: unknown, action: string): string => {
   const status = error instanceof ApiError ? error.status : null;
   const message = error instanceof Error ? error.message : '';
+  // A missing token is raised before any request is sent, so it has no status. Checking the
+  // session first keeps that case from being reported as a marketplace outage.
+  if (status === 401 || /sign in|token/i.test(message)) {
+    return `The marketplace could not verify this request, so we could not ${action}. Refresh the page and try again.`;
+  }
   if (status === null || status >= 500) {
     return `The marketplace is temporarily unavailable, so we could not ${action}. Please try again in a moment.`;
-  }
-  if (status === 401 || /sign in/i.test(message)) {
-    return `The marketplace could not verify this request, so we could not ${action}. Refresh the page and try again.`;
   }
   return message || `Could not ${action}.`;
 };

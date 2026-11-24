@@ -854,10 +854,15 @@ app.post(
 // Merchant: submit a store for review. Nothing goes live until an admin approves.
 app.post('/api/stores/submissions', async (req: Request, res: Response) => {
   try {
-    // User is already signed in (create-store button is login-gated)
-    // Proceed directly to submission without auth check
     if (!rateLimit(req, res, 'submissions', 8, 10 * 60 * 1000)) return;
-    const { submission, mail } = await createSubmission(req.body || {}, (await currentActor(req))!);
+    // The submission is stored against this account, so an unverifiable session has to be
+    // refused here. Without the check the row had no owner and the insert threw, which the
+    // form reported as a marketplace outage instead of a sign-in problem.
+    const actor = await currentActor(req);
+    if (!actor) {
+      return res.status(401).json(withAuthCode(req, { success: false, error: 'Please sign in to apply for a store' }));
+    }
+    const { submission, mail } = await createSubmission(req.body || {}, actor);
     res.status(201).json({
       success: true,
       message: 'Application received. Our team will review it and email you a decision.',
