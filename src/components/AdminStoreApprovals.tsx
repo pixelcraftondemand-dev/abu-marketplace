@@ -20,6 +20,8 @@ export interface AdminStoreApprovalsProps {
   isOpen: boolean;
   onClose: () => void;
   onShowToast?: (message: string) => void;
+  /** Fires after a decision lands, so the catalog can pick up a newly approved store. */
+  onReviewed?: () => void;
 }
 
 type Filter = ReviewStatus | 'all';
@@ -42,16 +44,25 @@ const STATUS_STYLES: Record<ReviewStatus, { label: string; className: string; ic
   },
 };
 
-export const AdminStoreApprovals: React.FC<AdminStoreApprovalsProps> = ({ isOpen, onClose, onShowToast }) => {
+export const AdminStoreApprovals: React.FC<AdminStoreApprovalsProps> = ({ isOpen, onClose, onShowToast, onReviewed }) => {
   const [submissions, setSubmissions] = useState<StoreSubmission[]>([]);
   const [filter, setFilter] = useState<Filter>('pending');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [approveNote, setApproveNote] = useState('');
+  const [notingId, setNotingId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState('');
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectError, setRejectError] = useState('');
   const [notice, setNotice] = useState<{ kind: 'ok' | 'warn'; text: string } | null>(null);
+  const [preview, setPreview] = useState<{
+    loading: boolean;
+    error: string;
+    data: { subject: string; html: string; text: string } | null;
+  }>({ loading: false, error: '', data: null });
 
   const load = async (nextFilter: Filter = filter) => {
     setIsLoading(true);
@@ -69,9 +80,48 @@ export const AdminStoreApprovals: React.FC<AdminStoreApprovalsProps> = ({ isOpen
   useEffect(() => {
     if (isOpen) {
       void load(filter);
+      // A fresh queue starts with no decision panel left open from a previous visit.
+      setApprovingId(null);
+      setApproveNote('');
+      setNotingId(null);
+      setNoteDraft('');
+      setRejectingId(null);
+      setRejectReason('');
+      setRejectError('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, filter]);
+
+  // The approval panel shows the exact email that will be sent. It rebuilds (debounced)
+  // while the note is edited, so what the admin reviews is what the merchant receives.
+  useEffect(() => {
+    if (!isOpen || !approvingId) {
+      setPreview({ loading: false, error: '', data: null });
+      return;
+    }
+    let cancelled = false;
+    setPreview((current) => ({ ...current, loading: true, error: '' }));
+    const timer = setTimeout(() => {
+      void api
+        .previewApprovalEmail(approvingId, approveNote.trim())
+        .then((data) => {
+          if (!cancelled) setPreview({ loading: false, error: '', data });
+        })
+        .catch((err: any) => {
+          if (!cancelled) {
+            setPreview({
+              loading: false,
+              error: err?.message || 'Could not build the email preview.',
+              data: null,
+            });
+          }
+        });
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isOpen, approvingId, approveNote]);
 
   const counts = useMemo(() => {
     return {
@@ -102,7 +152,8 @@ export const AdminStoreApprovals: React.FC<AdminStoreApprovalsProps> = ({ isOpen
     setBusyId(submission.id);
     setError('');
     try {
-      const { emailStatus } = await api.approveStoreSubmission(submission.id);
+      const note = approveNote.trim();
+      const { emailStatus } = await api.approveStoreSubmission(submission.id, note || undefined);
       setNotice({
         kind: emailStatus === 'failed' ? 'warn' : 'ok',
         text:
@@ -111,9 +162,35 @@ export const AdminStoreApprovals: React.FC<AdminStoreApprovalsProps> = ({ isOpen
             : `"${submission.name}" is now live and the merchant has been emailed.`,
       });
       onShowToast?.(`Store approved: ${submission.name}`);
+      setApprovingId(null);
+      setApproveNote('');
       await load();
+      onReviewed?.();
     } catch (err: any) {
       setError(err?.message || 'Could not approve this application');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleSaveNote = async (submission: StoreSubmission) => {
+    setBusyId(submission.id);
+    setError('');
+    setNotice(null);
+    try {
+      const updated = await api.updateStoreSubmissionNote(submission.id, noteDraft.trim());
+      setNotice({
+        kind: 'ok',
+        text: updated.review_note
+          ? `Approval note updated for "${submission.name}". The merchant sees it on their approved store.`
+          : `Approval note removed from "${submission.name}".`,
+      });
+      onShowToast?.(updated.review_note ? 'Approval note updated' : 'Approval note removed');
+      setNotingId(null);
+      setNoteDraft('');
+      await load();
+    } catch (err: any) {
+      setError(err?.message || 'Could not save the approval note');
     } finally {
       setBusyId(null);
     }
@@ -138,7 +215,9 @@ export const AdminStoreApprovals: React.FC<AdminStoreApprovalsProps> = ({ isOpen
       onShowToast?.(`Store rejected: ${submission.name}`);
       setRejectingId(null);
       setRejectReason('');
+      setApprovingId(null);
       await load();
+      onReviewed?.();
     } catch (err: any) {
       setError(err?.message || 'Could not reject this application');
     } finally {
@@ -330,9 +409,170 @@ export const AdminStoreApprovals: React.FC<AdminStoreApprovalsProps> = ({ isOpen
                   </p>
                 )}
 
+                {/* Approved stores keep their note editable; the decision itself does not move. */}
+                {submission.status === 'approved' && submission.kind === 'store' && (
+                  <div className="mt-2">
+                    {notingId === submission.id ? (
+                      <div className="space-y-2 rounded-lg border border-slate-200 dark:border-[#1E2E3D] bg-slate-50/60 dark:bg-[#15222E] p-2.5">
+                        <label
+                          htmlFor={`store-note-${submission.id}`}
+                          className="block text-[11px] font-bold text-slate-700 dark:text-slate-200"
+                        >
+                          Approval note{' '}
+                          <span className="font-normal text-slate-500 dark:text-slate-400">
+                            (shown to the merchant; the approval stays as it is)
+                          </span>
+                        </label>
+                        <textarea
+                          id={`store-note-${submission.id}`}
+                          value={noteDraft}
+                          onChange={(e) => setNoteDraft(e.target.value)}
+                          rows={2}
+                          maxLength={1000}
+                          placeholder="Leave empty to remove the note."
+                          className="w-full p-2 rounded-lg border border-slate-300 dark:border-[#1E4366] bg-white dark:bg-[#041424] text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#00875A]"
+                        />
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => void handleSaveNote(submission)}
+                            className="h-8 px-3 rounded-lg bg-[#00875A] hover:bg-[#00704A] disabled:opacity-50 text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
+                          >
+                            {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                            Save note
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => {
+                              setNotingId(null);
+                              setNoteDraft('');
+                            }}
+                            className="h-8 px-3 rounded-lg border border-slate-300 dark:border-[#1E2E3D] text-[11px] font-bold text-slate-600 dark:text-slate-300 cursor-pointer disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                          {submission.review_note && (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => setNoteDraft('')}
+                              className="h-8 px-2 rounded-lg text-[11px] font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer disabled:opacity-50"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={isBusy}
+                        onClick={() => {
+                          setNotingId(submission.id);
+                          setNoteDraft(submission.review_note || '');
+                          setError('');
+                        }}
+                        className="h-8 px-3 rounded-lg border border-slate-300 dark:border-[#1E2E3D] text-[11px] font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#15222E] cursor-pointer disabled:opacity-50"
+                      >
+                        {submission.review_note ? 'Edit approval note' : 'Add approval note'}
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {submission.status === 'pending' && (
                   <div className="mt-3">
-                    {rejectingId === submission.id ? (
+                    {approvingId === submission.id ? (
+                      <div className="space-y-2">
+                        <label
+                          htmlFor={`approve-note-${submission.id}`}
+                          className="block text-[11px] font-bold text-slate-700 dark:text-slate-200"
+                        >
+                          Approval note{' '}
+                          <span className="font-normal text-slate-500 dark:text-slate-400">
+                            (optional — the merchant sees it on their approved store)
+                          </span>
+                        </label>
+                        <textarea
+                          id={`approve-note-${submission.id}`}
+                          value={approveNote}
+                          onChange={(e) => setApproveNote(e.target.value)}
+                          rows={2}
+                          maxLength={1000}
+                          placeholder="e.g. Welcome aboard — your logo and payout number were verified."
+                          className="w-full p-2 rounded-lg border border-slate-300 dark:border-[#1E4366] bg-white dark:bg-[#041424] text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#00875A]"
+                        />
+
+                        <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-[#1E2E3D]">
+                          <div className="flex items-center justify-between gap-2 bg-slate-50 px-2.5 py-1.5 dark:bg-[#15222E]">
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                              Email preview
+                            </span>
+                            <span className="min-w-0 truncate text-[10px] text-slate-500 dark:text-slate-400">
+                              To: {submission.owner_email}
+                            </span>
+                          </div>
+                          {preview.loading && !preview.data && (
+                            <div className="flex items-center gap-2 p-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                              Building preview…
+                            </div>
+                          )}
+                          {preview.error && (
+                            <p className="p-3 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                              {preview.error} You can still approve; the merchant will receive the standard email.
+                            </p>
+                          )}
+                          {preview.data && (
+                            <>
+                              <p className="border-t border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-800 dark:border-[#1E2E3D] dark:bg-[#041424] dark:text-slate-100">
+                                {preview.data.subject}
+                              </p>
+                              <iframe
+                                title={`Approval email preview for ${submission.name}`}
+                                srcDoc={preview.data.html}
+                                sandbox=""
+                                referrerPolicy="no-referrer"
+                                className="h-60 w-full border-t border-slate-200 bg-white dark:border-[#1E2E3D]"
+                              />
+                              <details className="border-t border-slate-200 px-2.5 py-1.5 dark:border-[#1E2E3D]">
+                                <summary className="cursor-pointer text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                                  Plain-text version
+                                </summary>
+                                <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words font-sans text-[10px] leading-relaxed text-slate-700 dark:text-slate-300">
+                                  {preview.data.text}
+                                </pre>
+                              </details>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => void handleApprove(submission)}
+                            className="h-8 px-3 rounded-lg bg-[#00875A] hover:bg-[#00704A] disabled:opacity-50 text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
+                          >
+                            {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                            Approve & publish
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => {
+                              setApprovingId(null);
+                              setApproveNote('');
+                            }}
+                            className="h-8 px-3 rounded-lg border border-slate-300 dark:border-[#1E2E3D] text-[11px] font-bold text-slate-600 dark:text-slate-300 cursor-pointer disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : rejectingId === submission.id ? (
                       <div className="space-y-2">
                         <textarea
                           value={rejectReason}
@@ -373,10 +613,14 @@ export const AdminStoreApprovals: React.FC<AdminStoreApprovalsProps> = ({ isOpen
                         <button
                           type="button"
                           disabled={isBusy}
-                          onClick={() => void handleApprove(submission)}
+                          onClick={() => {
+                            setApprovingId(submission.id);
+                            setApproveNote('');
+                            setRejectingId(null);
+                          }}
                           className="h-8 px-3 rounded-lg bg-[#00875A] hover:bg-[#00704A] disabled:opacity-50 text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
                         >
-                          {isBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+                          <CheckCircle2 className="w-3.5 h-3.5" />
                           Approve & publish
                         </button>
                         <button
@@ -386,6 +630,7 @@ export const AdminStoreApprovals: React.FC<AdminStoreApprovalsProps> = ({ isOpen
                             setRejectingId(submission.id);
                             setRejectReason('');
                             setRejectError('');
+                            setApprovingId(null);
                           }}
                           className="h-8 px-3 rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-50 disabled:opacity-50 text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
                         >

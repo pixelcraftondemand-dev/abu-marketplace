@@ -4,12 +4,13 @@ import {
   ShoppingCart, 
   Heart, 
   MapPin, 
-  Store, 
   ChevronDown, 
   X,
   User,
   Sliders,
-  ShieldCheck
+  ShieldCheck,
+  Loader2,
+  Inbox
 } from 'lucide-react';
 import { LocationNode, Category, UserProfile, ViewMode } from '../types';
 import { AbuLogo } from './AbuLogo';
@@ -38,6 +39,11 @@ interface HeaderProps {
   onToggleTheme?: () => void;
   onOpenCMS?: () => void;
   isAdmin?: boolean;
+  /** True while Clerk is still initialising, so the sign-up control can show its loading state. */
+  isAuthLoading?: boolean;
+  /** Unread application messages, shown on the inbox button. */
+  inboxUnreadCount?: number;
+  onOpenInbox?: () => void;
 }
 export const Header: React.FC<HeaderProps> = ({
   currentLocation,
@@ -58,6 +64,9 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTheme,
   onOpenCMS,
   isAdmin,
+  isAuthLoading = false,
+  inboxUnreadCount = 0,
+  onOpenInbox,
 }) => {
 
   // The catalog filters live as the visitor types, so the search button only has
@@ -197,6 +206,28 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
+            {/* Application inbox: decisions and receipts for this merchant's submissions. */}
+            {currentUser && onOpenInbox && (
+              <button
+                type="button"
+                onClick={onOpenInbox}
+                className="relative flex min-h-[36px] min-w-[36px] shrink-0 items-center justify-center rounded-full p-2 text-[#d0e4ff] transition-colors hover:bg-white/10 hover:text-white cursor-pointer"
+                title="Application inbox"
+                aria-label={
+                  inboxUnreadCount > 0
+                    ? `Application inbox, ${inboxUnreadCount} unread`
+                    : 'Application inbox'
+                }
+              >
+                <Inbox className="h-4 w-4" />
+                {inboxUnreadCount > 0 && (
+                  <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#D84315] px-1 text-[9px] font-extrabold leading-none text-white ring-2 ring-[#002541]">
+                    {inboxUnreadCount > 9 ? '9+' : inboxUnreadCount}
+                  </span>
+                )}
+              </button>
+            )}
+
             {/* 4. Sign In / User Account */}
             {currentUser ? (
               <div className="flex items-center gap-2 sm:gap-3">
@@ -219,14 +250,6 @@ export const Header: React.FC<HeaderProps> = ({
                     <span className="text-[9px] text-white/80 font-medium hidden sm:inline mt-0.5">Account</span>
                   </div>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onOpenMerchantHub('store')}
-                  className="flex h-9 shrink-0 items-center justify-center rounded-full bg-[#00875A] px-3 text-white text-xs font-bold shadow-sm transition-all hover:bg-[#006b4a]"
-                  title="Create Store"
-                >
-                  Create Store
-                </button>
               </div>
             ) : (
 
@@ -243,11 +266,13 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   type="button"
                   onClick={() => onOpenAuth?.('signup')}
-                  className="flex h-9 shrink-0 items-center justify-center rounded-full bg-[#00875A] px-3.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-[#00704A]"
-                  title="Create Account"
-                  aria-label="Create Account"
+                  aria-busy={isAuthLoading}
+                  className="flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full bg-[#00875A] px-3.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-[#00704A]"
+                  title="Sign Up for a free ABU account"
+                  aria-label="Sign Up"
                 >
-                  Create Account
+                  {isAuthLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />}
+                  Sign Up
                 </button>
               </div>
             )}
@@ -319,10 +344,12 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={() => onOpenAuth?.('signup')}
-              className="flex h-10 flex-1 items-center justify-center rounded-full bg-[#00875A] text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#00704A]"
-              aria-label="Create Account"
+              aria-busy={isAuthLoading}
+              className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#00875A] text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#00704A]"
+              aria-label="Sign Up"
             >
-              Create Account
+              {isAuthLoading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+              Sign Up
             </button>
           </div>
         )}

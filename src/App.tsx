@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useAuth, useUser } from '@clerk/react';
 import { 
   Header 
@@ -60,7 +60,13 @@ import { MobileBottomBar } from './components/MobileBottomBar';
 import { AdminCMSModal } from './components/AdminCMSModal';
 import { AdminStoreApprovals } from './components/AdminStoreApprovals';
 import { AuthHealthBanner } from './components/AuthHealthBanner';
+import { ApplicationInbox } from './components/ApplicationInbox';
 import { getInitialTheme, applyTheme, ThemeMode } from './lib/theme';
+import {
+  buildApplicationInbox,
+  readInboxReadIds,
+  saveInboxReadIds,
+} from './lib/applicationInbox';
 
 import { 
   Category,
@@ -80,7 +86,7 @@ import {
   INITIAL_STORES,
   INITIAL_SERVICES
 } from './data/mockData';
-import { api, setClerkTokenProvider } from './services/api';
+import { api, setClerkTokenProvider, type StoreSubmission } from './services/api';
 import { 
   PackageSearch,
   CheckCircle2,
@@ -113,6 +119,20 @@ const VIEW_PATHS: Record<string, string> = {
   stores: '/stores',
   property: '/property',
   credits: '/credits',
+};
+
+/** Public storefront links look like /stores/<slug>; /store/<slug> is accepted too. */
+const STORE_LINK_PATH = /^\/stores?\/([^/]+)\/?$/i;
+
+const storeSlugFromLocation = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const match = window.location.pathname.match(STORE_LINK_PATH);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
 };
 
 /** Both the canonical paths and the older aliases resolve to the same view. */
@@ -215,7 +235,7 @@ export default function App() {
     handleOpenAuth(mode === 'signup' ? 'register' : 'login');
   };
 
-  const handleOpenMerchantHub = (tab: 'store' | 'single_product' | 'service' = 'store') => {
+  const handleOpenMerchantHub = (tab: 'store' | 'single_product' | 'service' | 'applications' = 'store') => {
     // Remember the requested tab so the hub opens on it after a pending sign-in lands.
     setMerchantHubTab(tab);
     if (!activeUser) {
@@ -316,7 +336,135 @@ export default function App() {
     }
   });
 
+  // The review team's note that came with the approved store, surfaced in the seller bar.
+  const [userStoreNote, setUserStoreNote] = useState<string | null>(null);
+
+  // Every application this account has submitted, used for status and the inbox.
+  const [myApplications, setMyApplications] = useState<StoreSubmission[]>([]);
+  const [isInboxOpen, setIsInboxOpen] = useState(false);
+  const [inboxReadIds, setInboxReadIds] = useState<Record<string, true>>({});
+
+  useEffect(() => {
+    if (!activeUser) {
+      setInboxReadIds({});
+      return;
+    }
+    setInboxReadIds(readInboxReadIds(activeUser.id));
+  }, [activeUser?.id]);
+
+  const inboxMessages = useMemo(
+    () => buildApplicationInbox(myApplications, inboxReadIds),
+    [myApplications, inboxReadIds],
+  );
+  const inboxUnreadCount = useMemo(
+    () => inboxMessages.filter((message) => message.unread).length,
+    [inboxMessages],
+  );
+
+  /** Persists that this merchant has seen everything currently in the inbox. */
+  const markInboxRead = useCallback(() => {
+    if (!activeUser) return;
+    const next: Record<string, true> = { ...inboxReadIds };
+    for (const message of inboxMessages) next[message.id] = true;
+    setInboxReadIds(next);
+    saveInboxReadIds(activeUser.id, next);
+  }, [activeUser, inboxReadIds, inboxMessages]);
+
   const isShopApproved = Boolean(userStore || activeUser?.role === 'merchant');
+
+  /**
+   * Re-reads this account's applications so a store approved by an admin shows up as
+   * "My Store" without waiting for a full reload. A failed read keeps whatever approval
+   * state the page already had, so an outage never demotes a live store.
+   */
+  const refreshMyStore = useCallback(async () => {
+    if (!activeUser) return;
+    try {
+      const applications = await api.getMyStoreApplications();
+      setMyApplications(applications);
+      const approved = applications.find((row) => row.kind === 'store' && row.status === 'approved');
+      if (!approved) {
+        setUserStore(null);
+        setUserStoreNote(null);
+        try {
+          localStorage.removeItem('abu_user_shop');
+        } catch {
+          // Storage can be blocked; the in-memory state is still correct.
+        }
+        return;
+      }
+      const live = await api.getStores();
+      const store =
+        live.find((candidate) => candidate.slug === approved.slug) ||
+        live.find((candidate) => candidate.id === approved.created_store_id);
+      if (!store) return;
+      setUserStore(store);
+      setUserStoreNote(approved.review_note ?? null);
+      try {
+        localStorage.setItem('abu_user_shop', JSON.stringify(store));
+      } catch {
+        // Storage can be blocked; the in-memory state is still correct.
+      }
+    } catch {
+      // Keep the cached approval state when the marketplace cannot be reached.
+    }
+  }, [activeUser]);
+
+  useEffect(() => {
+    if (!activeUser) return;
+    void refreshMyStore();
+  }, [activeUser, refreshMyStore]);
+
+  /**
+   * An admin decision can land while the merchant keeps browsing, so the queue is
+   * re-read when the tab regains focus and quietly once a minute. This keeps the inbox
+   * badge accurate without a reload; failures leave the last known state in place.
+   */
+  useEffect(() => {
+    if (!activeUser) return;
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') void refreshMyStore();
+    };
+    window.addEventListener('focus', refreshIfVisible);
+    const timer = window.setInterval(refreshIfVisible, 60_000);
+    return () => {
+      window.removeEventListener('focus', refreshIfVisible);
+      window.clearInterval(timer);
+    };
+  }, [activeUser, refreshMyStore]);
+
+  /**
+   * Runs whenever the merchant hub re-reads the application queue (opening it or pressing
+   * Refresh). If that read contains an approved store the page has not picked up yet, the
+   * account's store state is refreshed too, so a decision made while the hub stayed open
+   * lands everywhere without closing it.
+   */
+  const handleApplicationsUpdated = useCallback(
+    (applications: StoreSubmission[]) => {
+      setMyApplications(applications);
+      const approved = applications
+        .filter((row) => row.kind === 'store' && row.status === 'approved')
+        .sort((a, b) =>
+          (b.reviewed_at || b.created_at).localeCompare(a.reviewed_at || a.created_at),
+        )[0];
+      if (!approved) return;
+      // An edited note is worth re-reading even when the store itself is unchanged.
+      const noteChanged = (approved.review_note ?? null) !== userStoreNote;
+      if (approved.slug === userStore?.slug && !noteChanged) return;
+      void refreshMyStore();
+    },
+    [userStore?.slug, userStoreNote, refreshMyStore],
+  );
+
+  /** Re-reads the public directory after an admin decision so approvals go live immediately. */
+  const refreshStores = useCallback(async () => {
+    try {
+      const remote = await api.getStores();
+      if (remote && remote.length > 0) setStores(remote);
+    } catch {
+      // Keep the current directory when the API is unreachable.
+    }
+  }, []);
 
   // 1. Navigation View Mode ('marketplace' | 'services' | 'stores' | 'property')
   const [activeView, setActiveView] = useState<ViewMode>(() => {
@@ -357,6 +505,20 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentLocation, setCurrentLocation] = useState<LocationNode>(SIERRA_LEONE_LOCATIONS[0]);
   const [selectedStoreFilter, setSelectedStoreFilter] = useState<VendorStore | null>(null);
+
+  // A public storefront link (the one in the approval email) opens that store's catalog
+  // view directly. The directory loads first, so this applies once the store is known.
+  const appliedStoreLinkRef = useRef(false);
+  useEffect(() => {
+    if (appliedStoreLinkRef.current) return;
+    const slug = storeSlugFromLocation();
+    if (!slug) return;
+    const match = stores.find((store) => store.slug.toLowerCase() === slug.toLowerCase());
+    if (!match) return;
+    appliedStoreLinkRef.current = true;
+    setSelectedStoreFilter(match);
+    setActiveView('marketplace');
+  }, [stores]);
   
   // Filtering & Sorting
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating' | 'sold'>('featured');
@@ -376,7 +538,7 @@ export default function App() {
   const [checkoutInitialMethod, setCheckoutInitialMethod] = useState<MobileMoneyProvider>('orange');
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
   const [isMerchantHubOpen, setIsMerchantHubOpen] = useState(false);
-  const [merchantHubTab, setMerchantHubTab] = useState<'store' | 'single_product' | 'service'>('store');
+  const [merchantHubTab, setMerchantHubTab] = useState<'store' | 'single_product' | 'service' | 'applications'>('store');
 
   // Continue into the merchant hub once the sign-in that "Create Shop" triggered lands.
   useEffect(() => {
@@ -573,6 +735,8 @@ export default function App() {
     void signOut();
     setCurrentUser(null);
     setIsAdmin(false);
+    // The note belongs to the outgoing account and must not linger for the next visitor.
+    setUserStoreNote(null);
     showToast('Signed out of account session');
   };
 
@@ -756,6 +920,16 @@ export default function App() {
         onToggleTheme={handleToggleTheme}
         onOpenCMS={isAdmin ? handleOpenCMS : undefined}
         isAdmin={isAdmin}
+        isAuthLoading={!clerkLoaded}
+        inboxUnreadCount={inboxUnreadCount}
+        onOpenInbox={
+          activeUser
+            ? () => {
+                setIsInboxOpen(true);
+                void refreshMyStore();
+              }
+            : undefined
+        }
       />
 
       {/* Admins need to know when the API cannot verify sessions; the banner also uses
@@ -798,6 +972,48 @@ export default function App() {
       {/* VIEW: MARKETPLACE PRODUCTS (CLEAN, MINIMALIST SHOP-BY-CATEGORY LAYOUT) */}
       {activeView === 'marketplace' && (
         <>
+          {/* Seller shortcuts live here rather than in the header, and only render for a
+              signed-in account, so "Create Store" never appears to a visitor. */}
+          {activeUser && (
+            <div className="max-w-[1440px] mx-auto w-full px-3 sm:px-6 pt-3">
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#E7ECF0] bg-white px-3 py-2 shadow-2xs dark:border-[#1E2E3D] dark:bg-[#111D27]">
+                <p className="mr-auto min-w-0 truncate text-[11px] font-semibold text-[#5A6872] dark:text-slate-400">
+                  Signed in as <strong className="text-[#1A242D] dark:text-white">{activeUser.name}</strong>
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleOpenMerchantHub(isShopApproved ? 'applications' : 'store')}
+                  className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-[#00875A] px-3 text-[11px] font-bold text-white transition-colors hover:bg-[#00704A] cursor-pointer"
+                >
+                  <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  {isShopApproved ? 'My Store' : 'Create Store'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenMerchantHub('single_product')}
+                  className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[#00875A]/45 px-3 text-[11px] font-bold text-[#00704A] transition-colors hover:bg-[#00875A]/10 dark:text-[#8df7c1] cursor-pointer"
+                >
+                  <ShoppingBag className="h-3.5 w-3.5" aria-hidden="true" />
+                  List Product
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenMerchantHub('service')}
+                  className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[#00875A]/45 px-3 text-[11px] font-bold text-[#00704A] transition-colors hover:bg-[#00875A]/10 dark:text-[#8df7c1] cursor-pointer"
+                >
+                  <Wrench className="h-3.5 w-3.5" aria-hidden="true" />
+                  Offer Service
+                </button>
+                {userStore && userStoreNote && (
+                  <p className="w-full min-w-0 rounded border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[11px] leading-relaxed text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+                    <span className="font-bold">Note from the review team:</span>{' '}
+                    <span className="break-words">{userStoreNote}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* "Shop by Category" Only - Clean, Distraction-Free Navigation */}
           <CategoryIconRow
             selectedCategory={selectedCategory}
@@ -1448,7 +1664,7 @@ export default function App() {
           setIsLegalModalOpen(true);
         }}
         onOpenCMS={isAdmin ? handleOpenCMS : undefined}
-        onOpenStoreApprovals={handleOpenApprovals}
+        onOpenStoreApprovals={isAdmin ? handleOpenApprovals : undefined}
       />
 
       {/* Mobile Bottom Navigation Dock */}
@@ -1517,6 +1733,23 @@ export default function App() {
         currentUser={activeUser}
       />
 
+      {/* Merchant application inbox: receipts and review decisions. */}
+      <ApplicationInbox
+        isOpen={isInboxOpen}
+        onClose={() => {
+          markInboxRead();
+          setIsInboxOpen(false);
+        }}
+        messages={inboxMessages}
+        unreadCount={inboxUnreadCount}
+        onMarkAllRead={markInboxRead}
+        onOpenApplications={() => {
+          markInboxRead();
+          setIsInboxOpen(false);
+          handleOpenMerchantHub('applications');
+        }}
+      />
+
       {/* Minimalist Authentication Modal (Google, Facebook, Apple) */}
       <WhatsAppAuthModal
         isOpen={isWhatsAppAuthOpen}
@@ -1552,14 +1785,21 @@ export default function App() {
       {/* 3-Track Merchant Hub: Create Store, Single Item, Blue-Collar Service */}
       <MerchantHubModal
         isOpen={isMerchantHubOpen}
-        onClose={() => setIsMerchantHubOpen(false)}
+        onClose={() => {
+          setIsMerchantHubOpen(false);
+          // An approval may have landed while the hub was open, so pick it up on exit.
+          void refreshMyStore();
+        }}
         onAddProduct={handleAddNewProduct}
         onAddStore={handleAddNewStore}
         onAddService={handleAddNewService}
         onOpenCMS={isAdmin ? handleOpenCMS : undefined}
         currentUser={activeUser}
+        products={products}
+        stores={stores}
         onOpenAuth={() => handleOpenAuth('login')}
         initialTab={merchantHubTab}
+        onApplicationsUpdated={handleApplicationsUpdated}
       />
 
       {/* Location Picker Modal */}
@@ -1614,6 +1854,9 @@ export default function App() {
         isOpen={isApprovalsOpen}
         onClose={handleCloseApprovals}
         onShowToast={showToast}
+        onReviewed={() => {
+          void refreshStores();
+        }}
       />
 
       {/* Toast Notification */}

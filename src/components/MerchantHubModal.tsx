@@ -231,7 +231,9 @@ interface MerchantHubModalProps {
   currentUser?: UserProfile | null;
   products?: Product[];
   stores?: VendorStore[];
-  initialTab?: 'store' | 'single_product' | 'service';
+  initialTab?: 'store' | 'single_product' | 'service' | 'applications';
+  /** Called after the application queue is read, so a fresh approval can update the account. */
+  onApplicationsUpdated?: (applications: StoreSubmission[]) => void;
 }
 
 export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
@@ -244,12 +246,19 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   products = [],
   stores = [],
   initialTab,
+  onApplicationsUpdated,
 }) => {
   const [activeTab, setActiveTab] = useState<'store' | 'single_product' | 'service' | 'applications' | 'analytics' | undefined>(initialTab || 'store');
   const [successMessage, setSuccessMessage] = useState('');
   const [storeError, setStoreError] = useState('');
   const [exportToast, setExportToast] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  /** Confirmation shown in a dialog once a store application is accepted for review. */
+  const [storeSuccessNotice, setStoreSuccessNotice] = useState<{
+    name: string;
+    email: string;
+    emailStatus: 'sent' | 'logged' | 'failed';
+  } | null>(null);
 
   // Sync initialTab when modal opens or initialTab prop changes
   useEffect(() => {
@@ -257,6 +266,11 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       setActiveTab(initialTab);
     }
   }, [initialTab, isOpen]);
+
+  // Closing the hub dismisses any unacknowledged submission confirmation.
+  useEffect(() => {
+    if (!isOpen) setStoreSuccessNotice(null);
+  }, [isOpen]);
 
   // Merchant's own applications: which of their submissions are awaiting a decision.
   const [applications, setApplications] = useState<StoreSubmission[]>([]);
@@ -272,20 +286,56 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     setApplicationsState('loading');
     setApplicationsError('');
     try {
-      setApplications(await api.getMyStoreApplications());
+      const next = await api.getMyStoreApplications();
+      setApplications(next);
       setApplicationsState('ready');
+      // A refresh can surface a decision made while the hub stayed open, so the parent
+      // gets the same read and can update the merchant's live-store state from it.
+      onApplicationsUpdated?.(next);
     } catch (err) {
       setApplicationsError(describeMerchantFailure(err, 'load your applications'));
       setApplicationsState('error');
     }
-  }, [currentUser?.id]);
+  }, [currentUser?.id, onApplicationsUpdated]);
 
-  // Loaded when the tab is opened rather than on mount, so the hub costs nothing extra
-  // for merchants who only came to create a listing.
+  // Loaded as soon as the hub opens, not only when the applications tab is chosen, so the
+  // pending badge on the tab is accurate from the first paint. Submitting a listing or a
+  // store also re-reads the queue, which keeps that badge current.
   useEffect(() => {
-    if (!isOpen || activeTab !== 'applications') return;
+    if (!isOpen) return;
     void loadApplications();
-  }, [isOpen, activeTab, loadApplications]);
+  }, [isOpen, loadApplications]);
+
+  /** Applications still waiting on an admin decision, shown on the tab itself. */
+  const pendingApplicationsCount = useMemo(
+    () => applications.filter((application) => application.status === 'pending').length,
+    [applications],
+  );
+
+  /** The decision banner can be dismissed per application, but a newer decision reopens it. */
+  const [dismissedDecisionId, setDismissedDecisionId] = useState<string | null>(null);
+
+  /** The newest application an admin has already resolved, shown as an inline banner. */
+  const latestDecision = useMemo(
+    () =>
+      applications
+        .filter((application) => application.status !== 'pending')
+        .sort((a, b) =>
+          (b.reviewed_at || b.created_at).localeCompare(a.reviewed_at || a.created_at),
+        )[0],
+    [applications],
+  );
+
+  /** The merchant's live store, taken from their most recently approved application. */
+  const approvedStoreApplication = useMemo(
+    () =>
+      applications
+        .filter((application) => application.kind === 'store' && application.status === 'approved')
+        .sort((a, b) =>
+          (b.reviewed_at || b.created_at).localeCompare(a.reviewed_at || a.created_at),
+        )[0],
+    [applications],
+  );
 
   // Analytics Dashboard State
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7d' | '30d' | '90d'>('7d');
@@ -642,11 +692,14 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     try {
       const { submission, emailStatus } = await api.submitStoreApplication(storePayload);
 
-      setSuccessMessage(emailStatus === 'sent'
-        ? `Application for "${submission.name}" submitted. A confirmation email was sent; the store will appear after review.`
-        : emailStatus === 'logged'
-          ? `Application for "${submission.name}" submitted. Email delivery is not configured; the store will appear after review.`
-          : `Application for "${submission.name}" submitted, but the confirmation email failed. The store will still appear after review.`);
+      setSuccessMessage(
+        `Application for "${submission.name}" received. Our merchant review team will contact you by email.`,
+      );
+      setStoreSuccessNotice({
+        name: submission.name,
+        email: submission.owner_email,
+        emailStatus,
+      });
       setStoreName('');
       setStoreTagline('');
       setStoreDesc('');
@@ -657,6 +710,11 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       setFailedLogoFile(null);
       setStoreLogoError('');
       showStoreLogoPreview(null);
+      // Show the merchant their own pending application straight away. The refresh runs in
+      // the background so a slow queue read can never leave the button stuck on
+      // "Submitting…" after the application was already accepted.
+      setActiveTab('applications');
+      void loadApplications();
     } catch (err) {
       setSuccessMessage('');
       setStoreError(describeMerchantFailure(err, 'submit your store application'));
@@ -708,6 +766,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       setSingleTitle('');
       setSinglePrice('');
       setSingleDesc('');
+      void loadApplications();
     } catch (err) {
       setStoreError(describeMerchantFailure(err, 'list this item'));
     } finally {
@@ -745,6 +804,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       setSuccessMessage(`"${submission.name}" was submitted for review. The artisan goes live once an admin approves it.`);
       setServiceTitle('');
       setProviderName('');
+      void loadApplications();
     } catch (err) {
       setStoreError(describeMerchantFailure(err, 'register this service'));
     } finally {
@@ -855,7 +915,12 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
               setSuccessMessage('');
               setStoreError('');
             }}
-            className={`min-h-12 px-1 py-1 sm:px-1.5 rounded font-bold flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer ${
+            aria-label={
+              pendingApplicationsCount > 0
+                ? `My Applications, ${pendingApplicationsCount} pending`
+                : 'My Applications'
+            }
+            className={`relative min-h-12 px-1 py-1 sm:px-1.5 rounded font-bold flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer ${
               activeTab === 'applications'
                 ? 'bg-[#0B3B60] dark:bg-[#00875A] text-white shadow-xs'
                 : 'bg-white dark:bg-[#0E1720] text-[#1A242D] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
@@ -863,6 +928,15 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
           >
             <ClipboardList className="w-4 h-4 shrink-0" />
             <span className="block max-w-full whitespace-normal text-center text-[10px] leading-tight sm:text-xs">My Applications</span>
+            {pendingApplicationsCount > 0 && (
+              <span
+                aria-live="polite"
+                title={`${pendingApplicationsCount} application${pendingApplicationsCount === 1 ? '' : 's'} awaiting review`}
+                className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[#FF6600] px-1 text-[9px] font-black leading-none text-white shadow-sm ring-1 ring-white/70 dark:ring-[#0E1720]"
+              >
+                {pendingApplicationsCount > 9 ? '9+' : pendingApplicationsCount}
+              </span>
+            )}
           </button>
 
         </div>
@@ -1369,12 +1443,64 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                   type="button"
                   onClick={() => void loadApplications()}
                   disabled={applicationsState === 'loading'}
+                  aria-busy={applicationsState === 'loading'}
+                  title="Check for a new decision without closing the hub"
                   className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded border border-[#DCE1E5] bg-white px-2.5 text-[11px] font-bold text-[#0B3B60] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-[#1E2E3D] dark:bg-[#0E1720] dark:text-[#8df7c1] dark:hover:bg-[#152738]"
                 >
                   <RefreshCw className={`h-3.5 w-3.5 ${applicationsState === 'loading' ? 'animate-spin' : ''}`} aria-hidden="true" />
                   {applicationsState === 'loading' ? 'Refreshing…' : 'Refresh'}
                 </button>
               </div>
+
+              {/* A refresh can surface a decision made while the hub stayed open; this banner
+                  announces it in place, with the reason when the application was rejected. */}
+              {currentUser && latestDecision && latestDecision.id !== dismissedDecisionId && (
+                <div
+                  role="status"
+                  className={`flex items-start gap-2 rounded border p-2.5 ${
+                    latestDecision.status === 'approved'
+                      ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
+                      : 'border-rose-300 bg-rose-50 text-rose-900 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200'
+                  }`}
+                >
+                  <span className="mt-0.5 shrink-0">
+                    {latestDecision.status === 'approved' ? (
+                      <Check className="h-4 w-4" aria-hidden="true" />
+                    ) : (
+                      <AlertCircle className="h-4 w-4" aria-hidden="true" />
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-extrabold">
+                      {latestDecision.status === 'approved' ? 'Application approved' : 'Application rejected'}
+                      <span className="font-semibold"> · {latestDecision.name}</span>
+                    </p>
+                    <p className="mt-0.5 text-[11px] leading-relaxed">
+                      {latestDecision.status === 'approved'
+                        ? 'It is now live in the marketplace.'
+                        : `Reason: ${latestDecision.review_note || 'No reason was recorded.'}`}
+                    </p>
+                    {latestDecision.status === 'approved' && latestDecision.review_note && (
+                      <p className="mt-0.5 text-[11px] leading-relaxed">
+                        Admin note: {latestDecision.review_note}
+                      </p>
+                    )}
+                    {latestDecision.reviewed_at && (
+                      <p className="mt-1 text-[10px] opacity-80">
+                        Reviewed {formatApplicationDate(latestDecision.reviewed_at)}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDismissedDecisionId(latestDecision.id)}
+                    aria-label="Dismiss this decision banner"
+                    className="shrink-0 rounded p-0.5 opacity-70 transition-opacity hover:opacity-100 cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                </div>
+              )}
 
               {!currentUser ? (
                 <div className="rounded border border-[#DCE1E5] bg-[#f5faff] p-4 text-center dark:border-[#1E2E3D] dark:bg-[#0E1720]">
@@ -1447,6 +1573,54 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                         })}
                       </div>
 
+                      {approvedStoreApplication && (
+                        <section
+                          aria-label="Your approved store"
+                          className="overflow-hidden rounded-lg border border-emerald-300 bg-white dark:border-emerald-800 dark:bg-[#0E1720]"
+                        >
+                          <div className="flex items-center justify-between gap-2 bg-emerald-50 px-3 py-1.5 dark:bg-emerald-950/40">
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">
+                              Your approved store
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-white px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-700 dark:bg-[#0E1720] dark:text-emerald-200">
+                              <Check className="h-3 w-3" aria-hidden="true" />
+                              Live
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 p-3">
+                            <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-lg border border-[#DCE1E5] bg-slate-50 dark:border-[#1E2E3D] dark:bg-[#152738]">
+                              {approvedStoreApplication.logo ? (
+                                <img
+                                  src={approvedStoreApplication.logo}
+                                  alt={`${approvedStoreApplication.name} store logo`}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <Store className="h-6 w-6 text-slate-400" aria-hidden="true" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-extrabold text-[#1A242D] dark:text-white">
+                                {approvedStoreApplication.name}
+                              </p>
+                              <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-600 dark:text-slate-300">
+                                <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden="true" />
+                                <span className="truncate">
+                                  {[approvedStoreApplication.location_hub, approvedStoreApplication.province]
+                                    .filter(Boolean)
+                                    .join(' · ') || 'Location not set'}
+                                </span>
+                              </p>
+                              {approvedStoreApplication.street_address && (
+                                <p className="mt-0.5 truncate text-[10px] text-slate-500 dark:text-slate-400">
+                                  {approvedStoreApplication.street_address}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </section>
+                      )}
+
                       <ul className="space-y-2">
                         {applications.map((app) => {
                           const status = APPLICATION_STATUS_META[app.status];
@@ -1479,10 +1653,17 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                                   )}
 
                                   {app.status === 'approved' && (
-                                    <p className="mt-1 text-[11px] leading-relaxed font-semibold text-emerald-700 dark:text-emerald-300">
-                                      Approved and live in the marketplace.
-                                      {app.review_note ? ` Admin note: ${app.review_note}` : ''}
-                                    </p>
+                                    <div className="mt-1 space-y-1.5">
+                                      <p className="text-[11px] leading-relaxed font-semibold text-emerald-700 dark:text-emerald-300">
+                                        Approved and live in the marketplace.
+                                      </p>
+                                      {app.review_note && (
+                                        <div className="rounded border border-emerald-200 bg-emerald-50 p-2 text-[11px] leading-relaxed text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+                                          <p className="font-bold">Note from the review team</p>
+                                          <p className="mt-0.5 break-words">{app.review_note}</p>
+                                        </div>
+                                      )}
+                                    </div>
                                   )}
 
                                   {app.status === 'rejected' && (
@@ -2154,6 +2335,71 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
             </div>
           )}
         </div>
+
+        {storeSuccessNotice && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="store-submitted-title"
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4"
+            onClick={() => setStoreSuccessNotice(null)}
+          >
+            <div
+              className="w-full max-w-md rounded-2xl border-2 border-[#00875A]/40 bg-white p-5 shadow-2xl dark:border-[#8df7c1]/40 dark:bg-[#0E1720]"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-[#8df7c1]">
+                  <Check className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <h3 id="store-submitted-title" className="text-base font-black text-[#0B3B60] dark:text-white">
+                    Application received
+                  </h3>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+                    Thank you. Your store application for{' '}
+                    <strong className="font-bold text-[#0B3B60] dark:text-white">“{storeSuccessNotice.name}”</strong>{' '}
+                    has been submitted successfully and is now queued for review.
+                  </p>
+                  {storeSuccessNotice.emailStatus === 'sent' ? (
+                    <p className="mt-2 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+                      We have sent a confirmation to{' '}
+                      <strong className="break-all font-bold text-[#0B3B60] dark:text-white">{storeSuccessNotice.email}</strong>.
+                      Please check your inbox for our confirmation and for a follow-up email once a decision has been
+                      made on your application. If you do not see our message within a few minutes, kindly check your
+                      spam or junk folder.
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+                      Your application is safely queued for review. We could not send the confirmation email just
+                      now, so please check the My Applications tab for the decision, or contact our merchant team if
+                      you need assistance.
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setStoreSuccessNotice(null)}
+                  className="h-9 rounded-lg border border-[#DCE1E5] px-4 text-xs font-bold text-[#0B3B60] hover:bg-slate-50 dark:border-[#1E2E3D] dark:text-slate-200 dark:hover:bg-[#152738]"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStoreSuccessNotice(null);
+                    setActiveTab('applications');
+                  }}
+                  className="h-9 rounded-lg bg-[#00875A] px-4 text-xs font-bold text-white hover:bg-[#00704A]"
+                >
+                  View my application
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

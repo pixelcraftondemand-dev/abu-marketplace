@@ -1,11 +1,14 @@
 import { isSupabaseConfigured, supabaseAdmin } from './supabase.ts';
 import {
+  buildListingApprovalEmail,
+  buildStoreApprovalEmail,
   sendStoreSubmitted,
   sendStoreApproved,
   sendStoreRejected,
   sendListingSubmitted,
   sendListingApproved,
   sendListingRejected,
+  type BuiltEmail,
   type MailResult,
 } from './mailer.ts';
 import type { VendorStore, Product, BlueCollarService } from '../src/types/index.ts';
@@ -94,6 +97,8 @@ export interface SubmissionStore {
   decide(id: string, decision: SubmissionDecision): Promise<{ data: SubmissionRow | null; error: string | null }>;
   /** Approved rows of one kind, newest decision first. */
   listApproved(kind: SubmissionKind): Promise<{ data: SubmissionRow[] | null; error: string | null }>;
+  /** Rewrites the note on an approved row without touching the decision itself. */
+  updateNote(id: string, note: string | null): Promise<{ data: SubmissionRow | null; error: string | null }>;
 }
 
 /** Mail operations used by the lifecycle, injectable so tests never send real email. */
@@ -172,6 +177,18 @@ const supabaseStore: SubmissionStore = {
       .eq('status', 'approved')
       .order('reviewed_at', { ascending: false });
     return { data: (data as SubmissionRow[] | null) ?? null, error: error?.message ?? null };
+  },
+
+  async updateNote(id, note) {
+    const { data, error } = await supabaseAdmin
+      .from('store_submissions')
+      // Status is part of the filter so a note can never land on an undecided row.
+      .update({ review_note: note, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('status', 'approved')
+      .select('*')
+      .single();
+    return { data: (data as SubmissionRow | null) ?? null, error: error?.message ?? null };
   },
 };
 
@@ -445,15 +462,77 @@ export async function approveSubmission(
         ownerName: submission.owner_name,
         storeName: submission.name,
         storeId,
+        storeSlug: submission.slug,
+        // An approval note is part of the decision, so it travels with the email too.
+        note: submission.review_note,
       })
     : await mailerFor(seams).listingApproved({
         to: submission.owner_email,
         ownerName: submission.owner_name,
         itemName: submission.name,
         kind: submission.kind,
+        note: submission.review_note,
       });
 
   return { submission, mail };
+}
+
+/**
+ * Builds the exact approval email an admin is about to send, without sending it. The note
+ * comes from the approval form, so the preview matches the message the merchant receives.
+ */
+export async function previewApprovalEmail(
+  id: string,
+  note: string,
+  seams?: SubmissionSeams,
+): Promise<BuiltEmail> {
+  const row = await loadPending(id, seams);
+  if (row.kind === 'store') {
+    return buildStoreApprovalEmail({
+      to: row.owner_email,
+      ownerName: row.owner_name,
+      storeName: row.name,
+      storeId: `store-${row.id.slice(0, 8)}`,
+      storeSlug: row.slug,
+      note: clean(note, 1000),
+    });
+  }
+  return buildListingApprovalEmail({
+    to: row.owner_email,
+    ownerName: row.owner_name,
+    itemName: row.name,
+    kind: row.kind,
+    note: clean(note, 1000),
+  });
+}
+
+/**
+ * Adds, edits or clears the review note on an already approved application. The decision
+ * itself is untouched: status, reviewer and decision time all stay as they were, so the
+ * merchant's approval does not move when an admin clarifies the note afterwards.
+ */
+export async function updateApprovalNote(
+  id: string,
+  note: string,
+  seams?: SubmissionSeams,
+): Promise<SubmissionRow> {
+  const { data: row, error } = await storeFor(seams).find(id);
+  if (error) throw new SubmissionError(`Could not load the application: ${error}`, 500, 'DB_ERROR');
+  if (!row) throw new SubmissionError('Application not found', 404, 'NOT_FOUND');
+  if (row.status !== 'approved') {
+    throw new SubmissionError(
+      'Only an approved application can have its note edited',
+      409,
+      'NOT_APPROVED',
+    );
+  }
+
+  // An empty note is a deliberate clear, which `clean` records as null.
+  const { data, error: updateError } = await storeFor(seams).updateNote(id, clean(note, 1000));
+  if (updateError || !data) {
+    throw new SubmissionError(`Could not save the note: ${updateError || 'unknown error'}`, 500, 'DB_ERROR');
+  }
+  return data;
 }
 
 /** Rejects a pending submission with a required reason and emails the merchant. */

@@ -8,8 +8,10 @@ import {
   createSubmission,
   invalidateApprovedCache,
   listSubmissions,
+  previewApprovalEmail,
   rejectSubmission,
   SubmissionError,
+  updateApprovalNote,
   type Actor,
   type SubmissionDecision,
   type SubmissionInsert,
@@ -87,6 +89,15 @@ class MemorySubmissionStore implements SubmissionStore {
       error: null,
     };
   }
+
+  async updateNote(id: string, note: string | null) {
+    const row = this.rows.find((candidate) => candidate.id === id);
+    if (!row) return { data: null, error: 'not found' };
+    if (row.status !== 'approved') return { data: null, error: 'not approved' };
+    row.review_note = note;
+    row.updated_at = new Date().toISOString();
+    return { data: { ...row }, error: null };
+  }
 }
 
 type MailCall = {
@@ -95,6 +106,7 @@ type MailCall = {
   name: string;
   note?: string;
   storeId?: string;
+  slug?: string | null;
 };
 
 const makeMailer = () => {
@@ -104,8 +116,8 @@ const makeMailer = () => {
       calls.push({ kind: 'store_submitted', to, name: storeName });
       return { status: 'sent' };
     },
-    storeApproved: async ({ to, storeName, storeId }) => {
-      calls.push({ kind: 'store_approved', to, name: storeName, storeId });
+    storeApproved: async ({ to, storeName, storeId, storeSlug, note }) => {
+      calls.push({ kind: 'store_approved', to, name: storeName, storeId, slug: storeSlug, note });
       return { status: 'sent' };
     },
     storeRejected: async ({ to, storeName, note }) => {
@@ -116,8 +128,8 @@ const makeMailer = () => {
       calls.push({ kind: 'listing_submitted', to, name: itemName });
       return { status: 'sent' };
     },
-    listingApproved: async ({ to, itemName }) => {
-      calls.push({ kind: 'listing_approved', to, name: itemName });
+    listingApproved: async ({ to, itemName, note }) => {
+      calls.push({ kind: 'listing_approved', to, name: itemName, note });
       return { status: 'sent' };
     },
     listingRejected: async ({ to, itemName, note }) => {
@@ -195,6 +207,10 @@ test('a store application moves from pending to public in one approval', async (
       to: merchant.email,
       name: 'Kissy Electronics',
       storeId: `store-${created.submission.id.slice(0, 8)}`,
+      // The email links straight to the store's public address.
+      slug: 'kissy-electronics',
+      // The admin's approval note travels with the email as well as the in-app record.
+      note: 'Verified storefront',
     },
   ]);
 });
@@ -316,6 +332,58 @@ test('listing submissions use the same review flow and publish their payload on 
   assert.equal(submittedMail?.name, product.title);
   assert.equal(approvedMailCall?.name, product.title);
   assert.equal(approvedMailCall?.to, merchant.email);
+});
+
+test('an approved application keeps its decision when its note is edited or cleared', async () => {
+  const { seams, calls } = setup();
+  const created = await createSubmission(storeApplication('Lumley Home'), merchant, seams);
+  const approved = await approveSubmission(created.submission.id, admin, 'Original note', seams);
+
+  const updated = await updateApprovalNote(created.submission.id, 'Updated note', seams);
+  assert.equal(updated.status, 'approved');
+  assert.equal(updated.review_note, 'Updated note');
+  // The decision itself is untouched by the note edit.
+  assert.equal(updated.reviewed_by, admin.id);
+  assert.equal(updated.reviewed_at, approved.submission.reviewed_at);
+  assert.equal(updated.created_store_id, approved.submission.created_store_id);
+  assert.equal((await approvedStores(seams)).length, 1);
+
+  const cleared = await updateApprovalNote(created.submission.id, '   ', seams);
+  assert.equal(cleared.review_note, null);
+
+  // Editing a note never sends another decision email.
+  assert.deepEqual(calls.map((call) => call.kind), ['store_submitted', 'store_approved']);
+});
+
+test('the approval email can be previewed before the decision is made', async () => {
+  const { seams, calls } = setup();
+  const created = await createSubmission(storeApplication('Lumley Home'), merchant, seams);
+
+  const preview = await previewApprovalEmail(
+    created.submission.id,
+    'Please confirm your payout number.',
+    seams,
+  );
+  assert.match(preview.subject, /Lumley Home/);
+  assert.match(preview.html, /\/stores\/lumley-home/);
+  assert.match(preview.html, /Please confirm your payout number\./);
+  // The preview's plain-text body carries the same note, not just the HTML version.
+  assert.match(preview.text, /Please confirm your payout number\./);
+  assert.match(preview.text, /Your public storefront:/);
+
+  // Previewing neither emails the merchant nor decides the application.
+  assert.deepEqual(calls.map((call) => call.kind), ['store_submitted']);
+  assert.equal((await listSubmissions('pending', seams)).length, 1);
+});
+
+test('a pending application cannot have its note edited', async () => {
+  const { seams } = setup();
+  const created = await createSubmission(storeApplication('Kissy Electronics'), merchant, seams);
+  await assert.rejects(
+    () => updateApprovalNote(created.submission.id, 'Too early', seams),
+    (error: unknown) => error instanceof SubmissionError && error.code === 'NOT_APPROVED' && error.status === 409,
+  );
+  assert.equal((await listSubmissions('pending', seams)).length, 1);
 });
 
 test('a store application without a session is refused before it reaches the queue', async () => {

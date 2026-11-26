@@ -382,6 +382,23 @@ export const api = {
     return data.data as StoreSubmission[];
   },
 
+  /** Admin: the exact approval email, built but not sent, so it can be reviewed first. */
+  async previewApprovalEmail(
+    id: string,
+    note: string,
+  ): Promise<{ subject: string; html: string; text: string }> {
+    const res = await authFetch(`/api/admin/store-submissions/${id}/approval-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note }),
+    });
+    // Handle non-JSON error responses from the server
+    if (!res.ok) return throwApiError(res, 'Could not build the email preview');
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Could not build the email preview');
+    return data.data;
+  },
+
   /** Admin: approve a pending application, publishing the store and emailing the merchant. */
   async approveStoreSubmission(id: string, note?: string): Promise<{ submission: StoreSubmission; emailStatus: string }> {
     const res = await authFetch(`/api/admin/store-submissions/${id}/approve`, {
@@ -394,6 +411,20 @@ export const api = {
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Could not approve the application');
     return { submission: data.data as StoreSubmission, emailStatus: data.emailStatus };
+  },
+
+  /** Admin: add, edit or clear the note on an approved application without re-deciding it. */
+  async updateStoreSubmissionNote(id: string, note: string): Promise<StoreSubmission> {
+    const res = await authFetch(`/api/admin/store-submissions/${id}/note`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note }),
+    });
+    // Handle non-JSON error responses from the server
+    if (!res.ok) return throwApiError(res, 'Could not save the approval note');
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Could not save the approval note');
+    return data.data as StoreSubmission;
   },
 
   /** Admin: reject a pending application with a reason that is emailed to the merchant. */

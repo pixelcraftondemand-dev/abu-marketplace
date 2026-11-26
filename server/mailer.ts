@@ -61,6 +61,12 @@ async function deliverViaResend(
   html: string,
   text: string,
 ): Promise<MailResult> {
+  // A submission response must never wait on the mail provider. Ten seconds is long
+  // enough for a normal send; after that the application still succeeds and the form
+  // reports that the confirmation email could not be delivered.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+
   try {
     const res = await fetch(RESEND_ENDPOINT, {
       method: 'POST',
@@ -69,6 +75,7 @@ async function deliverViaResend(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ from: FROM, to: [to], subject, html, text }),
+      signal: controller.signal,
     });
 
     const payload: any = await res.json().catch(() => ({}));
@@ -84,10 +91,12 @@ async function deliverViaResend(
     remember({ to, subject, kind, status: 'sent', at: new Date().toISOString() });
     return { status: 'sent', id: payload?.id };
   } catch (err: any) {
-    const message = err?.message || String(err);
+    const message = err?.name === 'AbortError' ? 'Mail provider timed out' : err?.message || String(err);
     console.error(`[mail] FAILED ${kind} -> ${to} via Resend: ${message}`);
     remember({ to, subject, kind, status: 'failed', at: new Date().toISOString(), error: message });
     return { status: 'failed', error: message };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -120,6 +129,10 @@ function transport(): Transporter | null {
     port,
     secure,
     auth: { user, pass },
+    // Keep a stalled SMTP server from holding the submission request open.
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
   });
   return cachedTransport;
 }
@@ -154,6 +167,16 @@ async function deliver(to: string, subject: string, kind: StoreMailKind, html: s
   }
 }
 
+/** Escapes a value interpolated into the HTML email body, so an admin note stays text. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function layout(heading: string, body: string, footer: string): string {
   return `<!doctype html>
 <html><body style="margin:0;padding:24px;background:#f4f6f8;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0f172a">
@@ -176,6 +199,8 @@ export interface StoreMailInput {
   ownerName?: string | null;
   storeName: string;
   storeId?: string;
+  /** Public slug, so the approval email can link straight to the live storefront. */
+  storeSlug?: string | null;
   note?: string | null;
 }
 
@@ -203,9 +228,22 @@ export async function sendStoreSubmitted(input: StoreMailInput): Promise<MailRes
   return deliver(input.to, subject, 'store_submitted', html, text);
 }
 
-/** Acceptance: the store is live and the merchant may start listing products. */
-export async function sendStoreApproved(input: StoreMailInput): Promise<MailResult> {
+export interface BuiltEmail {
+  subject: string;
+  html: string;
+  text: string;
+}
+
+/**
+ * Builds the approval email without sending it, so an admin can review the exact message
+ * (recipient wording, storefront link and note) before the decision is confirmed.
+ */
+export function buildStoreApprovalEmail(input: StoreMailInput): BuiltEmail {
   const who = input.ownerName || 'there';
+  const note = input.note?.trim();
+  const appBase = (process.env.APP_URL || 'https://abumarketplace.shop').replace(/\/+$/, '');
+  // The store's own public address, so the merchant can open (or share) their storefront.
+  const storeUrl = input.storeSlug ? `${appBase}/stores/${encodeURIComponent(input.storeSlug)}` : appBase;
   const subject = `Your store is live: ${input.storeName}`;
   const html = layout(
     'Your store is approved',
@@ -214,21 +252,41 @@ export async function sendStoreApproved(input: StoreMailInput): Promise<MailResu
        Good news — <strong>${input.storeName}</strong> has been approved and is now live on ${BRAND}.
        Buyers can find your storefront in the directory immediately.
      </p>
+     <p style="margin:0 0 6px;font-size:14px;line-height:1.6">Your public storefront address:</p>
      <p style="margin:0 0 12px;font-size:14px;line-height:1.6">
-       Open your merchant hub to add products and start receiving orders.
+       <a href="${escapeHtml(storeUrl)}" style="color:#0B3B60;font-weight:600;word-break:break-all">${escapeHtml(storeUrl)}</a>
+     </p>
+     ${note ? `<div style="margin:0 0 12px;padding:12px 14px;background:#ecfdf5;border-left:3px solid #059669;border-radius:6px;font-size:14px;line-height:1.6">
+       <strong>Note from the review team:</strong> ${escapeHtml(note)}
+     </div>` : ''}
+     <p style="margin:0 0 12px;font-size:14px;line-height:1.6">
+       Open your storefront below, then use your merchant hub to add products and start
+       receiving orders.
      </p>
      <p style="margin:0;font-size:14px;line-height:1.6">
-       <a href="${process.env.APP_URL || 'https://abumarketplace.shop'}"
+       <a href="${escapeHtml(storeUrl)}"
           style="display:inline-block;background:#0B3B60;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600">
-         Open merchant hub
+         Open your storefront
+       </a>
+       <a href="${escapeHtml(appBase)}"
+          style="display:inline-block;margin-left:12px;color:#0B3B60;text-decoration:underline;font-size:13px;font-weight:600">
+         Merchant hub
        </a>
      </p>`,
     'You are receiving this because your store application was approved.',
   );
   const text =
     `Hello ${who},\n\n"${input.storeName}" has been approved and is now live on ${BRAND}.\n` +
-    `Open your merchant hub to add products and start receiving orders.\n`;
+    `Your public storefront: ${storeUrl}\n\n` +
+    (note ? `Note from the review team: ${note}\n\n` : '') +
+    `Open your merchant hub to add products and start receiving orders: ${appBase}\n`;
 
+  return { subject, html, text };
+}
+
+/** Acceptance: the store is live and the merchant may start listing products. */
+export async function sendStoreApproved(input: StoreMailInput): Promise<MailResult> {
+  const { subject, html, text } = buildStoreApprovalEmail(input);
   return deliver(input.to, subject, 'store_approved', html, text);
 }
 
@@ -311,10 +369,11 @@ export async function sendListingSubmitted(input: ListingMailInput): Promise<Mai
   return deliver(input.to, subject, 'listing_submitted', html, text);
 }
 
-/** Acceptance: the listing or artisan profile is live and discoverable. */
-export async function sendListingApproved(input: ListingMailInput): Promise<MailResult> {
+/** Builds the listing approval email without sending it, for the admin preview. */
+export function buildListingApprovalEmail(input: ListingMailInput): BuiltEmail {
   const who = input.ownerName || 'there';
   const copy = listingCopy(input.kind);
+  const note = input.note?.trim();
   const subject = `Your ${copy.subjectNoun} is live: ${input.itemName}`;
   const html = layout(
     `Your ${copy.subjectNoun} is approved`,
@@ -323,6 +382,9 @@ export async function sendListingApproved(input: ListingMailInput): Promise<Mail
        Good news — your ${copy.noun} <strong>${input.itemName}</strong> has been approved
        and is now live in ${copy.where} on ${BRAND}. Customers can find it immediately.
      </p>
+     ${note ? `<div style="margin:0 0 12px;padding:12px 14px;background:#ecfdf5;border-left:3px solid #059669;border-radius:6px;font-size:14px;line-height:1.6">
+       <strong>Note from the review team:</strong> ${escapeHtml(note)}
+     </div>` : ''}
      <p style="margin:0 0 12px;font-size:14px;line-height:1.6">${copy.action}</p>
      <p style="margin:0;font-size:14px;line-height:1.6">
        <a href="${process.env.APP_URL || 'https://abumarketplace.shop'}"
@@ -334,8 +396,15 @@ export async function sendListingApproved(input: ListingMailInput): Promise<Mail
   );
   const text =
     `Hello ${who},\n\nYour ${copy.noun} "${input.itemName}" has been approved and is now live in ${copy.where} on ${BRAND}.\n` +
+    (note ? `Note from the review team: ${note}\n\n` : '') +
     `${copy.action}\n`;
 
+  return { subject, html, text };
+}
+
+/** Acceptance: the listing or artisan profile is live and discoverable. */
+export async function sendListingApproved(input: ListingMailInput): Promise<MailResult> {
+  const { subject, html, text } = buildListingApprovalEmail(input);
   return deliver(input.to, subject, 'listing_approved', html, text);
 }
 

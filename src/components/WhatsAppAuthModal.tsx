@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ClerkFailed, ClerkLoaded, ClerkLoading, SignIn, SignUp } from '@clerk/react';
 import { LogOut, ShieldCheck, X } from 'lucide-react';
 import type { UserProfile } from '../types';
@@ -60,12 +60,29 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
   onOpenAdmin,
   initialEmailMode,
 }) => {
-  // Sign-in / sign-up switch, seeded from the route that opened the modal.
-  const [mode, setMode] = useState<'signin' | 'signup'>(initialEmailMode === 'signup' ? 'signup' : 'signin');
+  // Sign-in / sign-up switch, seeded from the route that opened the modal. The seed is
+  // applied while rendering (not in an effect) so opening the dialog from "Sign Up" paints
+  // the sign-up form directly instead of flashing the sign-in form first.
+  const seedMode: 'signin' | 'signup' = initialEmailMode === 'signup' ? 'signup' : 'signin';
+  const [mode, setMode] = useState<'signin' | 'signup'>(seedMode);
+  const [modeSeed, setModeSeed] = useState({ open: false, mode: seedMode });
+  if (modeSeed.open !== isOpen || (isOpen && modeSeed.mode !== seedMode)) {
+    setModeSeed({ open: isOpen, mode: seedMode });
+    if (isOpen) setMode(seedMode);
+  }
 
-  useEffect(() => {
-    setMode(initialEmailMode === 'signup' ? 'signup' : 'signin');
-  }, [initialEmailMode, isOpen]);
+  /**
+   * Switching tabs keeps the address bar in step with the flow on screen, so a reload or a
+   * shared link reopens the same form. Only an auth URL the visitor is already on is
+   * rewritten; opening the dialog from the catalog leaves the catalog URL alone.
+   */
+  const switchMode = (next: 'signin' | 'signup') => {
+    setMode(next);
+    if (typeof window === 'undefined') return;
+    const path = window.location.pathname.toLowerCase();
+    if (!['/login', '/register', '/auth', '/account', '/signin', '/signup', '/sso-callback'].includes(path)) return;
+    window.history.replaceState({}, '', next === 'signup' ? '/register' : '/login');
+  };
 
   if (!isOpen) return null;
 
@@ -166,9 +183,7 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
             ) : (
               <>
                 <div className="mb-2 flex justify-center">
-                  <span className="rounded-2xl bg-white/95 px-3 py-1.5 shadow-sm ring-1 ring-[#00875A]/25">
-                    <HappyShopperCart className="h-16 w-auto" />
-                  </span>
+                  <AbuLogo size={56} className="shrink-0" />
                 </div>
                 <h2 className="mb-3 text-center text-xl font-black text-slate-900 dark:text-white">
                   {mode === 'signup' ? 'Create your ABU account' : 'Sign in to ABU'}
@@ -185,7 +200,7 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                     role="tab"
                     aria-selected={mode === 'signin'}
                     aria-controls="abu-auth-panel"
-                    onClick={() => setMode('signin')}
+                    onClick={() => switchMode('signin')}
                     className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
                       mode === 'signin'
                         ? 'bg-[#00875A] text-white shadow-sm'
@@ -199,7 +214,7 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                     role="tab"
                     aria-selected={mode === 'signup'}
                     aria-controls="abu-auth-panel"
-                    onClick={() => setMode('signup')}
+                    onClick={() => switchMode('signup')}
                     className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${
                       mode === 'signup'
                         ? 'bg-[#00875A] text-white shadow-sm'
@@ -260,11 +275,9 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                       scheme and paints white labels and inputs onto the white card. */}
                   <ClerkLoaded>
                     <div className="abu-auth-form" style={{ colorScheme: 'light' }}>
-                      <div className="auth-form-enter">
-                        {mode === 'signup'
-                          ? <SignUp key="signup" routing="hash" appearance={clerkAppearance} fallbackRedirectUrl={redirectUrl} />
-                          : <SignIn key="signin" routing="hash" appearance={clerkAppearance} fallbackRedirectUrl={redirectUrl} />}
-                      </div>
+                      {mode === 'signup'
+                        ? <SignUp key="signup" routing="hash" appearance={clerkAppearance} fallbackRedirectUrl={redirectUrl} />
+                        : <SignIn key="signin" routing="hash" appearance={clerkAppearance} fallbackRedirectUrl={redirectUrl} />}
                     </div>
                   </ClerkLoaded>
                 </div>

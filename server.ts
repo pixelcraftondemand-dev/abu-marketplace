@@ -25,7 +25,9 @@ import {
   createSubmission,
   isAdmin,
   listSubmissions,
+  previewApprovalEmail,
   rejectSubmission,
+  updateApprovalNote,
   warmApprovedCache,
   type SubmissionStatus,
 } from './server/storeSubmissions.ts';
@@ -886,6 +888,18 @@ app.get('/api/admin/store-submissions', async (req: Request, res: Response) => {
   }
 });
 
+// Admin: build the exact approval email so it can be reviewed before confirming.
+app.post('/api/admin/store-submissions/:id/approval-email', async (req: Request, res: Response) => {
+  try {
+    const actor = await currentActor(req);
+    if (!allowAdmin(actor, res)) return;
+    const preview = await previewApprovalEmail(req.params.id, String(req.body?.note ?? ''));
+    res.json({ success: true, data: preview });
+  } catch (err) {
+    submissionErrorResponse(res, err);
+  }
+});
+
 // Admin: approve, which publishes the store and emails the merchant.
 app.post('/api/admin/store-submissions/:id/approve', async (req: Request, res: Response) => {
   try {
@@ -893,6 +907,18 @@ app.post('/api/admin/store-submissions/:id/approve', async (req: Request, res: R
     if (!allowAdmin(actor, res)) return;
     const { submission, mail } = await approveSubmission(req.params.id, actor!, req.body?.note);
     res.json({ success: true, message: 'Store approved and published', data: submission, emailStatus: mail.status });
+  } catch (err) {
+    submissionErrorResponse(res, err);
+  }
+});
+
+// Admin: add, edit or clear the note on an approved application without re-deciding it.
+app.post('/api/admin/store-submissions/:id/note', async (req: Request, res: Response) => {
+  try {
+    const actor = await currentActor(req);
+    if (!allowAdmin(actor, res)) return;
+    const submission = await updateApprovalNote(req.params.id, String(req.body?.note ?? ''));
+    res.json({ success: true, message: 'Approval note updated', data: submission });
   } catch (err) {
     submissionErrorResponse(res, err);
   }
