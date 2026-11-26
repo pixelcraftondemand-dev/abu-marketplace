@@ -1,5 +1,5 @@
 import type { Express, Request, Response, NextFunction } from 'express';
-import { resolveClerkKeys } from './clerkKeys.ts';
+import { getClerkKeys } from './clerkKeys.ts';
 
 // ----------------------------------------------------
 // Consistent hardening layer shared by every route:
@@ -120,9 +120,9 @@ export function rateLimit(req: Request, res: Response, routeKey: string, max: nu
 // ----------------------------------------------------
 
 const clerkOrigin = (() => {
-  // The same resolver the browser build uses, so the CSP always allows the instance
-  // whose keys this deployment actually ships.
-  const { publishableKey } = resolveClerkKeys(process.env);
+  // The same keys the browser build uses, so the CSP always allows the instance
+  // this deployment actually ships.
+  const { publishableKey } = getClerkKeys();
   const encodedFrontendApi = publishableKey.match(/^pk_(?:test|live)_(.+)$/)?.[1];
   if (!encodedFrontendApi) return '';
 

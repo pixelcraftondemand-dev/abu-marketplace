@@ -26,8 +26,9 @@ import {
 
 type Health = {
   status?: string;
-  timestamp?: string;
-  auth?: { clerkKeyMode?: string; supabaseConfigured?: boolean };
+  clerkVerified?: boolean;
+  clerkError?: string | null;
+  supabase?: boolean;
   uploads?: { storeLogo?: string };
 };
 
@@ -84,16 +85,11 @@ export const UploadDiagnosticsPanel: React.FC = () => {
     void loadHealth();
   }, [loadHealth]);
 
-  const clerkMode = health?.auth?.clerkKeyMode;
-  const clerkTone: Tone = clerkMode === 'live' ? 'ok' : clerkMode === 'test' ? 'warn' : 'bad';
-  const clerkNote =
-    clerkMode === 'live'
-      ? 'The API can verify sessions minted by the live Clerk instance.'
-      : clerkMode === 'test'
-        ? 'The API holds a test-instance secret. Sessions from the live site will be rejected.'
-        : clerkMode === 'invalid'
-          ? 'The Clerk secret on the server is a redacted placeholder (for example "sk_live_…"), so no signed-in request can be verified. Paste the real secret key from the Clerk dashboard.'
-          : 'No Clerk secret is set on the server, so every signed-in upload is refused.';
+  const clerkVerified = health?.clerkVerified;
+  const clerkTone: Tone = clerkVerified ? 'ok' : 'bad';
+  const clerkNote = clerkVerified
+    ? 'The API verified its Clerk secret with a real request.'
+    : `The API could not verify its Clerk secret${health?.clerkError ? `: ${health.clerkError}` : '.'}`;
   const logoStore = health?.uploads?.storeLogo;
 
   return (
@@ -135,7 +131,9 @@ export const UploadDiagnosticsPanel: React.FC = () => {
             <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
             Clerk session keys
           </div>
-          <p className="mt-1 text-[11px] font-bold">{clerkMode ?? 'not reported'}</p>
+          <p className="mt-1 text-[11px] font-bold">
+            {clerkVerified === undefined ? 'not reported' : clerkVerified ? 'verified' : 'failed'}
+          </p>
           <p className="mt-1 text-[10px] leading-relaxed">{clerkNote}</p>
         </div>
 
@@ -153,18 +151,17 @@ export const UploadDiagnosticsPanel: React.FC = () => {
           </p>
         </div>
 
-        <div className={`rounded border p-3 ${TONE_CLASSES[health?.auth?.supabaseConfigured ? 'ok' : 'bad']}`}>
+        <div className={`rounded border p-3 ${TONE_CLASSES[health?.supabase ? 'ok' : 'bad']}`}>
           <div className="flex items-center gap-1.5 text-[11px] font-extrabold">
-            {React.createElement(TONE_ICONS[health?.auth?.supabaseConfigured ? 'ok' : 'bad'], { className: 'h-3.5 w-3.5' })}
+            {React.createElement(TONE_ICONS[health?.supabase ? 'ok' : 'bad'], { className: 'h-3.5 w-3.5' })}
             <Server className="h-3.5 w-3.5" aria-hidden="true" />
             Product database
           </div>
           <p className="mt-1 text-[11px] font-bold">
-            {health?.auth?.supabaseConfigured === undefined ? 'not reported' : health.auth.supabaseConfigured ? 'configured' : 'missing'}
+            {health?.supabase === undefined ? 'not reported' : health.supabase ? 'configured' : 'missing'}
           </p>
           <p className="mt-1 text-[10px] leading-relaxed">
-            Health endpoint answered {healthStatus ?? 'nothing'}
-            {health?.timestamp ? ` at ${new Date(health.timestamp).toLocaleTimeString()}` : ''}.
+            Health endpoint answered {healthStatus ?? 'nothing'}.
           </p>
         </div>
       </div>

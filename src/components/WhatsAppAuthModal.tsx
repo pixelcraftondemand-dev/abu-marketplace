@@ -249,9 +249,9 @@ export const WhatsAppAuthModal: React.FC<WhatsAppAuthModalProps> = ({
                         The sign-in service rejected this page. Check your connection and try again.
                       </p>
                       <p className="max-w-xs rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">
-                        Live Clerk keys only work on the production domain. For local development, copy the
-                        development instance keys from the Clerk dashboard into CLERK_DEV_PUBLISHABLE_KEY and
-                        CLERK_DEV_SECRET_KEY.
+                        The Clerk keys configured for this deployment were rejected on this
+                        domain. Check VITE_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY in the
+                        deployment environment.
                       </p>
                       {typeof window !== 'undefined' && window.location.hostname === 'localhost' && (
                         <a

@@ -383,42 +383,19 @@ async function checkReadiness() {
     return record("readiness", "fail", "Health endpoint returned invalid JSON");
   }
 
-  const keyMode = data?.auth?.clerkKeyMode;
-  if (keyMode === "invalid") {
-    record(
-      "readiness",
-      "fail",
-      "Clerk secret is a placeholder, so every sign-in is rejected",
-      "CLERK_SECRET_KEY looks like `sk_live_...` (or another redacted value).\n" +
-        "Paste the real secret from the Clerk dashboard into .env and the deployment environment.",
-    );
-  } else if (keyMode === "missing") {
-    record(
-      "readiness",
-      "fail",
-      "CLERK_SECRET_KEY is not set, so signed-in requests cannot be verified",
-      "Add CLERK_SECRET_KEY from the Clerk dashboard.",
-    );
+  if (data?.clerkVerified) {
+    record("readiness", "pass", "Clerk verified the secret key with a live request");
   } else {
-    record("readiness", "pass", `Clerk ${keyMode} instance can verify sessions`);
-  }
-
-  // Clerk refuses production keys on any host other than the production domain, so a
-  // local visit to /login always ends on "Sign-in could not start" until the separate
-  // development instance is configured. The API can still verify real live sessions.
-  const isLocalHost = /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?$/i.test(BASE);
-  if (isLocalHost && keyMode === "live") {
     record(
       "readiness",
-      "warn",
-      "Browser sign-in on localhost needs Clerk development keys",
-      "Live keys only sign in on abumarketplace.shop. Copy CLERK_DEV_PUBLISHABLE_KEY and\n" +
-        "CLERK_DEV_SECRET_KEY from the Development instance in the Clerk dashboard to enable\n" +
-        "local sign-in; everything else already works.",
+      "fail",
+      "Clerk could not verify its secret key, so every signed-in request is rejected",
+      `${data?.clerkError || "No error was reported."}\n` +
+        "Set CLERK_SECRET_KEY from the Clerk dashboard in .env and the deployment environment.",
     );
   }
 
-  if (data?.auth?.supabaseConfigured) {
+  if (data?.supabase) {
     record("readiness", "pass", "Supabase is configured for store applications and approvals");
   } else {
     record("readiness", "fail", "Supabase is not configured", "Store applications and approvals cannot be saved. Set SUPABASE_URL and SUPABASE_SECRET_KEY.");

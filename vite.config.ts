@@ -1,7 +1,7 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import {defineConfig, loadEnv, type HtmlTagDescriptor, type Plugin} from 'vite';
-import {resolveClerkKeys} from './server/clerkKeys';
+import {defineConfig, type HtmlTagDescriptor, type Plugin} from 'vite';
+import {getClerkKeys} from './server/clerkKeys.ts';
 
 /**
  * Publishes the resolved Clerk instance to the page.
@@ -44,13 +44,11 @@ function clerkInstance(publishableKey: string): Plugin {
   };
 }
 
-export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, process.cwd(), '');
-  // Local dev and preview builds sign in with the development instance; production
-  // keeps the live one. main.tsx, the CSP and token verification all read this.
-  const clerk = resolveClerkKeys(env, {mode});
+export default defineConfig(() => {
+  // main.tsx, the CSP and token verification all read the same keys.
+  const {publishableKey} = getClerkKeys();
   return {
-    plugins: [react(), tailwindcss(), clerkInstance(clerk.publishableKey)],
+    plugins: [react(), tailwindcss(), clerkInstance(publishableKey)],
     resolve: {
       alias: {
         '@': import.meta.dirname,

@@ -5,12 +5,12 @@ import express, { type Request, type Response, type NextFunction, type RequestHa
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { createClerkClient } from '@clerk/backend';
 import { GoogleGenAI } from '@google/genai';
 import type { Product, VendorStore, BlueCollarService, ServiceBooking } from './src/types/index.ts';
 import { INITIAL_PRODUCTS, INITIAL_STORES, INITIAL_SERVICES } from './src/data/mockData.ts';
 
 import {
-  clerkKeyMode,
   getSessionUser,
   isSupabaseConfigured,
   SupabaseConfigurationError,
@@ -35,6 +35,7 @@ import { merchantApplicationsHandler } from './server/merchantApplications.ts';
 import { submissionErrorResponse } from './server/submissionErrors.ts';
 import { recentMail } from './server/mailer.ts';
 import { getStoreLogoExtension, MAX_STORE_LOGO_BYTES } from './server/storeLogo.ts';
+import { getClerkKeys } from './server/clerkKeys.ts';
 import {
   applySecurity,
   rateLimit,
@@ -223,18 +224,30 @@ let bookings: ServiceBooking[] = [];
 const imageKitConfigured = () =>
   Boolean(process.env.IMAGEKIT_PRIVATE_KEY?.trim() && process.env.IMAGEKIT_URL_ENDPOINT?.trim());
 
-app.get('/api/health', (req: Request, res: Response) => {
+app.get('/api/health', async (req: Request, res: Response) => {
+  // Always run live, never cached at the edge or in the browser.
+  res.setHeader('Cache-Control', 'no-store');
+
+  const { secretKey } = getClerkKeys();
+  let clerkVerified = false;
+  let clerkError: string | null = null;
+  try {
+    await createClerkClient({ secretKey }).users.getCount();
+    clerkVerified = true;
+  } catch (error) {
+    clerkError = error instanceof Error ? error.message : 'Clerk key check failed';
+  }
+
   res.json({
     // Deliberately minimal: infrastructure details stay internal
     status: 'healthy',
     currency: 'SLE',
-    timestamp: new Date().toISOString(),
-    // Readiness only, no key material: a deployment whose Clerk key family does not
-    // match the browser's publishable key rejects every signed-in API call.
-    auth: {
-      clerkKeyMode: clerkKeyMode(),
-      supabaseConfigured: isSupabaseConfigured(),
-    },
+    // Readiness only: the key itself is never returned.
+    clerkVerified,
+    clerkError,
+    secretPrefix: secretKey.slice(0, 8),
+    secretLength: secretKey.length,
+    supabase: isSupabaseConfigured(),
     // Readiness only, no key material: without ImageKit the logo route answers 503.
     uploads: {
       storeLogo: imageKitConfigured() ? 'configured' : 'missing',

@@ -40,20 +40,15 @@ const request = (authorization?: string) =>
 /** Drives `getSessionUser` into each rejection path and returns the request it refused. */
 async function refusedRequest(code: (typeof AUTH_REJECTION_CODES)[number]) {
   if (code === 'secret-missing') {
-    // Both the live and the development secret must be absent for this branch to run.
-    const saved = {
-      CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
-      CLERK_DEV_SECRET_KEY: process.env.CLERK_DEV_SECRET_KEY,
-    };
+    // The secret must be absent for this branch to run.
+    const saved = process.env.CLERK_SECRET_KEY;
     delete process.env.CLERK_SECRET_KEY;
-    delete process.env.CLERK_DEV_SECRET_KEY;
     try {
       const req = request('Bearer session-token');
       assert.equal(await getSessionUser(req, { verify: (async () => payload('x')) as never }), null);
       return req;
     } finally {
-      if (saved.CLERK_SECRET_KEY !== undefined) process.env.CLERK_SECRET_KEY = saved.CLERK_SECRET_KEY;
-      if (saved.CLERK_DEV_SECRET_KEY !== undefined) process.env.CLERK_DEV_SECRET_KEY = saved.CLERK_DEV_SECRET_KEY;
+      if (saved !== undefined) process.env.CLERK_SECRET_KEY = saved;
     }
   }
 
