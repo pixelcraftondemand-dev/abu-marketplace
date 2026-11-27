@@ -231,11 +231,20 @@ app.get('/api/health', async (req: Request, res: Response) => {
   const { secretKey } = getClerkKeys();
   let clerkVerified = false;
   let clerkError: string | null = null;
-  try {
-    await createClerkClient({ secretKey }).users.getCount();
-    clerkVerified = true;
-  } catch (error) {
-    clerkError = error instanceof Error ? error.message : 'Clerk key check failed';
+  // A key copied from a truncated or redacted source can contain a non-ASCII
+  // character (usually "…"). Clerk rejects it before any request, so say that plainly
+  // instead of surfacing the low-level header error.
+  if (!/^[\x21-\x7E]*$/.test(secretKey)) {
+    clerkError =
+      'CLERK_SECRET_KEY contains a non-ASCII character (usually a “…” from a truncated copy). ' +
+      'Paste the full secret key from the Clerk dashboard.';
+  } else {
+    try {
+      await createClerkClient({ secretKey }).users.getCount();
+      clerkVerified = true;
+    } catch (error) {
+      clerkError = error instanceof Error ? error.message : 'Clerk key check failed';
+    }
   }
 
   res.json({

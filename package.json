@@ -16,6 +16,7 @@
     "test:logo-image": "tsx --test tests/logoImage.test.ts",
     "test:session-user": "tsx --test tests/sessionUser.test.ts",
     "test:clerk-keys": "tsx --test tests/clerkKeys.test.ts",
+    "test:health": "tsx --test tests/healthClerk.test.ts",
     "test:store-form-errors": "tsx --test tests/storeFormErrors.test.ts",
     "test:auth-retry": "tsx --test tests/apiAuthRetry.test.ts",
     "test:auth-rejection-codes": "tsx --test tests/authRejectionCodes.test.ts",

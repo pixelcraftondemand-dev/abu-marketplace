@@ -386,13 +386,26 @@ async function checkReadiness() {
   if (data?.clerkVerified) {
     record("readiness", "pass", "Clerk verified the secret key with a live request");
   } else {
-    record(
-      "readiness",
-      "fail",
-      "Clerk could not verify its secret key, so every signed-in request is rejected",
-      `${data?.clerkError || "No error was reported."}\n` +
-        "Set CLERK_SECRET_KEY from the Clerk dashboard in .env and the deployment environment.",
-    );
+    const clerkError = String(data?.clerkError || "No error was reported.");
+    if (/bytestring|character at index|non-ascii/i.test(clerkError)) {
+      record(
+        "readiness",
+        "fail",
+        "CLERK_SECRET_KEY is malformed, so Clerk rejects it before any request",
+        `${clerkError}\n` +
+          `Deployed key: prefix ${data?.secretPrefix || "unknown"}, length ${data?.secretLength ?? "unknown"}.\n` +
+          "Copy the full secret from Clerk → API keys, replace CLERK_SECRET_KEY in the deployment\n" +
+          "environment and redeploy.",
+      );
+    } else {
+      record(
+        "readiness",
+        "fail",
+        "Clerk could not verify its secret key, so every signed-in request is rejected",
+        `${clerkError}\n` +
+          "Set CLERK_SECRET_KEY from the Clerk dashboard in .env and the deployment environment.",
+      );
+    }
   }
 
   if (data?.supabase) {
