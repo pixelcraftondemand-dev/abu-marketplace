@@ -17,6 +17,11 @@ import {
 } from 'lucide-react';
 import { Product, LocationNode, MobileMoneyProvider } from '../types';
 
+// A shared product link must point at the public site, not at whatever host the
+// sharer happens to be browsing (a preview or proxy URL). In development the local
+// origin is kept so copied links still open against the running dev server.
+const PRODUCTION_ORIGIN = import.meta.env.PROD ? 'https://abumarketplace.shop' : null;
+
 interface ProductDetailModalProps {
   product: Product;
   onClose: () => void;
@@ -45,9 +50,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   // Web Share API with WhatsApp and Clipboard Fallback
   const handleShareProduct = async () => {
     const priceFormatted = new Intl.NumberFormat('en-US').format(product.priceSLE);
-    const shareUrl = typeof window !== 'undefined'
-      ? `${window.location.origin}${window.location.pathname}?product=${encodeURIComponent(product.id)}`
-      : `https://abumarketplace.shop/?product=${encodeURIComponent(product.id)}`;
+    const shareOrigin = PRODUCTION_ORIGIN
+      || (typeof window !== 'undefined' ? window.location.origin : 'https://abumarketplace.shop');
+    const sharePath = typeof window !== 'undefined' ? window.location.pathname : '/';
+    const shareUrl = `${shareOrigin}${sharePath}?product=${encodeURIComponent(product.id)}`;
 
     const shareTitle = `${product.title} - ABU Marketplace`;
     const shareMessage = `Check out "${product.title}" on ABU Marketplace for SLE ${priceFormatted}!\nImmediate delivery available across Sierra Leone:\n${shareUrl}`;

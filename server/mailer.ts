@@ -194,6 +194,15 @@ function layout(heading: string, body: string, footer: string): string {
 </body></html>`;
 }
 
+/**
+ * Public origin used for every link in an email. APP_URL is the deployment's own
+ * value; the live domain is the fallback, and a trailing slash is dropped so paths
+ * do not end up with a double slash.
+ */
+function publicAppBase(): string {
+  return (process.env.APP_URL?.trim() || 'https://abumarketplace.shop').replace(/\/+$/, '');
+}
+
 export interface StoreMailInput {
   to: string;
   ownerName?: string | null;
@@ -241,7 +250,7 @@ export interface BuiltEmail {
 export function buildStoreApprovalEmail(input: StoreMailInput): BuiltEmail {
   const who = input.ownerName || 'there';
   const note = input.note?.trim();
-  const appBase = (process.env.APP_URL || 'https://abumarketplace.shop').replace(/\/+$/, '');
+  const appBase = publicAppBase();
   // The store's own public address, so the merchant can open (or share) their storefront.
   const storeUrl = input.storeSlug ? `${appBase}/stores/${encodeURIComponent(input.storeSlug)}` : appBase;
   const subject = `Your store is live: ${input.storeName}`;
@@ -387,7 +396,7 @@ export function buildListingApprovalEmail(input: ListingMailInput): BuiltEmail {
      </div>` : ''}
      <p style="margin:0 0 12px;font-size:14px;line-height:1.6">${copy.action}</p>
      <p style="margin:0;font-size:14px;line-height:1.6">
-       <a href="${process.env.APP_URL || 'https://abumarketplace.shop'}"
+       <a href="${escapeHtml(publicAppBase())}"
           style="display:inline-block;background:#0B3B60;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600">
          View ${BRAND}
        </a>

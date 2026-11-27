@@ -1270,7 +1270,39 @@ What would you like assistance with today?`;
 // ----------------------------------------------------
 // Production Static Serving or Dev Mode
 // ----------------------------------------------------
+
+/**
+ * Storefront links in approval emails and the auth allowlist are built from APP_URL.
+ * A production deploy left pointing at localhost sends merchants a link nobody can
+ * open, so say so at boot instead of discovering it in a customer's inbox.
+ */
+function checkPublicAppUrl(): void {
+  if (process.env.NODE_ENV !== 'production') return;
+
+  const appUrl = process.env.APP_URL?.trim();
+  if (!appUrl) return;
+
+  let host: string;
+  try {
+    host = new URL(appUrl).hostname.toLowerCase();
+  } catch {
+    console.warn(`[config] APP_URL is not a valid URL: "${appUrl}". Email links will be wrong.`);
+    return;
+  }
+
+  const localHosts = ['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]'];
+  if (localHosts.includes(host)) {
+    console.warn(
+      `[config] APP_URL points at ${appUrl} while NODE_ENV=production. ` +
+        'Approval emails and auth links will use localhost and will not open for users. ' +
+        'Set APP_URL to the public domain (for example https://abumarketplace.shop).',
+    );
+  }
+}
+
 async function startServer() {
+  checkPublicAppUrl();
+
   // Pay the first Supabase round-trip before accepting traffic, so the catalog's first
   // request is not a multi-second wait. A slow or unreachable database must not delay
   // boot indefinitely, so the wait is capped.
@@ -1333,4 +1365,8 @@ export default app;
 
 if (!process.env.VERCEL) {
   startServer();
+} else {
+  // On Vercel the app is exported instead of booted here, so the boot check
+  // startServer() performs has to run on import.
+  checkPublicAppUrl();
 }
