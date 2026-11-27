@@ -103,6 +103,10 @@ export interface MerchantSalesSummary {
   unitsLast30: number;
   ordersLast30: number;
   recentOrders: MerchantOrderSummary[];
+  /** Every paid order this store has not handed to a carrier yet. */
+  awaitingDispatch: MerchantOrderSummary[];
+  /** May be larger than `awaitingDispatch`, which is capped for the dashboard. */
+  awaitingDispatchCount: number;
 }
 
 export interface MerchantStoreView {
@@ -137,6 +141,8 @@ export const EMPTY_SALES: MerchantSalesSummary = {
   unitsLast30: 0,
   ordersLast30: 0,
   recentOrders: [],
+  awaitingDispatch: [],
+  awaitingDispatchCount: 0,
 };
 
 export const MERCHANT_CATEGORIES = [
@@ -317,7 +323,7 @@ export interface OrderItemInput {
 export function summarizeOrderItems(
   items: Array<{ quantity: number; unitPriceSLE: number; orderId: string; createdAt: string }>,
   now = Date.now(),
-): Omit<MerchantSalesSummary, 'recentOrders'> {
+): Omit<MerchantSalesSummary, 'recentOrders' | 'awaitingDispatch' | 'awaitingDispatchCount'> {
   const windowStart = now - 30 * 24 * 60 * 60 * 1000;
   const orders = new Set<string>();
   const recentOrders = new Set<string>();
@@ -582,13 +588,24 @@ export async function merchantSales(storeId: string): Promise<MerchantSalesSumma
     if (lines) lines.push(row);
     else linesByOrder.set(row.order_id, [row]);
   }
-  const orderIds = [...linesByOrder.keys()].slice(0, 8);
+  // Rows arrive newest first, so both lists keep recency order. Awaiting dispatch is
+  // every order this store has not handed over yet, not just the eight shown below.
+  const allOrderIds = [...linesByOrder.keys()];
+  const statusOf = (orderId: string): FulfillmentStatus =>
+    (linesByOrder.get(orderId)?.[0]?.fulfillment_status || 'placed') as FulfillmentStatus;
+  const awaitingIds = allOrderIds.filter((orderId) => statusOf(orderId) === 'placed');
+  const recentIds = allOrderIds.slice(0, 8);
+  // The dashboard filters on this list, so it is capped rather than unbounded.
+  const dispatchIds = awaitingIds.slice(0, 50);
+
+  // One query serves both the recent-sales list and the awaiting-dispatch filter.
+  const metadataIds = [...new Set([...recentIds, ...dispatchIds])];
   let ordersById = new Map<string, { tracking_number: string; order_status: string; recipient_name: string }>();
-  if (orderIds.length) {
+  if (metadataIds.length) {
     const { data: orders, error: ordersError } = await supabaseAdmin
       .from('orders')
       .select('id, tracking_number, order_status, recipient_name')
-      .in('id', orderIds);
+      .in('id', metadataIds);
     if (ordersError) {
       console.error('[merchant] could not load recent orders:', ordersError.message);
     } else {
@@ -603,31 +620,35 @@ export async function merchantSales(storeId: string): Promise<MerchantSalesSumma
     }
   }
 
+  const toOrder = (orderId: string): MerchantOrderSummary => {
+    const lines = linesByOrder.get(orderId) || [];
+    const order = ordersById.get(orderId);
+    const quantity = lines.reduce((sum, line) => sum + numberOr(line.quantity), 0);
+    const total = lines.reduce(
+      (sum, line) => sum + numberOr(line.quantity) * numberOr(line.unit_price_sle),
+      0,
+    );
+    const titles = lines.map((line) => line.title);
+    return {
+      orderId,
+      trackingNumber: order?.tracking_number || '',
+      status: statusOf(orderId),
+      recipientName: order?.recipient_name || '',
+      itemsSummary:
+        titles.length > 2
+          ? `${titles.slice(0, 2).join(', ')} +${titles.length - 2} more`
+          : titles.join(', '),
+      quantity,
+      totalSLE: Math.round(total * 100) / 100,
+      createdAt: lines[0]?.created_at || new Date().toISOString(),
+    };
+  };
+
   return {
     ...totals,
-    recentOrders: orderIds.map((orderId) => {
-      const lines = linesByOrder.get(orderId) || [];
-      const order = ordersById.get(orderId);
-      const quantity = lines.reduce((sum, line) => sum + numberOr(line.quantity), 0);
-      const total = lines.reduce(
-        (sum, line) => sum + numberOr(line.quantity) * numberOr(line.unit_price_sle),
-        0,
-      );
-      const titles = lines.map((line) => line.title);
-      return {
-        orderId,
-        trackingNumber: order?.tracking_number || '',
-        status: (lines[0]?.fulfillment_status || 'placed') as FulfillmentStatus,
-        recipientName: order?.recipient_name || '',
-        itemsSummary:
-          titles.length > 2
-            ? `${titles.slice(0, 2).join(', ')} +${titles.length - 2} more`
-            : titles.join(', '),
-        quantity,
-        totalSLE: Math.round(total * 100) / 100,
-        createdAt: lines[0]?.created_at || new Date().toISOString(),
-      };
-    }),
+    recentOrders: recentIds.map(toOrder),
+    awaitingDispatch: dispatchIds.map(toOrder),
+    awaitingDispatchCount: awaitingIds.length,
   };
 }
 

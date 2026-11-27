@@ -112,6 +112,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
   const [notice, setNotice] = useState('');
   const [orderBusy, setOrderBusy] = useState<string | null>(null);
   const [orderError, setOrderError] = useState('');
+  const [orderFilter, setOrderFilter] = useState<'recent' | 'awaiting'>('recent');
 
   const load = useCallback(async () => {
     setState('loading');
@@ -157,6 +158,10 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
     () => products.filter((product) => product.isActive && product.stockCount <= 3),
     [products],
   );
+
+  const awaitingCount = sales?.awaitingDispatchCount ?? 0;
+  const shownOrders =
+    orderFilter === 'awaiting' ? sales?.awaitingDispatch ?? [] : sales?.recentOrders ?? [];
 
   if (state === 'loading' && !overview) {
     return (
@@ -326,27 +331,64 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
             </p>
           )}
 
+          {/* One click narrows the list to parcels that still need handing over. */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setOrderFilter('recent')}
+              aria-pressed={orderFilter === 'recent'}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 font-bold transition-colors ${
+                orderFilter === 'recent'
+                  ? 'bg-[#0B3B60] text-white dark:bg-[#00875A]'
+                  : 'border border-[#DCE1E5] bg-white text-[#1A242D] hover:bg-slate-50 dark:border-slate-700 dark:bg-transparent dark:text-slate-200 dark:hover:bg-slate-800'
+              }`}
+            >
+              Recent sales
+            </button>
+            <button
+              type="button"
+              onClick={() => setOrderFilter('awaiting')}
+              aria-pressed={orderFilter === 'awaiting'}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-full px-3 font-bold transition-colors ${
+                orderFilter === 'awaiting'
+                  ? 'bg-[#0B3B60] text-white dark:bg-[#00875A]'
+                  : awaitingCount > 0
+                    ? 'border border-amber-400 bg-amber-50 text-amber-900 hover:bg-amber-100 dark:border-amber-600 dark:bg-amber-950/40 dark:text-amber-200'
+                    : 'border border-[#DCE1E5] bg-white text-[#1A242D] hover:bg-slate-50 dark:border-slate-700 dark:bg-transparent dark:text-slate-200 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Truck className="h-3.5 w-3.5" aria-hidden="true" />
+              Awaiting dispatch{awaitingCount > 0 ? ` (${awaitingCount})` : ''}
+            </button>
+          </div>
+
           <div className="rounded border border-[#DCE1E5] dark:border-[#1E2E3D]">
             <div className="border-b border-[#DCE1E5] bg-[#f5faff] px-3 py-2 font-bold text-[#0B3B60] dark:border-[#1E2E3D] dark:bg-[#152738] dark:text-white">
-              Recent sales
+              {orderFilter === 'awaiting' ? 'Orders awaiting dispatch' : 'Recent sales'}
             </div>
-            {sales.recentOrders.length === 0 ? (
-              <div className="px-3 py-6 text-center text-slate-500 dark:text-slate-400">
-                <p>No sales yet. Products you add appear in the marketplace immediately.</p>
-                {products.length === 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setTab('products')}
-                    className="mt-2 inline-flex h-8 items-center gap-1.5 rounded bg-[#0B3B60] px-3 font-bold text-white hover:bg-[#002541] dark:bg-[#00875A]"
-                  >
-                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                    Add your first product
-                  </button>
-                )}
-              </div>
+            {shownOrders.length === 0 ? (
+              orderFilter === 'awaiting' ? (
+                <p className="px-3 py-6 text-center text-slate-500 dark:text-slate-400">
+                  Nothing awaiting dispatch — every order has been handed to a carrier.
+                </p>
+              ) : (
+                <div className="px-3 py-6 text-center text-slate-500 dark:text-slate-400">
+                  <p>No sales yet. Products you add appear in the marketplace immediately.</p>
+                  {products.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setTab('products')}
+                      className="mt-2 inline-flex h-8 items-center gap-1.5 rounded bg-[#0B3B60] px-3 font-bold text-white hover:bg-[#002541] dark:bg-[#00875A]"
+                    >
+                      <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                      Add your first product
+                    </button>
+                  )}
+                </div>
+              )
             ) : (
               <ul className="divide-y divide-[#DCE1E5] dark:divide-[#1E2E3D]">
-                {sales.recentOrders.map((sale) => (
+                {shownOrders.map((sale) => (
                   <li key={sale.orderId} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-bold text-[#1A242D] dark:text-slate-100">

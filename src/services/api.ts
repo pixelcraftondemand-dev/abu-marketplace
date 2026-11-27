@@ -162,6 +162,9 @@ export interface MerchantSalesSummary {
   unitsLast30: number;
   ordersLast30: number;
   recentOrders: MerchantSaleRow[];
+  /** Every order still waiting to be handed to a carrier (dashboard shows up to 50). */
+  awaitingDispatch: MerchantSaleRow[];
+  awaitingDispatchCount: number;
 }
 
 export interface MerchantOverview {
