@@ -53,6 +53,33 @@ const FULFILMENT_STYLES: Record<string, string> = {
   cancelled: 'border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300',
 };
 
+/** Friendly names for the fulfilment codes the API returns. */
+const FULFILMENT_LABELS: Record<string, string> = {
+  placed: 'Placed',
+  dispatched: 'Dispatched',
+  delivered: 'Delivered',
+  cancelled: 'Cancelled',
+};
+
+/** The editable profile fields, so "has anything changed?" is one comparison. */
+const profileSnapshot = (profile: MerchantStoreProfile) => ({
+  tagline: profile.tagline,
+  description: profile.description,
+  locationHub: profile.locationHub,
+  province: profile.province,
+  streetAddress: profile.streetAddress,
+  phone: profile.phone,
+  payoutProvider: profile.payoutProvider,
+  payoutPhone: profile.payoutPhone,
+  logo: profile.logo,
+});
+
+/** Mobile-money wallets Abu pays merchant earnings into. */
+const PAYOUT_PROVIDERS = [
+  { value: 'orange', label: 'Orange Money' },
+  { value: 'afrimoney', label: 'Afrimoney' },
+];
+
 const emptyProduct = (category: string): MerchantProductInput => ({
   title: '',
   category,
@@ -140,7 +167,9 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
     );
   }
 
-  if (state === 'error') {
+  // Only a first load with nothing to show becomes a full-page error; a failed refresh
+  // keeps the merchant's loaded figures and reports the problem inline.
+  if (state === 'error' && !overview) {
     return (
       <div className="space-y-3 rounded border border-rose-300 bg-rose-50 p-4 text-xs text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200">
         <p className="flex items-center gap-2 font-bold">
@@ -180,6 +209,21 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
         </div>
       )}
 
+      {state === 'error' && error && (
+        <div className="flex flex-wrap items-center gap-2 rounded border border-rose-300 bg-rose-50 p-2.5 font-bold text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 flex-1">{error}</span>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="inline-flex h-7 shrink-0 items-center gap-1 rounded border border-rose-300 bg-white px-2 text-[11px] text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:bg-transparent dark:text-rose-200"
+          >
+            <RefreshCw className="h-3 w-3" aria-hidden="true" />
+            Try again
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-[#DCE1E5] bg-[#f5faff] p-3 dark:border-[#1E2E3D] dark:bg-[#152738]">
         <div className="flex items-center gap-2.5">
           <div className="grid h-10 w-10 place-items-center overflow-hidden rounded bg-white dark:bg-[#0E1720]">
@@ -200,6 +244,19 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
           <span className="rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
             Live storefront
           </span>
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={state === 'loading'}
+            title="Refresh sales, orders and catalog"
+            aria-label="Refresh store data"
+            className="inline-flex h-8 w-8 items-center justify-center rounded border border-[#DCE1E5] bg-white text-[#0B3B60] transition-colors hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-transparent dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${state === 'loading' ? 'animate-spin' : ''}`}
+              aria-hidden="true"
+            />
+          </button>
           {onOpenStorefront && (
             <button
               type="button"
@@ -247,9 +304,18 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
           </div>
 
           {lowStock.length > 0 && (
-            <div className="rounded border border-amber-300 bg-amber-50 p-2.5 text-[11px] text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
-              <span className="font-bold">Low stock:</span>{' '}
-              {lowStock.map((product) => `${product.title} (${product.stockCount})`).join(', ')}
+            <div className="flex flex-wrap items-center gap-2 rounded border border-amber-300 bg-amber-50 p-2.5 text-[11px] text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
+              <p className="min-w-0 flex-1">
+                <span className="font-bold">Low stock:</span>{' '}
+                {lowStock.map((product) => `${product.title} (${product.stockCount})`).join(', ')}
+              </p>
+              <button
+                type="button"
+                onClick={() => setTab('products')}
+                className="inline-flex h-7 shrink-0 items-center rounded border border-amber-400 bg-white/70 px-2 font-bold text-amber-900 hover:bg-white dark:border-amber-600 dark:bg-transparent dark:text-amber-100 dark:hover:bg-amber-900/40"
+              >
+                Restock
+              </button>
             </div>
           )}
 
@@ -265,9 +331,19 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
               Recent sales
             </div>
             {sales.recentOrders.length === 0 ? (
-              <p className="px-3 py-6 text-center text-slate-500 dark:text-slate-400">
-                No sales yet. Products you add appear in the marketplace immediately.
-              </p>
+              <div className="px-3 py-6 text-center text-slate-500 dark:text-slate-400">
+                <p>No sales yet. Products you add appear in the marketplace immediately.</p>
+                {products.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setTab('products')}
+                    className="mt-2 inline-flex h-8 items-center gap-1.5 rounded bg-[#0B3B60] px-3 font-bold text-white hover:bg-[#002541] dark:bg-[#00875A]"
+                  >
+                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                    Add your first product
+                  </button>
+                )}
+              </div>
             ) : (
               <ul className="divide-y divide-[#DCE1E5] dark:divide-[#1E2E3D]">
                 {sales.recentOrders.map((sale) => (
@@ -286,7 +362,7 @@ export const MerchantDashboard: React.FC<MerchantDashboardProps> = ({
                       <span
                         className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${FULFILMENT_STYLES[sale.status] || FULFILMENT_STYLES.placed}`}
                       >
-                        {sale.status}
+                        {FULFILMENT_LABELS[sale.status] || sale.status}
                       </span>
                       <p className="font-bold text-[#00875A]">{money(sale.totalSLE)}</p>
                       {sale.status !== 'delivered' && sale.status !== 'cancelled' && (
@@ -619,7 +695,16 @@ const ProductsPanel: React.FC<{
               <div className="min-w-0 flex-1">
                 <p className="truncate font-bold text-[#1A242D] dark:text-slate-100">{product.title}</p>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                  {product.category} · {money(product.priceSLE)} · {product.stockCount} in stock
+                  {product.category} · {money(product.priceSLE)} ·{' '}
+                  <span
+                    className={
+                      product.stockCount <= 3
+                        ? 'font-bold text-amber-700 dark:text-amber-300'
+                        : undefined
+                    }
+                  >
+                    {product.stockCount} in stock
+                  </span>
                   {!product.isActive && ' · hidden'}
                 </p>
               </div>
@@ -675,6 +760,8 @@ const StoreSettingsPanel: React.FC<{
   const [copied, setCopied] = useState(false);
 
   useEffect(() => setDraft(store), [store]);
+
+  const dirty = JSON.stringify(profileSnapshot(draft)) !== JSON.stringify(profileSnapshot(store));
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -759,10 +846,33 @@ const StoreSettingsPanel: React.FC<{
           <input maxLength={240} value={draft.streetAddress} onChange={(event) => setDraft({ ...draft, streetAddress: event.target.value })} className={fieldClass} />
         </div>
         <div>
+          <label className="mb-1 block font-bold">Payout provider</label>
+          <select
+            value={draft.payoutProvider}
+            onChange={(event) => setDraft({ ...draft, payoutProvider: event.target.value })}
+            className={fieldClass}
+          >
+            <option value="">Not set</option>
+            {PAYOUT_PROVIDERS.map((provider) => (
+              <option key={provider.value} value={provider.value}>
+                {provider.label}
+              </option>
+            ))}
+            {draft.payoutProvider &&
+              !PAYOUT_PROVIDERS.some((provider) => provider.value === draft.payoutProvider) && (
+                <option value={draft.payoutProvider}>{draft.payoutProvider}</option>
+              )}
+          </select>
+        </div>
+        <div>
           <label className="mb-1 block font-bold">Payout number</label>
           <input maxLength={40} value={draft.payoutPhone} onChange={(event) => setDraft({ ...draft, payoutPhone: event.target.value })} className={fieldClass} />
         </div>
       </div>
+
+      <p className="text-[10px] text-slate-500 dark:text-slate-400">
+        We send your sales earnings to this mobile-money wallet.
+      </p>
 
       <div>
         <label className="mb-1 block font-bold">About your store</label>
@@ -785,11 +895,17 @@ const StoreSettingsPanel: React.FC<{
 
       <button
         type="submit"
-        disabled={busy}
+        disabled={busy || !dirty}
         className="inline-flex h-9 items-center gap-1.5 rounded bg-[#0B3B60] px-4 font-bold text-white hover:bg-[#002541] disabled:opacity-50 dark:bg-[#00875A]"
       >
-        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-        Save store profile
+        {busy ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : dirty ? (
+          <Save className="h-3.5 w-3.5" />
+        ) : (
+          <Check className="h-3.5 w-3.5" />
+        )}
+        {busy ? 'Saving…' : dirty ? 'Save store profile' : 'All changes saved'}
       </button>
     </form>
   );
