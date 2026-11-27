@@ -876,7 +876,9 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
           </div>
         </div>
 
-        {/* 3-Track Selector Bar */}
+        {/* 3-Track Selector Bar. The approved merchant's dashboard is its own workspace
+            (sales, catalog and store settings), so it does not show these submission tracks. */}
+        {activeTab !== 'dashboard' && (
         <div
           className={`grid grid-cols-2 ${
             approvedStoreApplication ? 'sm:grid-cols-5' : 'sm:grid-cols-4'
@@ -890,11 +892,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
                 setSuccessMessage('');
                 setStoreError('');
               }}
-              className={`min-h-12 px-1 py-1 sm:px-1.5 rounded font-bold flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer ${
-                activeTab === 'dashboard'
-                  ? 'bg-[#0B3B60] dark:bg-[#00875A] text-white shadow-xs'
-                  : 'bg-white dark:bg-[#0E1720] text-[#1A242D] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
-              }`}
+              className="min-h-12 px-1 py-1 sm:px-1.5 rounded font-bold flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer bg-white dark:bg-[#0E1720] text-[#1A242D] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
             >
               <BarChart3 className="w-4 h-4 shrink-0" />
               <span className="block max-w-full whitespace-normal text-center text-[10px] leading-tight sm:text-xs">My Store</span>
@@ -983,6 +981,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
           </button>
 
         </div>
+        )}
 
         {/* Form Body */}
         <div className="p-4 sm:p-6 max-h-[75vh] overflow-y-auto space-y-4">
