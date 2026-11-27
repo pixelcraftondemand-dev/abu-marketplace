@@ -108,6 +108,71 @@ export interface StoreSubmission {
   updated_at: string;
 }
 
+/** A live catalog item the merchant manages from their own dashboard. */
+export interface MerchantProduct {
+  id: string;
+  title: string;
+  category: string;
+  priceSLE: number;
+  stockCount: number;
+  isActive: boolean;
+  image: string;
+  description: string;
+  createdAt: string | null;
+}
+
+/** The merchant's editable store profile, mirrored from the approved application. */
+export interface MerchantStoreProfile {
+  id: string;
+  slug: string;
+  name: string;
+  tagline: string;
+  description: string;
+  locationHub: string;
+  province: string;
+  streetAddress: string;
+  phone: string;
+  payoutProvider: string;
+  payoutPhone: string;
+  logo: string;
+  status: string;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+}
+
+export type FulfillmentStatus = 'placed' | 'dispatched' | 'delivered' | 'cancelled';
+
+export interface MerchantSaleRow {
+  orderId: string;
+  trackingNumber: string;
+  /** This store's own progress on the order. */
+  status: FulfillmentStatus;
+  recipientName: string;
+  itemsSummary: string;
+  quantity: number;
+  totalSLE: number;
+  createdAt: string;
+}
+
+export interface MerchantSalesSummary {
+  revenueSLE: number;
+  unitsSold: number;
+  orderCount: number;
+  revenueLast30SLE: number;
+  unitsLast30: number;
+  ordersLast30: number;
+  recentOrders: MerchantSaleRow[];
+}
+
+export interface MerchantOverview {
+  /** null until an admin approves the merchant's store application. */
+  store: MerchantStoreProfile | null;
+  products: MerchantProduct[];
+  sales: MerchantSalesSummary;
+}
+
+export type MerchantProductInput = Omit<MerchantProduct, 'id' | 'createdAt'>;
+
 export const api = {
   async getCurrentUser() {
     const res = await authFetch('/api/custom-auth/me');
@@ -369,6 +434,79 @@ export const api = {
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'Could not load your applications');
     return data.data as StoreSubmission[];
+  },
+
+  /** Merchant: everything the store dashboard shows — store, catalog and sales. */
+  async getMerchantOverview(): Promise<MerchantOverview> {
+    const res = await authFetch('/api/merchant/overview');
+    if (!res.ok) return throwApiError(res, 'Could not load your store dashboard');
+    const data = await res.json();
+    return data.data as MerchantOverview;
+  },
+
+  /** Merchant: save the editable parts of the store profile. */
+  async updateMerchantStore(
+    patch: Partial<Omit<MerchantStoreProfile, 'id' | 'slug' | 'status' | 'reviewNote' | 'reviewedAt'>>,
+  ): Promise<MerchantStoreProfile> {
+    const res = await authFetch('/api/merchant/store', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) return throwApiError(res, 'Could not save your store');
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Could not save your store');
+    return data.data as MerchantStoreProfile;
+  },
+
+  /** Merchant: add a product to the live catalog. */
+  async createMerchantProduct(product: MerchantProductInput): Promise<MerchantProduct> {
+    const res = await authFetch('/api/merchant/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(product),
+    });
+    if (!res.ok) return throwApiError(res, 'Could not add the product');
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Could not add the product');
+    return data.data as MerchantProduct;
+  },
+
+  /** Merchant: change price, stock, description or visibility of own product. */
+  async updateMerchantProduct(id: string, patch: Partial<MerchantProductInput>): Promise<MerchantProduct> {
+    const res = await authFetch(`/api/merchant/products/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) return throwApiError(res, 'Could not save the product');
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Could not save the product');
+    return data.data as MerchantProduct;
+  },
+
+  /** Merchant: mark their lines of an order as dispatched or delivered. */
+  async updateMerchantOrderStatus(
+    orderId: string,
+    status: 'dispatched' | 'delivered',
+  ): Promise<{ status: FulfillmentStatus; orderStatus: string }> {
+    const res = await authFetch(`/api/merchant/orders/${encodeURIComponent(orderId)}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (!res.ok) return throwApiError(res, 'Could not update the order');
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Could not update the order');
+    return data.data;
+  },
+
+  /** Merchant: remove a product from the catalog. */
+  async deleteMerchantProduct(id: string): Promise<void> {
+    const res = await authFetch(`/api/merchant/products/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) return throwApiError(res, 'Could not remove the product');
   },
 
   /** Admin: the review queue. */

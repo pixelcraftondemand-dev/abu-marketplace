@@ -24,6 +24,7 @@
     "test:store-lifecycle": "tsx --test tests/storeLifecycle.test.ts",
     "test:merchant-applications-http": "tsx --test tests/merchantApplicationsHttp.test.ts",
     "test:approval-email": "tsx --test tests/approvalEmail.test.ts",
+    "test:merchant-dashboard": "tsx --test tests/merchantDashboard.test.ts",
     "test:application-inbox": "tsx --test tests/applicationInbox.test.ts",
     "sync:github": "git fetch origin main && git merge origin/main --no-edit"
   },

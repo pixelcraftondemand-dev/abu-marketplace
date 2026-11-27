@@ -49,6 +49,7 @@ import { Category, Product, VendorStore, BlueCollarService, TradeCategory, ItemC
 import { detectCarrier, INITIAL_PRODUCTS, INITIAL_STORES } from '../data/mockData';
 import { api, ApiError, StoreSubmission } from '../services/api';
 import { AbuLogo } from './AbuLogo';
+import { MerchantDashboard } from './MerchantDashboard';
 import { recordStoreLogoOutcome } from '../lib/uploadDiagnostics';
 import {
   STORE_LOGO_MAX_BYTES,
@@ -231,9 +232,11 @@ interface MerchantHubModalProps {
   currentUser?: UserProfile | null;
   products?: Product[];
   stores?: VendorStore[];
-  initialTab?: 'store' | 'single_product' | 'service' | 'applications';
+  initialTab?: 'store' | 'single_product' | 'service' | 'applications' | 'dashboard';
   /** Called after the application queue is read, so a fresh approval can update the account. */
   onApplicationsUpdated?: (applications: StoreSubmission[]) => void;
+  /** Opens the merchant's public storefront from the dashboard. */
+  onViewStorefront?: (store: VendorStore) => void;
 }
 
 export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
@@ -247,8 +250,11 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   stores = [],
   initialTab,
   onApplicationsUpdated,
+  onViewStorefront,
 }) => {
-  const [activeTab, setActiveTab] = useState<'store' | 'single_product' | 'service' | 'applications' | 'analytics' | undefined>(initialTab || 'store');
+  const [activeTab, setActiveTab] = useState<
+    'store' | 'single_product' | 'service' | 'applications' | 'analytics' | 'dashboard' | undefined
+  >(initialTab || 'store');
   const [successMessage, setSuccessMessage] = useState('');
   const [storeError, setStoreError] = useState('');
   const [exportToast, setExportToast] = useState('');
@@ -336,6 +342,20 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
         )[0],
     [applications],
   );
+
+  // A merchant whose store is already live opens on their dashboard rather than on the
+  // application form. An explicit tab request (from the inbox or a deep link) still wins,
+  // and the choice is made once per opening so a late queue read cannot yank the tab.
+  const autoDashboardRef = useRef(false);
+  useEffect(() => {
+    if (!isOpen) {
+      autoDashboardRef.current = false;
+      return;
+    }
+    if (initialTab || autoDashboardRef.current || !approvedStoreApplication) return;
+    autoDashboardRef.current = true;
+    setActiveTab('dashboard');
+  }, [isOpen, initialTab, approvedStoreApplication, approvedStoreApplication?.id]);
 
   // Analytics Dashboard State
   const [analyticsTimeframe, setAnalyticsTimeframe] = useState<'7d' | '30d' | '90d'>('7d');
@@ -857,7 +877,30 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
         </div>
 
         {/* 3-Track Selector Bar */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 bg-[#eaf5ff] dark:bg-[#152738] border-b border-[#DCE1E5] dark:border-[#1E2E3D] p-1.5 gap-1.5 text-xs shrink-0">
+        <div
+          className={`grid grid-cols-2 ${
+            approvedStoreApplication ? 'sm:grid-cols-5' : 'sm:grid-cols-4'
+          } bg-[#eaf5ff] dark:bg-[#152738] border-b border-[#DCE1E5] dark:border-[#1E2E3D] p-1.5 gap-1.5 text-xs shrink-0`}
+        >
+          {approvedStoreApplication && (
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('dashboard');
+                setSuccessMessage('');
+                setStoreError('');
+              }}
+              className={`min-h-12 px-1 py-1 sm:px-1.5 rounded font-bold flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 transition-all cursor-pointer ${
+                activeTab === 'dashboard'
+                  ? 'bg-[#0B3B60] dark:bg-[#00875A] text-white shadow-xs'
+                  : 'bg-white dark:bg-[#0E1720] text-[#1A242D] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4 shrink-0" />
+              <span className="block max-w-full whitespace-normal text-center text-[10px] leading-tight sm:text-xs">My Store</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => {
@@ -961,6 +1004,20 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{storeError}</span>
             </div>
+          )}
+
+          {/* MERCHANT DASHBOARD: live sales, catalog and store profile (approved stores) */}
+          {activeTab === 'dashboard' && approvedStoreApplication && (
+            <MerchantDashboard
+              currentUserEmail={currentUser?.email}
+              onOpenStorefront={(slug) => {
+                const live = stores.find((store) => store.slug.toLowerCase() === slug.toLowerCase());
+                if (live && onViewStorefront) {
+                  onClose();
+                  onViewStorefront(live);
+                }
+              }}
+            />
           )}
 
           {/* TRACK 1: CREATE A STORE */}

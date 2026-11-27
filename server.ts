@@ -23,6 +23,7 @@ import {
   approvedStores,
   createListingSubmission,
   createSubmission,
+  invalidateApprovedCache,
   isAdmin,
   listSubmissions,
   previewApprovalEmail,
@@ -33,6 +34,25 @@ import {
 } from './server/storeSubmissions.ts';
 import { merchantApplicationsHandler } from './server/merchantApplications.ts';
 import { submissionErrorResponse } from './server/submissionErrors.ts';
+import {
+  activeMerchantProducts,
+  approvedStoreForOwner,
+  approvedStoreMap,
+  createMerchantProduct,
+  decrementMerchantStock,
+  deleteMerchantProduct,
+  listMerchantProducts,
+  merchantOverview,
+  readProductInput,
+  readStoreProfileInput,
+  recordOrder,
+  toMerchantStoreView,
+  toPublicProduct,
+  updateMerchantProduct,
+  updateMerchantStore,
+  updateOrderFulfillment,
+  type FulfillmentStatus,
+} from './server/merchant.ts';
 import { recentMail } from './server/mailer.ts';
 import { getStoreLogoExtension, MAX_STORE_LOGO_BYTES } from './server/storeLogo.ts';
 import { getClerkKeys } from './server/clerkKeys.ts';
@@ -324,12 +344,33 @@ app.post('/api/custom-auth/update-profile', requireSupabase, async (req: Request
   }
 });
 
+// Merchant catalog rows (live products an approved merchant manages themselves).
+async function merchantCatalog(): Promise<Product[]> {
+  try {
+    const [rows, storesById] = await Promise.all([activeMerchantProducts(), approvedStoreMap()]);
+    return rows.map((row) => {
+      const store = storesById.get(row.store_id);
+      return toPublicProduct(
+        row,
+        store?.name || 'ABU Verified Merchant',
+        store?.location_hub || 'Freetown',
+      );
+    });
+  } catch (err) {
+    console.error('[catalog] could not load merchant products:', err);
+    return [];
+  }
+}
+
 // 2. Products API
 app.get('/api/products', async (req: Request, res: Response) => {
   const { category, search, flashDeals } = req.query;
   // Approved merchant listings live in the review table, not in the seeded array.
-  const approved = await approvedListings<Product>('product');
-  let result = [...approved, ...products];
+  const [approved, merchant] = await Promise.all([
+    approvedListings<Product>('product'),
+    merchantCatalog(),
+  ]);
+  let result = [...merchant, ...approved, ...products];
 
   if (category && category !== 'All') {
     result = result.filter((p) => p.category === category);
@@ -353,8 +394,11 @@ app.get('/api/products', async (req: Request, res: Response) => {
 });
 
 app.get('/api/products/:id', async (req: Request, res: Response) => {
-  const approved = await approvedListings<Product>('product');
-  const product = [...approved, ...products].find((p) => p.id === req.params.id);
+  const [approved, merchant] = await Promise.all([
+    approvedListings<Product>('product'),
+    merchantCatalog(),
+  ]);
+  const product = [...merchant, ...approved, ...products].find((p) => p.id === req.params.id);
   if (!product) {
     return res.status(404).json({ success: false, error: 'Product not found' });
   }
@@ -619,14 +663,24 @@ app.post('/api/orders', requireSupabaseForBearer, async (req: Request, res: Resp
   }
 
   // Price and resolve every line item on the server: client-supplied prices
-  // must never be trusted when totals and stock are computed.
+  // must never be trusted when totals and stock are computed. Merchant catalog
+  // products are resolved here too, so a merchant's own stock can be sold.
+  const merchant = await merchantCatalog();
+  const sellable = [...merchant, ...products];
   const pricedItems = [];
   for (const item of items) {
-    const prod = products.find((p) => p.id === item?.product?.id);
+    const prod = sellable.find((p) => p.id === item?.product?.id);
     if (!prod || !prod.priceSLE) {
       return res.status(400).json({ success: false, error: 'One of the cart items is unavailable' });
     }
     const quantity = sanitizeNumber(item.quantity, 1, 99) || 1;
+    // A merchant product carries its live stock, so an order cannot oversell it.
+    if (prod.storeId && quantity > prod.stockCount) {
+      return res.status(409).json({
+        success: false,
+        error: `${prod.title} only has ${prod.stockCount} left in stock`,
+      });
+    }
     pricedItems.push({ product: prod, quantity });
   }
 
@@ -667,14 +721,53 @@ app.post('/api/orders', requireSupabaseForBearer, async (req: Request, res: Resp
 
   orders.unshift(newOrder);
 
-    // Update stock counts
-    pricedItems.forEach((item: any) => {
+  // Update stock counts
+  pricedItems.forEach((item: any) => {
     const prod = products.find((p) => p.id === item.product.id);
     if (prod) {
       prod.stockCount = Math.max(0, prod.stockCount - item.quantity);
       prod.soldCount += item.quantity;
     }
   });
+
+  // Persist the order and its line items so merchants can see real sales. The order
+  // itself has already been accepted, so a storage failure is logged rather than
+  // turning a placed order into an error for the buyer.
+  try {
+    await recordOrder(
+      {
+        id: newOrder.id,
+        trackingNumber: newOrder.trackingNumber,
+        buyerId: newOrder.buyerId,
+        recipientName: newOrder.recipientName,
+        phone: newOrder.phone,
+        destinationId: destination.id,
+        streetAddress: newOrder.streetAddress,
+        landmark: newOrder.landmark,
+        paymentMethod: newOrder.paymentMethod,
+        paymentStatus: newOrder.paymentStatus,
+        orderStatus: newOrder.orderStatus,
+        subtotalSLE: newOrder.subtotalSLE,
+        deliveryFeeSLE: newOrder.deliveryFeeSLE,
+        totalSLE: newOrder.totalSLE,
+      },
+      pricedItems.map((item: any) => ({
+        orderId: newOrder.id,
+        productId: item.product.id,
+        storeId: item.product.storeId || null,
+        title: item.product.title,
+        quantity: item.quantity,
+        unitPriceSLE: item.product.priceSLE,
+      })),
+    );
+    await decrementMerchantStock(
+      pricedItems
+        .filter((item: any) => item.product.storeId)
+        .map((item: any) => ({ productId: item.product.id, quantity: item.quantity })),
+    );
+  } catch (err) {
+    console.error('[orders] could not persist the order:', err);
+  }
 
   res.status(201).json({ success: true, data: newOrder });
 });
@@ -731,10 +824,17 @@ app.get('/api/stores/:idOrSlug', async (req: Request, res: Response) => {
   if (!store) {
     return res.status(404).json({ success: false, error: 'Store not found' });
   }
-  const storeProducts = products.filter(
-    (p) => p.storeId === store.id || p.sellerName.toLowerCase().includes(store.name.toLowerCase().slice(0, 8))
+  // The store's own catalog (products the merchant manages) plus any seeded or approved
+  // listings that name the store.
+  const merchant = await merchantCatalog();
+  const storeProducts = [...merchant, ...products].filter(
+    (p) => p.storeId === store.id || p.sellerName.toLowerCase().includes(store.name.toLowerCase().slice(0, 8)),
   );
-  res.json({ success: true, data: { store, products: storeProducts } });
+  const approved = await approvedListings<Product>('product');
+  const listed = approved.filter(
+    (p) => p.storeId === store.id || p.sellerName.toLowerCase().includes(store.name.toLowerCase().slice(0, 8)),
+  );
+  res.json({ success: true, data: { store, products: [...storeProducts, ...listed] } });
 });
 
 app.post('/api/stores', requireSupabase, async (req: Request, res: Response) => {
@@ -955,6 +1055,150 @@ app.post('/api/admin/store-submissions/:id/reject', async (req: Request, res: Re
     res.json({ success: true, message: 'Application rejected and merchant notified', data: submission, emailStatus: mail.status });
   } catch (err) {
     submissionErrorResponse(res, err);
+  }
+});
+
+// ----------------------------------------------------
+// MERCHANT SELF-SERVICE: an approved store manages its profile, catalog and sales
+// ----------------------------------------------------
+
+/**
+ * Resolves the signed-in merchant's live store, or answers with the reason they cannot
+ * use the dashboard yet. Every merchant route starts here, so a pending or rejected
+ * applicant can never read or write live-store data.
+ */
+async function requireLiveStore(
+  req: Request,
+  res: Response,
+): Promise<{ actor: NonNullable<Awaited<ReturnType<typeof currentActor>>>; store: Awaited<ReturnType<typeof approvedStoreForOwner>> } | null> {
+  const actor = await currentActor(req);
+  if (!actor) {
+    res.status(401).json(withAuthCode(req, { success: false, error: 'Please sign in to manage your store' }));
+    return null;
+  }
+  const store = await approvedStoreForOwner(actor.id);
+  if (!store) {
+    res.status(403).json({
+      success: false,
+      error: 'Your store is not live yet. You can manage it as soon as an admin approves your application.',
+    });
+    return null;
+  }
+  return { actor, store };
+}
+
+/** Everything the merchant dashboard shows on open: store, catalog and sales. */
+app.get('/api/merchant/overview', async (req: Request, res: Response) => {
+  try {
+    const actor = await currentActor(req);
+    if (!actor) {
+      return res.status(401).json(withAuthCode(req, { success: false, error: 'Please sign in to manage your store' }));
+    }
+    res.json({ success: true, data: await merchantOverview(actor.id) });
+  } catch (err) {
+    console.error('[merchant] overview failed:', err);
+    res.status(503).json({ success: false, error: 'Could not load your store just now. Please try again.' });
+  }
+});
+
+/** Profile edits go straight to the approved application the storefront reads. */
+app.patch('/api/merchant/store', async (req: Request, res: Response) => {
+  if (!rateLimit(req, res, 'merchant-write', 40, 10 * 60 * 1000)) return;
+  try {
+    const live = await requireLiveStore(req, res);
+    if (!live) return;
+    const updated = await updateMerchantStore(live.store!.id, readStoreProfileInput(req.body || {}));
+    invalidateApprovedCache('store');
+    res.json({ success: true, message: 'Store profile saved', data: toMerchantStoreView(updated) });
+  } catch (err) {
+    console.error('[merchant] store update failed:', err);
+    res.status(400).json({ success: false, error: err instanceof Error ? err.message : 'Could not save your store' });
+  }
+});
+
+// Merchant: add a product to their live catalog.
+app.post('/api/merchant/products', async (req: Request, res: Response) => {
+  if (!rateLimit(req, res, 'merchant-write', 40, 10 * 60 * 1000)) return;
+  try {
+    const live = await requireLiveStore(req, res);
+    if (!live) return;
+    const input = readProductInput(req.body || {});
+    if (!input.ok) {
+      return res.status(400).json({ success: false, error: input.error });
+    }
+    const product = await createMerchantProduct(live.store!, live.actor.id, input.value);
+    res.status(201).json({ success: true, message: `${product.title} is now on sale`, data: product });
+  } catch (err) {
+    console.error('[merchant] product create failed:', err);
+    res.status(400).json({ success: false, error: err instanceof Error ? err.message : 'Could not add the product' });
+  }
+});
+
+// Merchant: edit price, stock, description or visibility of their own product.
+app.patch('/api/merchant/products/:id', async (req: Request, res: Response) => {
+  if (!rateLimit(req, res, 'merchant-write', 40, 10 * 60 * 1000)) return;
+  try {
+    const live = await requireLiveStore(req, res);
+    if (!live) return;
+    const storeId = live.store!.created_store_id || `store-${live.store!.id.slice(0, 8)}`;
+    const existing = (await listMerchantProducts(storeId)).find((p) => p.id === req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, error: 'That product is not in your store' });
+    }
+    const input = readProductInput(req.body || {}, {
+      image: existing.image,
+      description: existing.description,
+      isActive: existing.isActive,
+    });
+    if (!input.ok) {
+      return res.status(400).json({ success: false, error: input.error });
+    }
+    const product = await updateMerchantProduct(storeId, req.params.id, input.value);
+    res.json({ success: true, message: 'Product saved', data: product });
+  } catch (err) {
+    console.error('[merchant] product update failed:', err);
+    res.status(400).json({ success: false, error: err instanceof Error ? err.message : 'Could not save the product' });
+  }
+});
+
+// Merchant: remove a product from their catalog.
+app.delete('/api/merchant/products/:id', async (req: Request, res: Response) => {
+  if (!rateLimit(req, res, 'merchant-write', 40, 10 * 60 * 1000)) return;
+  try {
+    const live = await requireLiveStore(req, res);
+    if (!live) return;
+    const storeId = live.store!.created_store_id || `store-${live.store!.id.slice(0, 8)}`;
+    await deleteMerchantProduct(storeId, req.params.id);
+    res.json({ success: true, message: 'Product removed from your store' });
+  } catch (err) {
+    console.error('[merchant] product delete failed:', err);
+    res.status(400).json({ success: false, error: err instanceof Error ? err.message : 'Could not remove the product' });
+  }
+});
+
+// Merchant: mark their own lines of an order as dispatched or delivered.
+app.patch('/api/merchant/orders/:orderId/status', async (req: Request, res: Response) => {
+  if (!rateLimit(req, res, 'merchant-write', 40, 10 * 60 * 1000)) return;
+  try {
+    const live = await requireLiveStore(req, res);
+    if (!live) return;
+    const storeId = live.store!.created_store_id || `store-${live.store!.id.slice(0, 8)}`;
+    const status = String(req.body?.status || '') as FulfillmentStatus;
+    const result = await updateOrderFulfillment(storeId, req.params.orderId, status);
+    res.json({
+      success: true,
+      message:
+        result.status === 'delivered'
+          ? 'Order marked as delivered'
+          : 'Order marked as dispatched',
+      data: result,
+    });
+  } catch (err) {
+    console.error('[merchant] order status update failed:', err);
+    res.status(400).json({
+      success: false,
+      error: err instanceof Error ? err.message : 'Could not update the order',
+    });
   }
 });
 
