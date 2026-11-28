@@ -18,12 +18,15 @@ interface BlueCollarServicesViewProps {
   services: BlueCollarService[];
   onBookService: (service: BlueCollarService) => void;
   onOpenRegisterModal: () => void;
+  /** Registering as an artisan is a selling tool, shown only in the Selling experience. */
+  showRegisterCta?: boolean;
 }
 
 export const BlueCollarServicesView: React.FC<BlueCollarServicesViewProps> = ({
   services,
   onBookService,
   onOpenRegisterModal,
+  showRegisterCta = true,
 }) => {
   const [selectedTrade, setSelectedTrade] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -78,13 +81,15 @@ export const BlueCollarServicesView: React.FC<BlueCollarServicesViewProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={onOpenRegisterModal}
-          className="bg-[#D84315] hover:bg-[#b12d00] text-white px-4 py-2.5 rounded font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md transition-all shrink-0 cursor-pointer w-full sm:w-auto justify-center"
-        >
-          <Wrench className="w-4 h-4" />
-          <span>Register as a Service Provider</span>
-        </button>
+        {showRegisterCta && (
+          <button
+            onClick={onOpenRegisterModal}
+            className="bg-[#D84315] hover:bg-[#b12d00] text-white px-4 py-2.5 rounded font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md transition-all shrink-0 cursor-pointer w-full sm:w-auto justify-center"
+          >
+            <Wrench className="w-4 h-4" />
+            <span>Register as a Service Provider</span>
+          </button>
+        )}
       </div>
 
       {/* Trade Category Filter Strip */}

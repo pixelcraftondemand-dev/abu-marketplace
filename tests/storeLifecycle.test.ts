@@ -20,7 +20,7 @@ import {
   type SubmissionSeams,
   type SubmissionStore,
 } from '../server/storeSubmissions.ts';
-import type { Product } from '../src/types/index.ts';
+import type { Product } from '../src/types';
 
 /**
  * Integration coverage for the whole review queue: a merchant submits, the application

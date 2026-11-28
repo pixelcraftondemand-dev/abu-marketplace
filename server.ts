@@ -7,7 +7,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { createClerkClient } from '@clerk/backend';
 import { GoogleGenAI } from '@google/genai';
-import type { Product, VendorStore, BlueCollarService, ServiceBooking } from './src/types/index.ts';
+import type { Product, VendorStore, BlueCollarService, ServiceBooking } from './src/types';
 import { INITIAL_PRODUCTS, INITIAL_STORES, INITIAL_SERVICES } from './src/data/mockData.ts';
 
 import {
@@ -130,8 +130,8 @@ app.use(express.json({ limit: '100kb' }));
 // Serve public static assets with high-performance browser caching
 const STATIC_CACHE_OPTIONS = { maxAge: '7d', etag: true };
 app.use('/products', express.static(path.resolve(__dirname, 'public', 'products'), STATIC_CACHE_OPTIONS));
+// Doodle background tiles used by the sign-in artwork.
 app.use('/images', express.static(path.resolve(__dirname, 'public', 'images'), STATIC_CACHE_OPTIONS));
-app.use('/src/assets/images', express.static(path.resolve(__dirname, 'public', 'products'), STATIC_CACHE_OPTIONS));
 
 // Sierra Leone logistics locations
 const LOCATIONS = [
@@ -431,7 +431,7 @@ app.post('/api/products', requireSupabaseForBearer, async (req: Request, res: Re
     reviewCount: 1,
     soldCount: 0,
     stockCount: sanitizeNumber(stockCount, 5, 100000),
-    image: sanitizeImageAsset(req.body.image, '/src/assets/images/solar_pv_panel_monocrystalline_1791485557806.jpg'),
+    image: sanitizeImageAsset(req.body.image, '/products/solar_pv_panel_monocrystalline_1791485557806.jpg'),
     sellerName: sanitizeText(sellerName, 120) || 'Verified Sierra Leone Merchant',
     sellerLocation: sellerLocation || 'Freetown Verified',
     isVerifiedSeller: true,
@@ -824,17 +824,21 @@ app.get('/api/stores/:idOrSlug', async (req: Request, res: Response) => {
   if (!store) {
     return res.status(404).json({ success: false, error: 'Store not found' });
   }
-  // The store's own catalog (products the merchant manages) plus any seeded or approved
-  // listings that name the store.
-  const merchant = await merchantCatalog();
-  const storeProducts = [...merchant, ...products].filter(
-    (p) => p.storeId === store.id || p.sellerName.toLowerCase().includes(store.name.toLowerCase().slice(0, 8)),
-  );
-  const approved = await approvedListings<Product>('product');
-  const listed = approved.filter(
-    (p) => p.storeId === store.id || p.sellerName.toLowerCase().includes(store.name.toLowerCase().slice(0, 8)),
-  );
-  res.json({ success: true, data: { store, products: [...storeProducts, ...listed] } });
+  // A storefront's catalog is the items that belong to this store id: the merchant's own
+  // live products plus any approved listings created for it. Older seeded products have
+  // no store id, so they fall back to a full seller-name match — never a name prefix,
+  // which used to pull other shops' items into a storefront.
+  const [merchant, approved] = await Promise.all([
+    merchantCatalog(),
+    approvedListings<Product>('product'),
+  ]);
+  const all = [...merchant, ...approved, ...products];
+  const byStoreId = all.filter((p) => p.storeId === store.id);
+  const storeName = store.name.trim().toLowerCase();
+  const catalog = byStoreId.length > 0
+    ? byStoreId
+    : products.filter((p) => p.sellerName.trim().toLowerCase() === storeName);
+  res.json({ success: true, data: { store, products: catalog } });
 });
 
 app.post('/api/stores', requireSupabase, async (req: Request, res: Response) => {
@@ -872,7 +876,7 @@ app.post('/api/stores', requireSupabase, async (req: Request, res: Response) => 
     reviewsCount: 1,
     totalSales: 0,
     establishedYear: new Date().getFullYear(),
-    logo: req.body.logo || '/src/assets/images/flagship_smartphone_device_1791485459581.jpg',
+    logo: req.body.logo || '/products/flagship_smartphone_device_1791485459581.jpg',
     productCount: 0,
   };
 
@@ -1267,7 +1271,7 @@ app.post('/api/services', requireSupabaseForBearer, async (req: Request, res: Re
     rating: 5.0,
     completedJobs: 0,
     isAvailableNow: true,
-    avatar: sanitizeImageAsset(req.body.avatar, '/src/assets/images/solar_inverter_power_station_1791485447453.jpg'),
+    avatar: sanitizeImageAsset(req.body.avatar, '/products/solar_inverter_power_station_1791485447453.jpg'),
     description: sanitizeLongText(description, 2000) || 'Professional trade technician available across Sierra Leone.',
     skills: skills || ['On-site inspection & diagnostic', 'Standard trade equipment supplied'],
     certification: certification || 'Verified Guild Trade Artisan SL',

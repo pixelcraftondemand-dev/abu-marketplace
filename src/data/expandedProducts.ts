@@ -1,4 +1,4 @@
-import type { Product, VendorStore } from '../types.ts';
+import type { Product, VendorStore } from '../types';
 
 export const ADDITIONAL_STORES: VendorStore[] = [
   {

@@ -41,12 +41,9 @@ const C = {
 
 /**
  * Variables the app can run without. The mail transport is optional (it falls back to
- * recording messages), the AI assistant has a local fallback, and the Better Auth
- * variables belong to an unmounted auth provider.
+ * recording messages) and the AI assistant has a local fallback.
  */
 const OPTIONAL_ENV = [/^GEMINI_API_KEY$/, /^SMTP_/, /^RESEND_/];
-// Better Auth is not mounted by this server; its template variables are not runtime needs.
-const SKIPPED_ENV = [/^BETTER_AUTH_/];
 const isPlaceholderValue = (value) =>
   !value || /^(MY_|<)/.test(value) || /\.\.\.$/.test(value) || /^x{4,}$/i.test(value);
 
@@ -106,8 +103,7 @@ function checkEnv() {
   }
   // A literal `sk_live_...` copied from documentation passes every "is it set" check
   // while verifying nothing, so it counts as missing here.
-  const relevant = wanted.filter((key) => !SKIPPED_ENV.some((pattern) => pattern.test(key)));
-  const missing = relevant.filter((key) => isPlaceholderValue(values.get(key)));
+  const missing = wanted.filter((key) => isPlaceholderValue(values.get(key)));
   const isOptional = (key) => OPTIONAL_ENV.some((pattern) => pattern.test(key));
   // SMTP is only an alternative to Resend, so it is not worth a warning when Resend is set.
   const mailConfigured =
@@ -118,7 +114,7 @@ function checkEnv() {
   const required = missing.filter((key) => !optional.includes(key) && !substitutedByMail(key));
 
   if (required.length) record("env", "fail", `${required.length} required env var(s) missing or empty`, required.join("\n"));
-  else record("env", "pass", `All ${relevant.length} relevant env vars from ${example.split(/[\\/]/).pop()} are set`);
+  else record("env", "pass", `All ${wanted.length} relevant env vars from ${example.split(/[\\/]/).pop()} are set`);
   if (optional.length) {
     record("env", "warn", `${optional.length} optional env var(s) unset`, `${optional.join("\n")}\nThe app falls back safely without these; set them for the full experience.`);
   }

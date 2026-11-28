@@ -10,7 +10,8 @@ import {
   Sliders,
   ShieldCheck,
   Loader2,
-  Inbox
+  Inbox,
+  Building2
 } from 'lucide-react';
 import { LocationNode, Category, UserProfile, ViewMode } from '../types';
 import { AbuLogo } from './AbuLogo';
@@ -57,6 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
   searchQuery,
   onSearchChange,
   onSelectCategory,
+  activeView,
   onSelectView,
   currentUser,
   isShopApproved = false,
@@ -103,6 +105,22 @@ export const Header: React.FC<HeaderProps> = ({
                   Marketplace
                 </span>
               </div>
+            </button>
+
+            {/* Desktop shortcut to the merchant directory; mobile has it in the bottom bar. */}
+            <button
+              type="button"
+              onClick={() => onSelectView('stores')}
+              aria-current={activeView === 'stores' ? 'page' : undefined}
+              className={`ml-0.5 hidden md:flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-xs font-semibold transition-colors cursor-pointer shrink-0 ${
+                activeView === 'stores'
+                  ? 'border-[#8df7c1]/60 bg-white/10 text-white'
+                  : 'border-transparent text-[#d0e4ff] hover:bg-white/5 hover:text-white'
+              }`}
+              title="Browse verified merchant storefronts"
+            >
+              <Building2 className="w-3.5 h-3.5 text-[#8df7c1]" aria-hidden="true" />
+              <span className="hidden lg:inline">Stores</span>
             </button>
 
           </div>

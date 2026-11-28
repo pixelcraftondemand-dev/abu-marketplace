@@ -11,7 +11,7 @@ import {
   type BuiltEmail,
   type MailResult,
 } from './mailer.ts';
-import type { VendorStore, Product, BlueCollarService } from '../src/types/index.ts';
+import type { VendorStore, Product, BlueCollarService } from '../src/types';
 
 export type SubmissionStatus = 'pending' | 'approved' | 'rejected';
 /** Store applications, single-item listings and artisan registrations share one queue. */
@@ -603,8 +603,10 @@ export function submissionToStore(row: SubmissionRow): VendorStore {
     reviewsCount: 1,
     totalSales: 0,
     establishedYear: new Date(row.created_at).getFullYear(),
-    logo: row.logo || '/src/assets/images/flagship_smartphone_device_1791485459581.jpg',
+    logo: row.logo || '/products/flagship_smartphone_device_1791485459581.jpg',
     productCount: 0,
+    // Go-live date, so the storefront can mark recently approved merchants as new.
+    createdAt: row.reviewed_at || row.created_at,
   };
 }
 

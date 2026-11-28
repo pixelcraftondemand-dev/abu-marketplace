@@ -11,17 +11,21 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { VendorStore } from '../types';
+import { isNewStore } from '../lib/newStores';
 
 interface StoresDirectoryViewProps {
   stores: VendorStore[];
   onSelectStore: (store: VendorStore) => void;
   onOpenCreateStore: () => void;
+  /** Opening a store is a selling tool, shown only in the Selling experience. */
+  showCreateStoreCta?: boolean;
 }
 
 export const StoresDirectoryView: React.FC<StoresDirectoryViewProps> = ({
   stores,
   onSelectStore,
   onOpenCreateStore,
+  showCreateStoreCta = true,
 }) => {
   return (
     <div className="max-w-[1440px] mx-auto px-3 sm:px-6 py-4 w-full max-w-full overflow-hidden">
@@ -44,13 +48,15 @@ export const StoresDirectoryView: React.FC<StoresDirectoryViewProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={onOpenCreateStore}
-          className="bg-[#D84315] hover:bg-[#b12d00] text-white px-4 py-2.5 rounded font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md transition-all shrink-0 cursor-pointer w-full sm:w-auto justify-center"
-        >
-          <Building2 className="w-4 h-4" />
-          <span>Open a Verified Store</span>
-        </button>
+        {showCreateStoreCta && (
+          <button
+            onClick={onOpenCreateStore}
+            className="bg-[#D84315] hover:bg-[#b12d00] text-white px-4 py-2.5 rounded font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md transition-all shrink-0 cursor-pointer w-full sm:w-auto justify-center"
+          >
+            <Building2 className="w-4 h-4" />
+            <span>Open a Verified Store</span>
+          </button>
+        )}
       </div>
 
       {/* Stores Grid */}
@@ -80,6 +86,11 @@ export const StoresDirectoryView: React.FC<StoresDirectoryViewProps> = ({
                       {store.name}
                     </h3>
                     <CheckCircle2 className="w-4 h-4 text-[#00875A] shrink-0" />
+                    {isNewStore(store) && (
+                      <span className="shrink-0 rounded bg-[#D84315] px-1.5 py-0.5 text-[9px] font-extrabold uppercase leading-none tracking-wide text-white">
+                        New
+                      </span>
+                    )}
                   </div>
 
                   <p className="text-xs font-semibold text-[#0B3B60] dark:text-[#38BDF8] line-clamp-1">

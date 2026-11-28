@@ -42,6 +42,7 @@ import {
 import { 
   StoresDirectoryView 
 } from './components/StoresDirectoryView';
+import { StoreSpotlight } from './components/StoreSpotlight';
 import { 
   PropertyVehiclesView 
 } from './components/PropertyVehiclesView';
@@ -61,6 +62,7 @@ import { AdminCMSModal } from './components/AdminCMSModal';
 import { AdminStoreApprovals } from './components/AdminStoreApprovals';
 import { AuthHealthBanner } from './components/AuthHealthBanner';
 import { ApplicationInbox } from './components/ApplicationInbox';
+import { IntentChooser, IntentSwitcher } from './components/IntentChooser';
 import { getInitialTheme, applyTheme, ThemeMode } from './lib/theme';
 import {
   buildApplicationInbox,
@@ -78,7 +80,8 @@ import {
   VendorStore,
   BlueCollarService,
   UserProfile,
-  ViewMode
+  ViewMode,
+  VisitorIntent
 } from './types';
 import { 
   INITIAL_PRODUCTS, 
@@ -89,6 +92,7 @@ import {
 import { api, setClerkTokenProvider, type StoreSubmission } from './services/api';
 import { 
   PackageSearch,
+  Search,
   CheckCircle2,
   Building2,
   Wrench,
@@ -111,6 +115,19 @@ import {
 
 /** Addresses that belong to the property track (short stays, estates, land, vehicles). */
 const PROPERTY_PATHS = ['/property', '/properties', '/real-estate', '/vehicles', '/land', '/stays'];
+
+const VISITOR_INTENT_KEY = 'abu_visitor_intent';
+
+/** Reads the saved experience from a previous visit, or null for a first-time visitor. */
+function readStoredIntent(): VisitorIntent | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const saved = window.localStorage.getItem(VISITOR_INTENT_KEY);
+    return saved === 'buyer' || saved === 'service' || saved === 'seller' ? saved : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Canonical URL for each browse view. Everything else keeps whatever path it already has. */
 const VIEW_PATHS: Record<string, string> = {
@@ -236,6 +253,13 @@ export default function App() {
   };
 
   const handleOpenMerchantHub = (tab: 'store' | 'single_product' | 'service' | 'applications' | 'dashboard' = 'store') => {
+    // Seller tools are unlocked only by the Selling experience. This guard keeps every
+    // entry point (store buttons, footer link, chatbot) behind that choice, including ones
+    // added later.
+    if (intent !== 'seller') {
+      showToast('Switch to the Selling experience to use seller tools');
+      return;
+    }
     // Remember the requested tab so the hub opens on it after a pending sign-in lands.
     setMerchantHubTab(tab);
     if (!activeUser) {
@@ -466,12 +490,32 @@ export default function App() {
     }
   }, []);
 
+  // An approval can land while a shopper keeps browsing, so the directory is refreshed
+  // when the tab regains focus and quietly once a minute. Without this a newly approved
+  // store only appeared after a full reload.
+  useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') void refreshStores();
+    };
+    window.addEventListener('focus', refreshIfVisible);
+    const timer = window.setInterval(refreshIfVisible, 60_000);
+    return () => {
+      window.removeEventListener('focus', refreshIfVisible);
+      window.clearInterval(timer);
+    };
+  }, [refreshStores]);
+
   // 1. Navigation View Mode ('marketplace' | 'services' | 'stores' | 'property')
   const [activeView, setActiveView] = useState<ViewMode>(() => {
     if (typeof window === 'undefined') return 'marketplace';
     // A reload on /services, /stores or a property deep link reopens that view.
     return viewFromPath(window.location.pathname.toLowerCase()) ?? 'marketplace';
   });
+
+  // The visitor's chosen experience. First-time visitors are asked once; afterwards the
+  // choice is remembered and can be switched from the experience bar.
+  const [intent, setIntent] = useState<VisitorIntent | null>(() => readStoredIntent());
+  const [isIntentChooserOpen, setIsIntentChooserOpen] = useState<boolean>(() => readStoredIntent() === null);
 
   // Keep the address bar on the current view, so switching views is linkable and a
   // reload lands where the visitor was. Paths this app does not own (auth screens,
@@ -505,6 +549,10 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentLocation, setCurrentLocation] = useState<LocationNode>(SIERRA_LEONE_LOCATIONS[0]);
   const [selectedStoreFilter, setSelectedStoreFilter] = useState<VendorStore | null>(null);
+  // A selected storefront renders its own catalog from the store API, so items are not
+  // guessed from the seller name on marketplace products.
+  const [storeCatalog, setStoreCatalog] = useState<Product[] | null>(null);
+  const [isStoreCatalogLoading, setIsStoreCatalogLoading] = useState(false);
 
   // A public storefront link (the one in the approval email) opens that store's catalog
   // view directly. The directory loads first, so this applies once the store is known.
@@ -519,6 +567,27 @@ export default function App() {
     setSelectedStoreFilter(match);
     setActiveView('marketplace');
   }, [stores]);
+
+  // Load the selected store's catalog from the store API. A late answer for a store the
+  // shopper has already navigated away from is dropped, so it cannot replace the view.
+  useEffect(() => {
+    if (!selectedStoreFilter) {
+      setStoreCatalog(null);
+      setIsStoreCatalogLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setIsStoreCatalogLoading(true);
+    const key = selectedStoreFilter.slug || selectedStoreFilter.id;
+    void api.getStore(key).then((result) => {
+      if (cancelled) return;
+      setStoreCatalog(result ? result.products : null);
+      setIsStoreCatalogLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedStoreFilter]);
   
   // Filtering & Sorting
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating' | 'sold'>('featured');
@@ -629,6 +698,44 @@ export default function App() {
     }, 3000);
   };
 
+  /** Opens a store's catalog from the homepage shelf or a search result. */
+  const handleSelectStore = (store: VendorStore) => {
+    setSelectedStoreFilter(store);
+    setActiveView('marketplace');
+    showToast(`Viewing storefront: ${store.name}`);
+  };
+
+  /**
+   * Applies a marketplace experience. Buying keeps the product catalog, services opens the
+   * artisan directory, and selling reveals the store/listing tools. Clearing the store and
+   * search state keeps the destination view from inheriting a stale filter.
+   */
+  const handleChooseIntent = (next: VisitorIntent) => {
+    setIntent(next);
+    setIsIntentChooserOpen(false);
+    try {
+      window.localStorage.setItem(VISITOR_INTENT_KEY, next);
+    } catch {
+      // Storage can be blocked; the choice still applies for this visit.
+    }
+    setSelectedStoreFilter(null);
+    setSearchQuery('');
+    setSelectedCategory('All');
+    setActiveView(next === 'service' ? 'services' : 'marketplace');
+    showToast(
+      next === 'seller'
+        ? 'Selling experience: open your store, listings and services'
+        : next === 'service'
+          ? 'Service experience: find and book certified artisans'
+          : 'Buying experience: browse verified products',
+    );
+  };
+
+  /** Seller tools stay hidden outside the Selling experience, so guide the visitor there. */
+  const handleSellerOnlyHint = () => {
+    showToast('Switch to the Selling experience to open the seller hub');
+  };
+
   // Categories list
   const categories: Category[] = [
     'All',
@@ -678,12 +785,19 @@ export default function App() {
     return counts;
   }, [products, services]);
 
-  // Filtered & Sorted products
+  // Filtered & Sorted products. A chosen storefront uses its server catalog; the global
+  // product list only fills in while that read is in flight or unavailable.
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
-      // Store filter if set
+    const source = selectedStoreFilter && storeCatalog ? storeCatalog : products;
+    return source.filter((p) => {
+      // Store filter if set. Approved stores list their items against their own id or
+      // full shop name, so compare both instead of a truncated name prefix.
       if (selectedStoreFilter) {
-        const matchesStore = p.sellerName.toLowerCase().includes(selectedStoreFilter.name.toLowerCase().slice(0, 6));
+        const storeName = selectedStoreFilter.name.toLowerCase();
+        const matchesStore =
+          p.storeId === selectedStoreFilter.id ||
+          p.sellerName.toLowerCase() === storeName ||
+          p.sellerName.toLowerCase().includes(storeName);
         if (!matchesStore) return false;
       }
       // Category filter
@@ -711,7 +825,44 @@ export default function App() {
       if (sortBy === 'sold') return b.soldCount - a.soldCount;
       return 0;
     });
-  }, [products, selectedCategory, searchQuery, onlyVerified, inStockOnly, sortBy, selectedStoreFilter]);
+  }, [products, storeCatalog, selectedCategory, searchQuery, onlyVerified, inStockOnly, sortBy, selectedStoreFilter]);
+
+  // Search covers the store directory too: an approved store may not have listed a
+  // product yet, so its shop name has to be findable on its own.
+  const matchingStores = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return stores.filter((store) =>
+      [store.name, store.tagline, store.description, store.locationHub, store.province, store.streetAddress]
+        .some((field) => (field || '').toLowerCase().includes(q)),
+    );
+  }, [stores, searchQuery]);
+
+  // Shopfronts that came from admin approvals, newest decision first, lead the homepage
+  // shelf so a merchant who was just approved is visible without a manual search.
+  const homeStores = useMemo(() => {
+    const seededIds = new Set(INITIAL_STORES.map((store) => store.id));
+    const seededSlugs = new Set(INITIAL_STORES.map((store) => store.slug.toLowerCase()));
+    const approved = stores.filter(
+      (store) => !seededIds.has(store.id) && !seededSlugs.has(store.slug.toLowerCase()),
+    );
+    const seeded = stores.filter((store) => !approved.includes(store));
+    return [...approved, ...seeded];
+  }, [stores]);
+
+  // Categories actually stocked by the selected storefront, so its filter can never
+  // dead-end on a category the shop does not sell.
+  const storefrontCategories = useMemo(() => {
+    if (!selectedStoreFilter) return [];
+    const items = storeCatalog ?? [];
+    return [...new Set(items.map((p) => p.category))].sort();
+  }, [selectedStoreFilter, storeCatalog]);
+
+  // A new storefront starts from all of its items rather than inheriting the previous
+  // marketplace category filter, which may not exist in this shop.
+  useEffect(() => {
+    if (selectedStoreFilter) setSelectedCategory('All');
+  }, [selectedStoreFilter]);
 
   // Sections for Minimalist Screenshot Layout when on default "All" view without active search/store filter
   const isSectionedHome = activeView === 'marketplace' && selectedCategory === 'All' && !searchQuery.trim() && !selectedStoreFilter && !onlyVerified && !inStockOnly && sortBy === 'featured';
@@ -941,12 +1092,16 @@ export default function App() {
 
       {/* Everything below the header is the page's main landmark. */}
       <main id="main-content" tabIndex={-1} className="flex-1 scroll-mt-20 focus:outline-none">
+      {/* Chosen experience bar: visible on every view so shoppers can switch easily. */}
+      {intent && <IntentSwitcher intent={intent} onSelect={handleChooseIntent} />}
+
       {/* VIEW: BLUE-COLLAR SERVICES */}
       {activeView === 'services' && (
         <BlueCollarServicesView
           services={services}
           onBookService={(srv) => setSelectedServiceToBook(srv)}
           onOpenRegisterModal={() => setIsMerchantHubOpen(true)}
+          showRegisterCta={intent === 'seller'}
         />
       )}
 
@@ -954,12 +1109,9 @@ export default function App() {
       {activeView === 'stores' && (
         <StoresDirectoryView
           stores={stores}
-          onSelectStore={(st) => {
-            setSelectedStoreFilter(st);
-            setActiveView('marketplace');
-            showToast(`Viewing storefront: ${st.name}`);
-          }}
+          onSelectStore={handleSelectStore}
           onOpenCreateStore={() => setIsMerchantHubOpen(true)}
+          showCreateStoreCta={intent === 'seller'}
         />
       )}
 
@@ -972,9 +1124,26 @@ export default function App() {
       {/* VIEW: MARKETPLACE PRODUCTS (CLEAN, MINIMALIST SHOP-BY-CATEGORY LAYOUT) */}
       {activeView === 'marketplace' && (
         <>
-          {/* Seller shortcuts live here rather than in the header, and only render for a
-              signed-in account, so "Create Store" never appears to a visitor. */}
-          {activeUser && (
+          {/* Seller shortcuts are part of the Selling experience only: a visitor shopping
+              or hiring services never sees "Create Store" or listing tools. */}
+          {intent === 'seller' && !activeUser && (
+            <div className="max-w-[1440px] mx-auto w-full px-3 sm:px-6 pt-3">
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#00875A]/35 bg-[#F0FBF6] px-3 py-2 shadow-2xs dark:border-[#00875A]/50 dark:bg-[#0E2A22]">
+                <p className="mr-auto min-w-0 text-[11px] font-semibold text-[#00704A] dark:text-[#8df7c1]">
+                  Selling on ABU: open a verified store, list products or offer artisan services.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleOpenMerchantHub('store')}
+                  className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-[#00875A] px-3 text-[11px] font-bold text-white transition-colors hover:bg-[#00704A] cursor-pointer"
+                >
+                  <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
+                  Start selling
+                </button>
+              </div>
+            </div>
+          )}
+          {activeUser && intent === 'seller' && (
             <div className="max-w-[1440px] mx-auto w-full px-3 sm:px-6 pt-3">
               <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#E7ECF0] bg-white px-3 py-2 shadow-2xs dark:border-[#1E2E3D] dark:bg-[#111D27]">
                 <p className="mr-auto min-w-0 truncate text-[11px] font-semibold text-[#5A6872] dark:text-slate-400">
@@ -1022,26 +1191,130 @@ export default function App() {
             onSelectView={setActiveView}
           />
 
-          {/* Active Store Filter Notice if selected */}
+          {/* Storefront banner + controls: search, category, sort and stock filters all
+              operate on this store's own catalog. */}
           {selectedStoreFilter && (
             <div className="max-w-[1440px] mx-auto w-full px-3 sm:px-6 pt-2">
-              <div className="bg-white dark:bg-[#111D27] border border-[#E7ECF0] dark:border-[#1E2E3D] p-3 rounded flex items-center justify-between text-xs shadow-2xs">
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-[#0B3B60] dark:text-[#38BDF8]" />
-                  <span className="font-bold text-[#0B3B60] dark:text-[#38BDF8]">
-                    Storefront: {selectedStoreFilter.name}
-                  </span>
-                  <span className="text-[#5A6872] dark:text-slate-400 hidden sm:inline">
-                    · {selectedStoreFilter.locationHub}
-                  </span>
+              <div className="bg-white dark:bg-[#111D27] border border-[#E7ECF0] dark:border-[#1E2E3D] rounded shadow-2xs p-3">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 shrink-0 overflow-hidden rounded border border-[#DCE1E5] dark:border-[#1E2E3D] bg-[#F8F9FA] dark:bg-[#0E1720]">
+                    <img
+                      src={selectedStoreFilter.logo}
+                      alt={selectedStoreFilter.name}
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect fill="%230b3b60" width="100" height="100"/><text fill="%23ffffff" font-family="sans-serif" font-size="28" font-weight="bold" x="50%" y="60%" text-anchor="middle">ABU</text></svg>';
+                      }}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Building2 className="w-4 h-4 text-[#0B3B60] dark:text-[#38BDF8] shrink-0" aria-hidden="true" />
+                      <span className="font-bold text-xs sm:text-sm text-[#0B3B60] dark:text-[#38BDF8] truncate">
+                        {selectedStoreFilter.name}
+                      </span>
+                      {selectedStoreFilter.isVerified && (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#00875A] shrink-0" aria-label="Verified store" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-[#5A6872] dark:text-slate-400 truncate">
+                      {selectedStoreFilter.tagline} · {selectedStoreFilter.locationHub}
+                    </p>
+                    <p className="text-[10px] text-[#5A6872] dark:text-slate-400">
+                      Showing {filteredProducts.length} of {storeCatalog?.length ?? filteredProducts.length} items in this storefront
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSelectedStoreFilter(null)}
+                    className="bg-[#F4F6F8] dark:bg-[#1E2E3D] hover:bg-slate-200 dark:hover:bg-[#2A3E50] text-[#1A242D] dark:text-slate-200 px-2.5 py-1 rounded font-semibold text-[11px] flex items-center gap-1 cursor-pointer transition-colors shrink-0"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Show All Products</span>
+                    <span className="sm:hidden">All</span>
+                  </button>
                 </div>
-                <button
-                  onClick={() => setSelectedStoreFilter(null)}
-                  className="bg-[#F4F6F8] dark:bg-[#1E2E3D] hover:bg-slate-200 dark:hover:bg-[#2A3E50] text-[#1A242D] dark:text-slate-200 px-2.5 py-1 rounded font-semibold text-xs flex items-center gap-1 cursor-pointer transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Show All Products</span>
-                </button>
+
+                <div className="mt-2.5 pt-2.5 border-t border-[#E7ECF0] dark:border-[#1E2E3D] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                  <div className="relative flex items-center">
+                    <Search className="w-3.5 h-3.5 text-[#73777f] absolute left-2.5 pointer-events-none" aria-hidden="true" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder={`Search in ${selectedStoreFilter.name}...`}
+                      aria-label={`Search in ${selectedStoreFilter.name}`}
+                      className="w-full h-8 pl-8 pr-7 bg-[#F4F6F8] dark:bg-[#0E1720] text-[#1A242D] dark:text-slate-100 placeholder-[#73777f] text-xs rounded border border-transparent focus:border-[#0B3B60] dark:focus:border-[#38BDF8] focus:bg-white dark:focus:bg-[#111D27] focus:outline-none"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-slate-200 p-0.5 cursor-pointer"
+                        aria-label="Clear store search"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value as Category)}
+                    aria-label="Filter by category"
+                    className="h-8 rounded border border-[#DCE1E5] dark:border-[#1E2E3D] bg-white dark:bg-[#0E1720] px-2 text-xs font-semibold text-[#1A242D] dark:text-slate-200 cursor-pointer focus:outline-none focus:border-[#0B3B60] dark:focus:border-[#38BDF8]"
+                  >
+                    <option value="All">All categories ({storeCatalog?.length ?? 0})</option>
+                    {storefrontCategories.map((cat) => {
+                      const count = (storeCatalog ?? []).filter((p) => p.category === cat).length;
+                      return (
+                        <option key={cat} value={cat}>
+                          {cat} ({count})
+                        </option>
+                      );
+                    })}
+                  </select>
+
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                    aria-label="Sort store items"
+                    className="h-8 rounded border border-[#DCE1E5] dark:border-[#1E2E3D] bg-white dark:bg-[#0E1720] px-2 text-xs font-semibold text-[#1A242D] dark:text-slate-200 cursor-pointer focus:outline-none focus:border-[#0B3B60] dark:focus:border-[#38BDF8]"
+                  >
+                    <option value="featured">Sort: Featured</option>
+                    <option value="price-asc">Price: Low to High</option>
+                    <option value="price-desc">Price: High to Low</option>
+                    <option value="rating">Top Rated</option>
+                    <option value="sold">Best Selling</option>
+                  </select>
+
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-1.5 text-[11px] font-semibold text-[#1A242D] dark:text-slate-200 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={inStockOnly}
+                        onChange={(e) => setInStockOnly(e.target.checked)}
+                        className="h-3.5 w-3.5 accent-[#00875A] cursor-pointer"
+                      />
+                      In stock only
+                    </label>
+                    {(searchQuery || selectedCategory !== 'All' || inStockOnly || sortBy !== 'featured') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery('');
+                          setSelectedCategory('All');
+                          setInStockOnly(false);
+                          setSortBy('featured');
+                        }}
+                        className="text-[11px] font-semibold text-[#0B3B60] dark:text-[#38BDF8] hover:underline cursor-pointer"
+                      >
+                        Clear filters
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1076,6 +1349,15 @@ export default function App() {
                   ))}
                 </div>
               </section>
+
+              {/* SECTION: Verified Storefronts (newly approved merchants lead) */}
+              <StoreSpotlight
+                stores={homeStores}
+                title="Verified Stores & Showrooms"
+                subtitle="Newly approved merchants appear first"
+                onSelectStore={handleSelectStore}
+                onViewAll={() => setActiveView('stores')}
+              />
 
               {/* SECTION 2: Fashion & Footwear (West African Couture & Leather) */}
               <section className="w-full">
@@ -1565,11 +1847,32 @@ export default function App() {
           ) : (
             /* Filtered Catalog Grid */
             <div className="max-w-[1440px] mx-auto w-full px-3 sm:px-6 py-3">
+              {/* Stores matching the search, shown without needing a listed product */}
+              {!selectedStoreFilter && searchQuery.trim() && matchingStores.length > 0 && (
+                <div className="mb-4">
+                  <StoreSpotlight
+                    stores={matchingStores}
+                    title={`Stores matching “${searchQuery.trim()}”`}
+                    subtitle="Browse a merchant's storefront directly"
+                    onSelectStore={handleSelectStore}
+                    onViewAll={() => setActiveView('stores')}
+                  />
+                </div>
+              )}
+
               {/* Filter feedback row */}
               <div className="flex items-center justify-between mb-3 text-xs text-[#5A6872] dark:text-slate-400">
                 <div>
-                  Showing <strong className="text-[#0B3B60] dark:text-[#38BDF8]">{filteredProducts.length}</strong> items in{' '}
-                  <span className="font-semibold text-[#1A242D] dark:text-slate-200">{selectedCategory}</span>
+                  Showing <strong className="text-[#0B3B60] dark:text-[#38BDF8]">{filteredProducts.length}</strong>{' '}
+                  item{filteredProducts.length === 1 ? '' : 's'}
+                  {selectedStoreFilter ? (
+                    <> at <span className="font-semibold text-[#1A242D] dark:text-slate-200">{selectedStoreFilter.name}</span></>
+                  ) : (
+                    <> in <span className="font-semibold text-[#1A242D] dark:text-slate-200">{selectedCategory}</span></>
+                  )}
+                  {searchQuery.trim() && matchingStores.length > 0 && (
+                    <> · <strong className="text-[#0B3B60] dark:text-[#38BDF8]">{matchingStores.length}</strong> store{matchingStores.length === 1 ? '' : 's'}</>
+                  )}
                 </div>
                 {selectedCategory !== 'All' && (
                   <button
@@ -1581,12 +1884,23 @@ export default function App() {
                 )}
               </div>
 
-              {filteredProducts.length === 0 ? (
+              {filteredProducts.length === 0 && !isStoreCatalogLoading ? (
                 <div className="bg-white dark:bg-[#111D27] rounded border border-[#E7ECF0] dark:border-[#1E2E3D] p-12 text-center my-4">
                   <PackageSearch className="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-2" />
                   <h3 className="font-bold text-sm text-[#1A242D] dark:text-[#F1F5F9] mb-1">
-                    No items found matching criteria
+                    {selectedStoreFilter
+                      ? (storeCatalog?.length ?? 0) > 0
+                        ? 'No items in this store match your filters'
+                        : `${selectedStoreFilter.name} has not listed any products yet`
+                      : matchingStores.length > 0
+                        ? 'No products match this search'
+                        : 'No items found matching criteria'}
                   </h3>
+                  {matchingStores.length > 0 && !selectedStoreFilter && (
+                    <p className="text-xs text-[#5A6872] dark:text-slate-400">
+                      The matching stores above are live — visit one to see what they offer.
+                    </p>
+                  )}
                   <button
                     onClick={() => {
                       setSelectedCategory('All');
@@ -1657,6 +1971,7 @@ export default function App() {
       <Footer
         onOpenLocationPicker={() => setIsLocationPickerOpen(true)}
         onOpenMerchantHub={handleOpenMerchantHub}
+        canSellIntent={intent === 'seller'}
         isAuthenticated={Boolean(activeUser)}
         onOpenOrderTracking={() => setIsOrderTrackingOpen(true)}
         onOpenLegal={(docId) => {
@@ -1829,7 +2144,7 @@ export default function App() {
 
       {/* Functional & Responsive Q&A Chatbot */}
       <ChatbotWidget
-        onOpenMerchantHub={handleOpenMerchantHub}
+        onOpenMerchantHub={intent === 'seller' ? handleOpenMerchantHub : handleSellerOnlyHint}
         onOpenOrderTracking={() => setIsOrderTrackingOpen(true)}
         onOpenLocationPicker={() => setIsLocationPickerOpen(true)}
         onSelectCategory={(cat) => {
@@ -1853,6 +2168,13 @@ export default function App() {
         onResetCatalog={handleResetCatalogCMS}
         onShowToast={showToast}
         onOpenStoreApprovals={handleOpenApprovalsFromCMS}
+      />
+
+      {/* First-visit experience chooser (also the gate for seller-only tools). */}
+      <IntentChooser
+        isOpen={isIntentChooserOpen}
+        intent={intent}
+        onChoose={handleChooseIntent}
       />
 
       {/* Store application review queue */}

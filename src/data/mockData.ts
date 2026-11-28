@@ -1,4 +1,4 @@
-import type { LocationNode, Product, VendorStore, BlueCollarService } from '../types.ts';
+import type { LocationNode, Product, VendorStore, BlueCollarService } from '../types';
 import { EXPANDED_PRODUCTS, ADDITIONAL_STORES } from './expandedProducts.ts';
 
 export const SIERRA_LEONE_LOCATIONS: LocationNode[] = [
@@ -1255,7 +1255,7 @@ export const INITIAL_SERVICES: BlueCollarService[] = [
     rating: 4.95,
     completedJobs: 142,
     isAvailableNow: true,
-    avatar: '/src/assets/images/solar_inverter_power_station_1791485447453.jpg',
+    avatar: '/products/solar_inverter_power_station_1791485447453.jpg',
     description: 'Expert solar energy technician trained in high-voltage DC wiring, MPPT charge controllers, lithium/LiFePO4 battery banks, and automatic changeover switches for homes and offices.',
     skills: [
       'Inverter sizing & solar load calculation',
@@ -1282,7 +1282,7 @@ export const INITIAL_SERVICES: BlueCollarService[] = [
     rating: 4.88,
     completedJobs: 215,
     isAvailableNow: true,
-    avatar: '/src/assets/images/wireless_anc_headphones_1791485470426.jpg',
+    avatar: '/products/wireless_anc_headphones_1791485470426.jpg',
     description: 'Comprehensive domestic and commercial electrical contractor. Specializing in fault finding, distribution board upgrades, automated generator changeovers, and circuit breaker tripping repairs.',
     skills: [
       'Emergency power restoration & short-circuit repair',
@@ -1309,7 +1309,7 @@ export const INITIAL_SERVICES: BlueCollarService[] = [
     rating: 4.91,
     completedJobs: 178,
     isAvailableNow: true,
-    avatar: '/src/assets/images/smart_multi_cooker_1791485578647.jpg',
+    avatar: '/products/smart_multi_cooker_1791485578647.jpg',
     description: 'Certified refrigeration technician serving residential split ACs, inverter units, commercial display chillers, and deep freezers. We carry vacuum pumps and R410A / R32 refrigerant on mobile van.',
     skills: [
       'Deep chemical coil cleaning & mold flushing',
@@ -1336,7 +1336,7 @@ export const INITIAL_SERVICES: BlueCollarService[] = [
     rating: 4.82,
     completedJobs: 98,
     isAvailableNow: false,
-    avatar: '/src/assets/images/solar_pv_panel_monocrystalline_1791485557806.jpg',
+    avatar: '/products/solar_pv_panel_monocrystalline_1791485557806.jpg',
     description: 'Expert water reticulation and plumbing mechanic. Expert in overhead Gawa/Milla tank installations, automatic float switch connections, borehole submersible pumps, and bathroom piping.',
     skills: [
       'Automatic water pump pressure controller setup',

@@ -6,6 +6,8 @@ interface FooterProps {
   onOpenLocationPicker: () => void;
   onOpenMerchantHub: (tab?: 'store' | 'single_product' | 'service') => void;
   isAuthenticated?: boolean;
+  /** Selling tools are only offered in the Selling experience. */
+  canSellIntent?: boolean;
   onOpenOrderTracking: () => void;
   onOpenLegal?: (docId?: string) => void;
   onOpenCMS?: () => void;
@@ -16,6 +18,7 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenLocationPicker,
   onOpenMerchantHub,
   isAuthenticated = false,
+  canSellIntent = false,
   onOpenOrderTracking,
   onOpenLegal,
   onOpenCMS,
@@ -103,7 +106,7 @@ export const Footer: React.FC<FooterProps> = ({
               Services & Portals
             </h4>
             <ul className="space-y-2.5 pt-0.5">
-              {isAuthenticated && (
+              {isAuthenticated && canSellIntent && (
                 <li>
                   <button
                     onClick={() => onOpenMerchantHub('store')}

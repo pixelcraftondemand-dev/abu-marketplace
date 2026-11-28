@@ -343,6 +343,20 @@ export const api = {
     }
   },
 
+  /** One storefront's profile and its own catalog, resolved by id or slug. */
+  async getStore(idOrSlug: string): Promise<{ store: VendorStore; products: Product[] } | null> {
+    try {
+      const res = await fetch(`/api/stores/${encodeURIComponent(idOrSlug)}`);
+      // A store that is not live yet answers 404; the caller keeps its current view.
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.data ?? null;
+    } catch (err) {
+      console.warn('API error fetching store catalog:', err);
+      return null;
+    }
+  },
+
   async createStore(storeData: Partial<VendorStore>): Promise<VendorStore> {
     const res = await authFetch('/api/stores', {
       method: 'POST',

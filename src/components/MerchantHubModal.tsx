@@ -706,7 +706,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       phone: storePhone.trim(),
       payoutProvider: detection.carrier || 'orange',
       payoutPhone: storePhone.trim(),
-      logo: storeLogoUrl || '/src/assets/images/flagship_smartphone_device_1791485459581.jpg',
+      logo: storeLogoUrl || '/products/flagship_smartphone_device_1791485459581.jpg',
     };
 
     try {
@@ -753,15 +753,15 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
     const price = parseFloat(singlePrice) || 100;
     const originalPrice = Math.round(price * 1.2);
 
-    let assignedImage = '/src/assets/images/flagship_smartphone_device_1791485459581.jpg';
+    let assignedImage = '/products/flagship_smartphone_device_1791485459581.jpg';
     if (singleCategory === 'Solar & Power') {
-      assignedImage = '/src/assets/images/solar_inverter_power_station_1791485447453.jpg';
+      assignedImage = '/products/solar_inverter_power_station_1791485447453.jpg';
     } else if (singleCategory === 'Electronics & Audio') {
-      assignedImage = '/src/assets/images/wireless_anc_headphones_1791485470426.jpg';
+      assignedImage = '/products/wireless_anc_headphones_1791485470426.jpg';
     } else if (singleCategory === 'Fashion & Footwear') {
-      assignedImage = '/src/assets/images/leather_oxford_shoes_1791485481085.jpg';
+      assignedImage = '/products/leather_oxford_shoes_1791485481085.jpg';
     } else if (singleCategory === 'Home & Living') {
-      assignedImage = '/src/assets/images/smart_multi_cooker_1791485578647.jpg';
+      assignedImage = '/products/smart_multi_cooker_1791485578647.jpg';
     }
 
     const productPayload: Partial<Product> = {
@@ -816,7 +816,7 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
       calloutFeeSLE: parseFloat(calloutFeeSLE) || 100,
       skills: skills.length > 0 ? skills : ['On-site diagnosis', 'Standard tools supplied'],
       certification: certification.trim() || 'Certified Guild Artisan SL',
-      avatar: '/src/assets/images/solar_inverter_power_station_1791485447453.jpg',
+      avatar: '/products/solar_inverter_power_station_1791485447453.jpg',
     };
 
     try {

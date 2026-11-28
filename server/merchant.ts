@@ -1,6 +1,6 @@
 import { isSupabaseConfigured, supabaseAdmin } from './supabase.ts';
 import type { SubmissionRow } from './storeSubmissions.ts';
-import type { Product } from '../src/types/index.ts';
+import type { Product } from '../src/types';
 
 /**
  * Merchant self-service data.
@@ -145,20 +145,7 @@ export const EMPTY_SALES: MerchantSalesSummary = {
   awaitingDispatchCount: 0,
 };
 
-export const MERCHANT_CATEGORIES = [
-  'Phones & Tablets',
-  'Electronics & Audio',
-  'Solar & Power',
-  'Fashion & Footwear',
-  'Home & Living',
-  'Beauty & Health',
-  'Groceries & Food',
-  'Baby & Kids',
-  'Sports & Outdoors',
-  'Building & Hardware',
-] as const;
-
-const DEFAULT_PRODUCT_IMAGE = '/src/assets/images/flagship_smartphone_device_1791485459581.jpg';
+const DEFAULT_PRODUCT_IMAGE = '/products/flagship_smartphone_device_1791485459581.jpg';
 
 function numberOr(value: unknown, fallback = 0): number {
   const parsed = typeof value === 'number' ? value : Number.parseFloat(String(value ?? ''));
