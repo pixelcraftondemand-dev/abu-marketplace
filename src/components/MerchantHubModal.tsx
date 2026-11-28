@@ -46,7 +46,7 @@ import {
   Cell,
 } from 'recharts';
 import { Category, Product, VendorStore, BlueCollarService, TradeCategory, ItemCondition, UserProfile } from '../types';
-import { detectCarrier, INITIAL_PRODUCTS, INITIAL_STORES } from '../data/mockData';
+import { detectCarrier, INITIAL_PRODUCTS } from '../data/mockData';
 import { api, ApiError, StoreSubmission } from '../services/api';
 import { AbuLogo } from './AbuLogo';
 import { MerchantDashboard } from './MerchantDashboard';
@@ -506,9 +506,8 @@ export const MerchantHubModal: React.FC<MerchantHubModalProps> = ({
   const [certification, setCertification] = useState('');
 
   // Analytics Calculations
-  const availableStores = useMemo(() => {
-    return stores && stores.length > 0 ? stores : INITIAL_STORES;
-  }, [stores]);
+  // Seller analytics only ever cover real, approved stores — no demo shopfronts.
+  const availableStores = useMemo(() => stores ?? [], [stores]);
 
   const availableProducts = useMemo(() => {
     return products && products.length > 0 ? products : INITIAL_PRODUCTS;

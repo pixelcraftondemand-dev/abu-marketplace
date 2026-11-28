@@ -86,13 +86,13 @@ import {
 import { 
   INITIAL_PRODUCTS, 
   SIERRA_LEONE_LOCATIONS,
-  INITIAL_STORES,
   INITIAL_SERVICES
 } from './data/mockData';
 import { api, setClerkTokenProvider, type StoreSubmission } from './services/api';
 import { 
   PackageSearch,
   Search,
+  Link2,
   CheckCircle2,
   Building2,
   Wrench,
@@ -115,6 +115,14 @@ import {
 
 /** Addresses that belong to the property track (short stays, estates, land, vehicles). */
 const PROPERTY_PATHS = ['/property', '/properties', '/real-estate', '/vehicles', '/land', '/stays'];
+
+/** Whether a product belongs to a storefront: store id first, then the full seller name. */
+function belongsToStore(product: Product, store: VendorStore): boolean {
+  if (product.storeId === store.id) return true;
+  const seller = product.sellerName.trim().toLowerCase();
+  const name = store.name.trim().toLowerCase();
+  return seller === name || seller.includes(name);
+}
 
 const VISITOR_INTENT_KEY = 'abu_visitor_intent';
 
@@ -140,6 +148,41 @@ const VIEW_PATHS: Record<string, string> = {
 
 /** Public storefront links look like /stores/<slug>; /store/<slug> is accepted too. */
 const STORE_LINK_PATH = /^\/stores?\/([^/]+)\/?$/i;
+
+type StoreSort = 'featured' | 'price-asc' | 'price-desc' | 'rating' | 'sold';
+const STORE_SORTS: StoreSort[] = ['featured', 'price-asc', 'price-desc', 'rating', 'sold'];
+
+interface StorefrontFilterState {
+  q: string;
+  category: Category;
+  sort: StoreSort;
+  stock: boolean;
+}
+
+/** Builds the shareable storefront path, with filters only when they differ from default. */
+function storefrontPath(store: VendorStore, filters: StorefrontFilterState): string {
+  const params = new URLSearchParams();
+  if (filters.q.trim()) params.set('q', filters.q.trim());
+  if (filters.category !== 'All') params.set('category', filters.category);
+  if (filters.sort !== 'featured') params.set('sort', filters.sort);
+  if (filters.stock) params.set('stock', '1');
+  const query = params.toString();
+  return `/stores/${encodeURIComponent(store.slug)}${query ? `?${query}` : ''}`;
+}
+
+/** Reads filters from a storefront URL so a shared link reopens exactly that view. */
+function storefrontFiltersFromLocation(): StorefrontFilterState | null {
+  if (typeof window === 'undefined' || !storeSlugFromLocation()) return null;
+  const params = new URLSearchParams(window.location.search);
+  const category = params.get('category');
+  const sort = params.get('sort');
+  return {
+    q: params.get('q') ?? '',
+    category: (category || 'All') as Category,
+    sort: STORE_SORTS.includes(sort as StoreSort) ? (sort as StoreSort) : 'featured',
+    stock: params.get('stock') === '1',
+  };
+}
 
 const storeSlugFromLocation = (): string | null => {
   if (typeof window === 'undefined') return null;
@@ -341,7 +384,12 @@ export default function App() {
       } else {
         // Back/forward between browse views, including deep links into /property.
         const view = viewFromPath(path);
-        if (view) setActiveView(view);
+        if (view) {
+          setActiveView(view);
+          // Leaving a storefront URL closes the storefront rather than keeping a filtered
+          // catalog under a non-store address bar.
+          setSelectedStoreFilter(null);
+        }
         setIsWhatsAppAuthOpen(false);
         setIsCMSOpen(false);
       }
@@ -484,7 +532,9 @@ export default function App() {
   const refreshStores = useCallback(async () => {
     try {
       const remote = await api.getStores();
-      if (remote && remote.length > 0) setStores(remote);
+      // Accept an empty list too, so a directory that loses its last store does not keep
+      // showing the previous one.
+      if (Array.isArray(remote)) setStores(remote);
     } catch {
       // Keep the current directory when the API is unreachable.
     }
@@ -543,10 +593,15 @@ export default function App() {
     }
     return INITIAL_PRODUCTS;
   });
-  const [stores, setStores] = useState<VendorStore[]>(INITIAL_STORES);
+  // The directory holds approved merchants only; nothing is seeded client-side. Loading is
+  // tracked separately so the first paint shows "loading" rather than an empty directory.
+  const [stores, setStores] = useState<VendorStore[]>([]);
+  const [isStoresLoading, setIsStoresLoading] = useState(true);
   const [services, setServices] = useState<BlueCollarService[]>(INITIAL_SERVICES);
-  const [selectedCategory, setSelectedCategory] = useState<Category>('All');
-  const [searchQuery, setSearchQuery] = useState('');
+  // Filters open straight from a shared storefront URL on first paint.
+  const initialStorefrontFilters = useMemo(() => storefrontFiltersFromLocation(), []);
+  const [selectedCategory, setSelectedCategory] = useState<Category>(initialStorefrontFilters?.category ?? 'All');
+  const [searchQuery, setSearchQuery] = useState(initialStorefrontFilters?.q ?? '');
   const [currentLocation, setCurrentLocation] = useState<LocationNode>(SIERRA_LEONE_LOCATIONS[0]);
   const [selectedStoreFilter, setSelectedStoreFilter] = useState<VendorStore | null>(null);
   // A selected storefront renders its own catalog from the store API, so items are not
@@ -590,9 +645,56 @@ export default function App() {
   }, [selectedStoreFilter]);
   
   // Filtering & Sorting
-  const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating' | 'sold'>('featured');
+  const [sortBy, setSortBy] = useState<StoreSort>(initialStorefrontFilters?.sort ?? 'featured');
   const [onlyVerified, setOnlyVerified] = useState(false);
-  const [inStockOnly, setInStockOnly] = useState(false);
+  const [inStockOnly, setInStockOnly] = useState(initialStorefrontFilters?.stock ?? false);
+
+  // Keep the address bar in step with the storefront: /stores/<slug> carries the search,
+  // category, sort and stock filters, so the link can be shared or reloaded as-is. Filter
+  // changes replace the entry; opening a store adds one so Back returns to the directory.
+  const storeUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (selectedStoreFilter) {
+      const next = storefrontPath(selectedStoreFilter, {
+        q: searchQuery,
+        category: selectedCategory,
+        sort: sortBy,
+        stock: inStockOnly,
+      });
+      const current = `${window.location.pathname}${window.location.search}`;
+      if (current !== next) {
+        window.history[storeUrlRef.current ? 'replaceState' : 'pushState']({}, '', next);
+      }
+      storeUrlRef.current = selectedStoreFilter.slug;
+      return;
+    }
+    if (storeUrlRef.current) {
+      storeUrlRef.current = null;
+      window.history.replaceState({}, '', VIEW_PATHS[activeView] ?? '/');
+    }
+  }, [selectedStoreFilter, searchQuery, selectedCategory, sortBy, inStockOnly, activeView]);
+
+  // Back/Forward into a shared storefront URL restores the store and the filters it names.
+  useEffect(() => {
+    const applyStorefrontFromUrl = () => {
+      const slug = storeSlugFromLocation();
+      if (!slug) return;
+      const store = stores.find((candidate) => candidate.slug.toLowerCase() === slug.toLowerCase());
+      if (!store) return;
+      const filters = storefrontFiltersFromLocation();
+      if (filters) {
+        setSearchQuery(filters.q);
+        setSelectedCategory(filters.category);
+        setSortBy(filters.sort);
+        setInStockOnly(filters.stock);
+      }
+      setSelectedStoreFilter(store);
+      setActiveView('marketplace');
+    };
+    window.addEventListener('popstate', applyStorefrontFromUrl);
+    return () => window.removeEventListener('popstate', applyStorefrontFromUrl);
+  }, [stores]);
 
   // Cart & Wishlist
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -641,7 +743,7 @@ export default function App() {
           const matched = remoteLocations.find((l) => l.id === currentLocation.id);
           if (matched) setCurrentLocation(matched);
         }
-        if (remoteStores && remoteStores.length > 0) {
+        if (Array.isArray(remoteStores)) {
           setStores(remoteStores);
         }
         if (remoteServices && remoteServices.length > 0) {
@@ -650,6 +752,8 @@ export default function App() {
 
       } catch (e) {
         console.warn('Backend hydration notice:', e);
+      } finally {
+        setIsStoresLoading(false);
       }
     }
     loadBackendData();
@@ -701,8 +805,27 @@ export default function App() {
   /** Opens a store's catalog from the homepage shelf or a search result. */
   const handleSelectStore = (store: VendorStore) => {
     setSelectedStoreFilter(store);
+    // A shop opens on all of its items; the URL then carries any filters the shopper adds.
+    setSelectedCategory('All');
     setActiveView('marketplace');
     showToast(`Viewing storefront: ${store.name}`);
+  };
+
+  /** Copies the current storefront URL, including its active filters. */
+  const handleCopyStoreLink = async () => {
+    if (!selectedStoreFilter || typeof window === 'undefined') return;
+    const path = storefrontPath(selectedStoreFilter, {
+      q: searchQuery,
+      category: selectedCategory,
+      sort: sortBy,
+      stock: inStockOnly,
+    });
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}${path}`);
+      showToast('Storefront link copied');
+    } catch {
+      showToast('Could not copy the storefront link');
+    }
   };
 
   /**
@@ -785,21 +908,23 @@ export default function App() {
     return counts;
   }, [products, services]);
 
-  // Filtered & Sorted products. A chosen storefront uses its server catalog; the global
-  // product list only fills in while that read is in flight or unavailable.
+  // Items the selected storefront has right now. The server catalog is authoritative once
+  // it arrives; until then the already-loaded products that belong to the store keep the
+  // filter bar and counts truthful instead of reading zero during the request.
+  const storefrontItems = useMemo(() => {
+    if (!selectedStoreFilter) return [];
+    if (storeCatalog) return storeCatalog;
+    return products.filter((p) => belongsToStore(p, selectedStoreFilter));
+  }, [selectedStoreFilter, storeCatalog, products]);
+
+  // Filtered & Sorted products. A chosen storefront uses its own items; the global product
+  // list only fills in while that read is in flight or unavailable.
   const filteredProducts = useMemo(() => {
-    const source = selectedStoreFilter && storeCatalog ? storeCatalog : products;
+    const source = selectedStoreFilter ? storefrontItems : products;
     return source.filter((p) => {
       // Store filter if set. Approved stores list their items against their own id or
       // full shop name, so compare both instead of a truncated name prefix.
-      if (selectedStoreFilter) {
-        const storeName = selectedStoreFilter.name.toLowerCase();
-        const matchesStore =
-          p.storeId === selectedStoreFilter.id ||
-          p.sellerName.toLowerCase() === storeName ||
-          p.sellerName.toLowerCase().includes(storeName);
-        if (!matchesStore) return false;
-      }
+      if (selectedStoreFilter && !belongsToStore(p, selectedStoreFilter)) return false;
       // Category filter
       if (selectedCategory !== 'All' && p.category !== selectedCategory) {
         return false;
@@ -838,31 +963,22 @@ export default function App() {
     );
   }, [stores, searchQuery]);
 
-  // Shopfronts that came from admin approvals, newest decision first, lead the homepage
-  // shelf so a merchant who was just approved is visible without a manual search.
+  // Approved merchant shopfronts, newest decision first, lead the homepage shelf so a
+  // merchant who was just approved is visible without a manual search.
   const homeStores = useMemo(() => {
-    const seededIds = new Set(INITIAL_STORES.map((store) => store.id));
-    const seededSlugs = new Set(INITIAL_STORES.map((store) => store.slug.toLowerCase()));
-    const approved = stores.filter(
-      (store) => !seededIds.has(store.id) && !seededSlugs.has(store.slug.toLowerCase()),
-    );
-    const seeded = stores.filter((store) => !approved.includes(store));
-    return [...approved, ...seeded];
+    const approvedAt = (store: VendorStore) => {
+      const time = store.createdAt ? Date.parse(store.createdAt) : NaN;
+      return Number.isNaN(time) ? 0 : time;
+    };
+    return [...stores].sort((a, b) => approvedAt(b) - approvedAt(a));
   }, [stores]);
 
   // Categories actually stocked by the selected storefront, so its filter can never
   // dead-end on a category the shop does not sell.
   const storefrontCategories = useMemo(() => {
     if (!selectedStoreFilter) return [];
-    const items = storeCatalog ?? [];
-    return [...new Set(items.map((p) => p.category))].sort();
-  }, [selectedStoreFilter, storeCatalog]);
-
-  // A new storefront starts from all of its items rather than inheriting the previous
-  // marketplace category filter, which may not exist in this shop.
-  useEffect(() => {
-    if (selectedStoreFilter) setSelectedCategory('All');
-  }, [selectedStoreFilter]);
+    return [...new Set(storefrontItems.map((p) => p.category))].sort();
+  }, [selectedStoreFilter, storefrontItems]);
 
   // Sections for Minimalist Screenshot Layout when on default "All" view without active search/store filter
   const isSectionedHome = activeView === 'marketplace' && selectedCategory === 'All' && !searchQuery.trim() && !selectedStoreFilter && !onlyVerified && !inStockOnly && sortBy === 'featured';
@@ -1112,6 +1228,7 @@ export default function App() {
           onSelectStore={handleSelectStore}
           onOpenCreateStore={() => setIsMerchantHubOpen(true)}
           showCreateStoreCta={intent === 'seller'}
+          isLoading={isStoresLoading}
         />
       )}
 
@@ -1223,9 +1340,18 @@ export default function App() {
                       {selectedStoreFilter.tagline} · {selectedStoreFilter.locationHub}
                     </p>
                     <p className="text-[10px] text-[#5A6872] dark:text-slate-400">
-                      Showing {filteredProducts.length} of {storeCatalog?.length ?? filteredProducts.length} items in this storefront
+                      Showing {filteredProducts.length} of {storefrontItems.length} items in this storefront
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyStoreLink}
+                    title="Copy a shareable link to this storefront and its filters"
+                    aria-label="Copy storefront link"
+                    className="bg-[#F4F6F8] dark:bg-[#1E2E3D] hover:bg-slate-200 dark:hover:bg-[#2A3E50] text-[#0B3B60] dark:text-[#38BDF8] h-7 w-7 rounded flex items-center justify-center cursor-pointer transition-colors shrink-0"
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                  </button>
                   <button
                     onClick={() => setSelectedStoreFilter(null)}
                     className="bg-[#F4F6F8] dark:bg-[#1E2E3D] hover:bg-slate-200 dark:hover:bg-[#2A3E50] text-[#1A242D] dark:text-slate-200 px-2.5 py-1 rounded font-semibold text-[11px] flex items-center gap-1 cursor-pointer transition-colors shrink-0"
@@ -1265,9 +1391,9 @@ export default function App() {
                     aria-label="Filter by category"
                     className="h-8 rounded border border-[#DCE1E5] dark:border-[#1E2E3D] bg-white dark:bg-[#0E1720] px-2 text-xs font-semibold text-[#1A242D] dark:text-slate-200 cursor-pointer focus:outline-none focus:border-[#0B3B60] dark:focus:border-[#38BDF8]"
                   >
-                    <option value="All">All categories ({storeCatalog?.length ?? 0})</option>
+                    <option value="All">All categories ({storefrontItems.length})</option>
                     {storefrontCategories.map((cat) => {
-                      const count = (storeCatalog ?? []).filter((p) => p.category === cat).length;
+                      const count = storefrontItems.filter((p) => p.category === cat).length;
                       return (
                         <option key={cat} value={cat}>
                           {cat} ({count})
@@ -1884,17 +2010,19 @@ export default function App() {
                 )}
               </div>
 
-              {filteredProducts.length === 0 && !isStoreCatalogLoading ? (
+              {filteredProducts.length === 0 ? (
                 <div className="bg-white dark:bg-[#111D27] rounded border border-[#E7ECF0] dark:border-[#1E2E3D] p-12 text-center my-4">
                   <PackageSearch className="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-2" />
                   <h3 className="font-bold text-sm text-[#1A242D] dark:text-[#F1F5F9] mb-1">
-                    {selectedStoreFilter
-                      ? (storeCatalog?.length ?? 0) > 0
-                        ? 'No items in this store match your filters'
-                        : `${selectedStoreFilter.name} has not listed any products yet`
-                      : matchingStores.length > 0
-                        ? 'No products match this search'
-                        : 'No items found matching criteria'}
+                    {isStoreCatalogLoading && !storeCatalog && selectedStoreFilter
+                      ? `Loading ${selectedStoreFilter.name} catalog…`
+                      : selectedStoreFilter
+                        ? storefrontItems.length > 0
+                          ? 'No items in this store match your filters'
+                          : `${selectedStoreFilter.name} has not listed any products yet`
+                        : matchingStores.length > 0
+                          ? 'No products match this search'
+                          : 'No items found matching criteria'}
                   </h3>
                   {matchingStores.length > 0 && !selectedStoreFilter && (
                     <p className="text-xs text-[#5A6872] dark:text-slate-400">
@@ -2117,9 +2245,7 @@ export default function App() {
         onApplicationsUpdated={handleApplicationsUpdated}
         onViewStorefront={(store) => {
           setIsMerchantHubOpen(false);
-          setSelectedStoreFilter(store);
-          setActiveView('marketplace');
-          showToast(`Viewing storefront: ${store.name}`);
+          handleSelectStore(store);
         }}
       />
 

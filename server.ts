@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url';
 import { createClerkClient } from '@clerk/backend';
 import { GoogleGenAI } from '@google/genai';
 import type { Product, VendorStore, BlueCollarService, ServiceBooking } from './src/types';
-import { INITIAL_PRODUCTS, INITIAL_STORES, INITIAL_SERVICES } from './src/data/mockData.ts';
+import { INITIAL_PRODUCTS, INITIAL_SERVICES } from './src/data/mockData.ts';
 
 import {
   getSessionUser,
@@ -231,7 +231,9 @@ let orders: any[] = [
   },
 ];
 
-let stores: VendorStore[] = [...INITIAL_STORES];
+// No seeded demo storefronts: the public directory is approved merchants only. This array
+// still holds stores created through the legacy in-memory endpoint below.
+let stores: VendorStore[] = [];
 let services: BlueCollarService[] = [...INITIAL_SERVICES];
 let bookings: ServiceBooking[] = [];
 
@@ -801,10 +803,30 @@ app.post('/api/payments/ussd-push', async (req: Request, res: Response) => {
 });
 
 // 6. Vendor Stores API
-// Live stores = seeded directory plus every admin-approved submission.
+// Live stores = every admin-approved submission (newest first) plus any store created
+// through the legacy in-memory endpoint. The demo directory is intentionally not included.
+/** Counts what the storefront page would actually show for this store. */
+function catalogSize(store: VendorStore, catalog: Product[]): number {
+  const byStoreId = catalog.filter((p) => p.storeId === store.id);
+  if (byStoreId.length > 0) return byStoreId.length;
+  const name = store.name.trim().toLowerCase();
+  return catalog.filter((p) => p.sellerName.trim().toLowerCase() === name).length;
+}
+
 async function allStores(): Promise<VendorStore[]> {
   const approved = await approvedStores();
-  return [...approved, ...stores];
+  if (approved.length === 0) return [...stores];
+  // Live counts keep directory cards from advertising "0 items" for a shop that has a
+  // catalog. Both reads are cached upstream, so this does not hit the database each time.
+  const [merchant, listings] = await Promise.all([
+    merchantCatalog(),
+    approvedListings<Product>('product'),
+  ]);
+  const catalog = [...merchant, ...listings, ...products];
+  return [
+    ...approved.map((store) => ({ ...store, productCount: catalogSize(store, catalog) })),
+    ...stores,
+  ];
 }
 
 app.get('/api/stores', async (req: Request, res: Response) => {

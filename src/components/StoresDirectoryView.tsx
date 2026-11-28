@@ -19,6 +19,8 @@ interface StoresDirectoryViewProps {
   onOpenCreateStore: () => void;
   /** Opening a store is a selling tool, shown only in the Selling experience. */
   showCreateStoreCta?: boolean;
+  /** True while the approved-store list is still being read. */
+  isLoading?: boolean;
 }
 
 export const StoresDirectoryView: React.FC<StoresDirectoryViewProps> = ({
@@ -26,6 +28,7 @@ export const StoresDirectoryView: React.FC<StoresDirectoryViewProps> = ({
   onSelectStore,
   onOpenCreateStore,
   showCreateStoreCta = true,
+  isLoading = false,
 }) => {
   return (
     <div className="max-w-[1440px] mx-auto px-3 sm:px-6 py-4 w-full max-w-full overflow-hidden">
@@ -59,7 +62,30 @@ export const StoresDirectoryView: React.FC<StoresDirectoryViewProps> = ({
         )}
       </div>
 
-      {/* Stores Grid */}
+      {/* Stores Grid — approved merchants only, newest approval first */}
+      {stores.length === 0 ? (
+        isLoading ? (
+          <div className="rounded-lg border border-[#DCE1E5] dark:border-[#1E2E3D] bg-white dark:bg-[#111D27] p-8 text-center shadow-2xs" role="status">
+            <Building2 className="w-8 h-8 mx-auto text-[#0B3B60] dark:text-[#38BDF8] animate-pulse" aria-hidden="true" />
+            <h3 className="mt-2 text-sm font-extrabold text-[#1A242D] dark:text-[#F1F5F9]">
+              Loading verified storefronts…
+            </h3>
+            <p className="mt-1 text-xs text-[#5A6872] dark:text-slate-400">
+              Fetching the current approved merchant directory.
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-[#DCE1E5] dark:border-[#1E2E3D] bg-white dark:bg-[#111D27] p-8 text-center shadow-2xs">
+            <Building2 className="w-8 h-8 mx-auto text-[#0B3B60] dark:text-[#38BDF8]" aria-hidden="true" />
+            <h3 className="mt-2 text-sm font-extrabold text-[#1A242D] dark:text-[#F1F5F9]">
+              No approved storefronts yet
+            </h3>
+            <p className="mt-1 text-xs text-[#5A6872] dark:text-slate-400">
+              Newly approved merchants will appear here automatically once an admin reviews their store application.
+            </p>
+          </div>
+        )
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
         {stores.map((store) => (
           <div
@@ -129,7 +155,7 @@ export const StoresDirectoryView: React.FC<StoresDirectoryViewProps> = ({
                 <div>
                   <span className="text-[10px] text-[#5A6872] dark:text-slate-400 block">Listed SKUs</span>
                   <span className="font-bold text-[#0B3B60] dark:text-[#38BDF8] tabular-nums">
-                    {store.productCount} items
+                    {store.productCount} item{store.productCount === 1 ? '' : 's'}
                   </span>
                 </div>
               </div>
@@ -152,6 +178,7 @@ export const StoresDirectoryView: React.FC<StoresDirectoryViewProps> = ({
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 };
